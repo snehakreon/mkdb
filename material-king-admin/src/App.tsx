@@ -5,7 +5,7 @@ import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, Credit
 // CONFIGURATION
 // ============================================================================
 const USE_REAL_API = true;
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 // ============================================================================
 // TYPES
