@@ -1,0 +1,16 @@
+# Node.js
+node_modules/
+.env
+package-lock.json
+
+# PostgreSQL
+*.sql.bak
+*.dump
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

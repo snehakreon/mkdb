@@ -1,0 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { font-family: 'Montserrat', sans-serif; }
+  body { @apply bg-gray-50; }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-mk-red text-white rounded-lg hover:bg-mk-red-600 font-semibold shadow-md transition;
+  }
+  .input-field {
+    @apply w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-mk-red;
+  }
+}
