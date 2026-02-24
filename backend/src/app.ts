@@ -3,6 +3,10 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import authRoutes from "./modules/auth/auth.routes";
+import zoneRoutes from "./modules/zone/zone.routes";
+import categoryRoutes from "./modules/category/category.routes";
+import brandRoutes from "./modules/brand/brand.routes";
+import vendorRoutes from "./modules/vendor/vendor.routes";
 import { errorHandler } from "./middleware/error.middleware";
 
 dotenv.config();
@@ -26,6 +30,10 @@ app.use(cookieParser());
 
 // Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/zones", zoneRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/brands", brandRoutes);
+app.use("/api/vendors", vendorRoutes);
 
 // Health check
 app.get("/", (_req, res) => {
