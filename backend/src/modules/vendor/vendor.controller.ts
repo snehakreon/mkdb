@@ -43,19 +43,19 @@ export const getById = async (req: Request, res: Response) => {
 export const create = async (req: Request, res: Response) => {
   try {
     const {
-      vendor_code, company_name, gstin,
+      vendor_code, company_name, gstin, pan,
       contact_person_name, contact_phone, contact_email,
     } = req.body;
 
     const result = await pool.query(
-      `INSERT INTO vendors (vendor_code, company_name, gstin,
+      `INSERT INTO vendors (vendor_code, company_name, gstin, pan,
                             contact_person_name, contact_phone, contact_email,
                             verification_status, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, 'pending', true)
-       RETURNING id, vendor_code, company_name, gstin,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', true)
+       RETURNING id, vendor_code, company_name, gstin, pan,
                  contact_person_name, contact_phone, contact_email,
                  verification_status, is_active, created_at`,
-      [vendor_code, company_name, gstin, contact_person_name, contact_phone, contact_email]
+      [vendor_code, company_name, gstin, pan || 'AAAAAAAAAA', contact_person_name, contact_phone, contact_email]
     );
 
     res.status(201).json(result.rows[0]);
