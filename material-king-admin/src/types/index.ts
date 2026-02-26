@@ -28,7 +28,7 @@ export interface Category {
 export interface Brand {
   id: string;
   brand_name: string;
-  slug: string;
+  brand_code: string;
   is_active: boolean;
 }
 

@@ -5,7 +5,7 @@ import pool from "../../config/db";
 export const getAll = async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(
-      "SELECT id, brand_name, slug, is_active, created_at FROM brands ORDER BY brand_name"
+      "SELECT id, brand_name, brand_code, is_active, created_at FROM brands ORDER BY brand_name"
     );
     res.json(result.rows);
   } catch (error: any) {
@@ -17,12 +17,12 @@ export const getAll = async (_req: Request, res: Response) => {
 // POST /api/brands
 export const create = async (req: Request, res: Response) => {
   try {
-    const { brand_name, slug } = req.body;
+    const { brand_name, brand_code } = req.body;
     const result = await pool.query(
-      `INSERT INTO brands (brand_name, brand_code, slug, is_active)
-       VALUES ($1, $2, $3, true)
-       RETURNING id, brand_name, slug, is_active, created_at`,
-      [brand_name, slug.toUpperCase(), slug]
+      `INSERT INTO brands (brand_name, brand_code, is_active)
+       VALUES ($1, $2, true)
+       RETURNING id, brand_name, brand_code, is_active, created_at`,
+      [brand_name, brand_code.toUpperCase()]
     );
     res.status(201).json(result.rows[0]);
   } catch (error: any) {
@@ -38,14 +38,14 @@ export const create = async (req: Request, res: Response) => {
 export const update = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { brand_name, slug, is_active } = req.body;
+    const { brand_name, brand_code, is_active } = req.body;
     const result = await pool.query(
       `UPDATE brands SET brand_name = COALESCE($1, brand_name),
-                         slug = COALESCE($2, slug),
+                         brand_code = COALESCE($2, brand_code),
                          is_active = COALESCE($3, is_active)
        WHERE id = $4
-       RETURNING id, brand_name, slug, is_active`,
-      [brand_name, slug, is_active, id]
+       RETURNING id, brand_name, brand_code, is_active`,
+      [brand_name, brand_code ? brand_code.toUpperCase() : null, is_active, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Brand not found" });

@@ -114,31 +114,47 @@ async function seed() {
     `);
     console.log("  user_roles table OK");
 
-    // -- categories: add slug if missing --
+    // -- categories: add category_code if missing --
     await pool.query(`
       DO $$
       BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='categories' AND column_name='slug') THEN
-          ALTER TABLE categories ADD COLUMN slug VARCHAR(100);
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='categories' AND column_name='category_code') THEN
+          ALTER TABLE categories ADD COLUMN category_code VARCHAR(20);
         END IF;
       END $$;
     `);
     await pool.query(
-      `UPDATE categories SET slug = LOWER(REPLACE(category_name, ' ', '-')) WHERE slug IS NULL`
+      `UPDATE categories SET category_code = 'CAT-' || UPPER(LEFT(REPLACE(category_name, ' ', ''), 3)) WHERE category_code IS NULL`
     );
 
-    // -- brands: add slug if missing --
+    // -- brands: add brand_code if missing --
     await pool.query(`
       DO $$
       BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brands' AND column_name='slug') THEN
-          ALTER TABLE brands ADD COLUMN slug VARCHAR(100);
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brands' AND column_name='brand_code') THEN
+          ALTER TABLE brands ADD COLUMN brand_code VARCHAR(20);
         END IF;
       END $$;
     `);
     await pool.query(
-      `UPDATE brands SET slug = LOWER(REPLACE(brand_name, ' ', '-')) WHERE slug IS NULL`
+      `UPDATE brands SET brand_code = 'BRD-' || UPPER(LEFT(REPLACE(brand_name, ' ', ''), 3)) WHERE brand_code IS NULL`
     );
+
+    // -- zone_pincodes: city and state are optional per schema --
+    await pool.query(`
+      DO $$
+      BEGIN
+        ALTER TABLE zone_pincodes ALTER COLUMN city DROP NOT NULL;
+      EXCEPTION WHEN others THEN NULL;
+      END $$;
+    `);
+    await pool.query(`
+      DO $$
+      BEGIN
+        ALTER TABLE zone_pincodes ALTER COLUMN state DROP NOT NULL;
+      EXCEPTION WHEN others THEN NULL;
+      END $$;
+    `);
 
     console.log("Migrations complete.");
   } catch (error: any) {
