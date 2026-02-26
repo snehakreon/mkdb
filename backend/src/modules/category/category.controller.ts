@@ -5,7 +5,7 @@ import pool from "../../config/db";
 export const getAll = async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(
-      "SELECT id, category_name, slug, is_active, created_at FROM categories ORDER BY category_name"
+      "SELECT id, category_name, category_code, is_active, created_at FROM categories ORDER BY category_name"
     );
     res.json(result.rows);
   } catch (error: any) {
@@ -17,12 +17,12 @@ export const getAll = async (_req: Request, res: Response) => {
 // POST /api/categories
 export const create = async (req: Request, res: Response) => {
   try {
-    const { category_name, slug } = req.body;
+    const { category_name, category_code } = req.body;
     const result = await pool.query(
-      `INSERT INTO categories (category_name, category_code, slug, is_active)
-       VALUES ($1, $2, $3, true)
-       RETURNING id, category_name, slug, is_active, created_at`,
-      [category_name, slug.toUpperCase(), slug]
+      `INSERT INTO categories (category_name, category_code, is_active)
+       VALUES ($1, $2, true)
+       RETURNING id, category_name, category_code, is_active, created_at`,
+      [category_name, category_code.toUpperCase()]
     );
     res.status(201).json(result.rows[0]);
   } catch (error: any) {
@@ -38,14 +38,14 @@ export const create = async (req: Request, res: Response) => {
 export const update = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { category_name, slug, is_active } = req.body;
+    const { category_name, category_code, is_active } = req.body;
     const result = await pool.query(
       `UPDATE categories SET category_name = COALESCE($1, category_name),
-                             slug = COALESCE($2, slug),
+                             category_code = COALESCE($2, category_code),
                              is_active = COALESCE($3, is_active)
        WHERE id = $4
-       RETURNING id, category_name, slug, is_active`,
-      [category_name, slug, is_active, id]
+       RETURNING id, category_name, category_code, is_active`,
+      [category_name, category_code ? category_code.toUpperCase() : null, is_active, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Category not found" });

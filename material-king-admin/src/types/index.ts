@@ -21,7 +21,7 @@ export interface Vendor {
 export interface Category {
   id: string;
   category_name: string;
-  slug: string;
+  category_code: string;
   is_active: boolean;
 }
 

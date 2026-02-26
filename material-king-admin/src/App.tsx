@@ -457,7 +457,7 @@ function CategoriesModule() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Category | null>(null);
-  const [formData, setFormData] = useState({ category_name: '', slug: '' });
+  const [formData, setFormData] = useState({ category_name: '', category_code: '' });
   const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
@@ -468,8 +468,8 @@ function CategoriesModule() {
 
   useEffect(() => { loadData(); }, []);
 
-  const handleAdd = () => { setEditingItem(null); setFormData({ category_name: '', slug: '' }); setShowModal(true); };
-  const handleEdit = (item: Category) => { setEditingItem(item); setFormData({ category_name: item.category_name, slug: item.slug }); setShowModal(true); };
+  const handleAdd = () => { setEditingItem(null); setFormData({ category_name: '', category_code: '' }); setShowModal(true); };
+  const handleEdit = (item: Category) => { setEditingItem(item); setFormData({ category_name: item.category_name, category_code: item.category_code }); setShowModal(true); };
 
   const handleSave = async () => {
     setSaving(true);
@@ -501,14 +501,14 @@ function CategoriesModule() {
           <table className="w-full">
             <thead className="bg-gray-50"><tr>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Slug</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Code</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
             </tr></thead>
             <tbody>{categories.map(cat => (
               <tr key={cat.id} className="border-t hover:bg-gray-50">
                 <td className="px-6 py-4 font-bold">{cat.category_name}</td>
-                <td className="px-6 py-4 text-sm">{cat.slug}</td>
+                <td className="px-6 py-4 text-sm">{cat.category_code}</td>
                 <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${cat.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{cat.is_active ? 'Active' : 'Inactive'}</span></td>
                 <td className="px-6 py-4"><div className="flex gap-2">
                   <button onClick={() => handleEdit(cat)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
@@ -523,7 +523,7 @@ function CategoriesModule() {
         <Modal title={editingItem ? 'Edit Category' : 'Add Category'} onClose={() => setShowModal(false)}>
           <div className="space-y-4">
             <div><label className="block text-sm font-bold mb-2">Category Name</label><input type="text" className="input-field" value={formData.category_name} onChange={e => setFormData({ ...formData, category_name: e.target.value })} placeholder="Plywood" /></div>
-            <div><label className="block text-sm font-bold mb-2">Slug</label><input type="text" className="input-field" value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} placeholder="plywood" /></div>
+            <div><label className="block text-sm font-bold mb-2">Category Code</label><input type="text" className="input-field" value={formData.category_code} onChange={e => setFormData({ ...formData, category_code: e.target.value })} placeholder="CAT-PLY" /></div>
           </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
