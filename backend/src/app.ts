@@ -7,6 +7,10 @@ import zoneRoutes from "./modules/zone/zone.routes";
 import categoryRoutes from "./modules/category/category.routes";
 import brandRoutes from "./modules/brand/brand.routes";
 import vendorRoutes from "./modules/vendor/vendor.routes";
+import productRoutes from "./modules/product/product.routes";
+import dealerRoutes from "./modules/dealer/dealer.routes";
+import orderRoutes from "./modules/order/order.routes";
+import buyerRoutes from "./modules/buyer/buyer.routes";
 import { errorHandler } from "./middleware/error.middleware";
 
 dotenv.config();
@@ -34,6 +38,10 @@ app.use("/api/zones", zoneRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/brands", brandRoutes);
 app.use("/api/vendors", vendorRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/dealers", dealerRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/buyers", buyerRoutes);
 
 // Health check
 app.get("/", (_req, res) => {

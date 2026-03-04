@@ -156,6 +156,158 @@ async function seed() {
       END $$;
     `);
 
+    // -- Ensure buyers table exists --
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS buyers (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        company_name VARCHAR(255) NOT NULL,
+        gstin VARCHAR(15),
+        pan VARCHAR(10),
+        company_address TEXT,
+        billing_address TEXT,
+        company_type VARCHAR(50),
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("  buyers table OK");
+
+    // -- Ensure projects table exists --
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS projects (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        buyer_id UUID NOT NULL REFERENCES buyers(id) ON DELETE CASCADE,
+        project_name VARCHAR(255) NOT NULL,
+        project_code VARCHAR(50) UNIQUE NOT NULL,
+        project_type VARCHAR(50),
+        delivery_address TEXT NOT NULL,
+        delivery_pincode VARCHAR(10) NOT NULL,
+        delivery_city VARCHAR(100),
+        delivery_state VARCHAR(100),
+        delivery_landmark TEXT,
+        delivery_zone_id UUID REFERENCES zones(id),
+        site_manager_name VARCHAR(100),
+        site_manager_phone VARCHAR(15),
+        estimated_budget DECIMAL(15, 2),
+        start_date DATE,
+        expected_completion_date DATE,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_by UUID REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("  projects table OK");
+
+    // -- Ensure dealers table exists --
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS dealers (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        dealer_code VARCHAR(20) UNIQUE NOT NULL,
+        company_name VARCHAR(255) NOT NULL,
+        gstin VARCHAR(15) UNIQUE NOT NULL,
+        pan VARCHAR(10) NOT NULL,
+        bank_account_number VARCHAR(50),
+        bank_ifsc VARCHAR(11),
+        bank_name VARCHAR(100),
+        bank_branch VARCHAR(100),
+        credit_limit DECIMAL(15, 2) DEFAULT 0,
+        available_credit DECIMAL(15, 2) DEFAULT 0,
+        credit_payment_terms_days INT DEFAULT 0,
+        approval_status VARCHAR(20) DEFAULT 'pending',
+        approved_by UUID REFERENCES users(id),
+        approved_at TIMESTAMP,
+        business_address TEXT,
+        contact_phone VARCHAR(15),
+        contact_email VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("  dealers table OK");
+
+    // -- Ensure orders table exists --
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS orders (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        order_number VARCHAR(50) UNIQUE NOT NULL,
+        buyer_id UUID NOT NULL REFERENCES buyers(id),
+        project_id UUID NOT NULL REFERENCES projects(id),
+        dealer_id UUID REFERENCES dealers(id),
+        zone_id UUID NOT NULL REFERENCES zones(id),
+        assigned_vendor_id UUID REFERENCES vendors(id),
+        order_type VARCHAR(20) NOT NULL,
+        order_status VARCHAR(30) NOT NULL DEFAULT 'pending',
+        subtotal DECIMAL(15, 2) NOT NULL,
+        shipping_cost DECIMAL(10, 2) DEFAULT 0,
+        tax_amount DECIMAL(10, 2) DEFAULT 0,
+        discount_amount DECIMAL(10, 2) DEFAULT 0,
+        total_amount DECIMAL(15, 2) NOT NULL,
+        payment_status VARCHAR(20) DEFAULT 'pending',
+        payment_mode VARCHAR(30),
+        payment_reference VARCHAR(100),
+        delivery_address TEXT NOT NULL,
+        delivery_pincode VARCHAR(10) NOT NULL,
+        delivery_contact_name VARCHAR(100),
+        delivery_contact_phone VARCHAR(15),
+        delivery_otp VARCHAR(6),
+        expected_delivery_date DATE,
+        actual_delivery_date DATE,
+        buyer_notes TEXT,
+        admin_notes TEXT,
+        cancellation_reason TEXT,
+        created_by UUID REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("  orders table OK");
+
+    // -- Ensure order_items table exists --
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS order_items (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        product_id UUID NOT NULL REFERENCES products(id),
+        quantity INT NOT NULL,
+        unit_price DECIMAL(10, 2) NOT NULL,
+        tier_applied INT,
+        discount_per_unit DECIMAL(10, 2) DEFAULT 0,
+        line_total DECIMAL(15, 2) NOT NULL,
+        cbm_per_unit DECIMAL(10, 5),
+        total_cbm DECIMAL(10, 3),
+        shipping_cost DECIMAL(10, 2) DEFAULT 0,
+        fulfillment_status VARCHAR(20) DEFAULT 'pending',
+        quantity_dispatched INT DEFAULT 0,
+        quantity_delivered INT DEFAULT 0,
+        quantity_back_order INT DEFAULT 0,
+        product_name_snapshot VARCHAR(255),
+        sku_code_snapshot VARCHAR(50),
+        hsn_code_snapshot VARCHAR(10),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("  order_items table OK");
+
+    // -- Ensure zone_vendor_assignments table exists --
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS zone_vendor_assignments (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        zone_id UUID NOT NULL REFERENCES zones(id) ON DELETE CASCADE,
+        vendor_id UUID NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
+        is_active BOOLEAN DEFAULT TRUE,
+        priority INT DEFAULT 1,
+        assigned_by UUID REFERENCES users(id),
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        deactivated_at TIMESTAMP,
+        UNIQUE(zone_id)
+      );
+    `);
+    console.log("  zone_vendor_assignments table OK");
+
     console.log("Migrations complete.");
   } catch (error: any) {
     console.error("Seed error:", error.message);
