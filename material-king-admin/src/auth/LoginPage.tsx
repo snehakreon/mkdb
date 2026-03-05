@@ -36,21 +36,27 @@ export default function LoginPage({ onLogin }: Props) {
 
       if (!response.ok) {
         setError(data.message || 'Invalid email or password.');
-        setLoading(false);
+        return;
+      }
+
+      if (!data.accessToken || !data.user) {
+        setError('Unexpected server response. Please try again.');
         return;
       }
 
       // Extract token and user data from response
       const userData: AuthUser = {
         email: data.user.email,
-        firstName: data.user.firstName,
-        lastName: data.user.lastName,
+        firstName: data.user.firstName || data.user.first_name || '',
+        lastName: data.user.lastName || data.user.last_name || '',
         roles: data.user.roles || [],
       };
 
       onLogin(data.accessToken, userData);
     } catch (err: any) {
-      setError('Unable to connect to server. Please try again.');
+      console.error('Login error:', err);
+      setError(err?.message || 'Unable to connect to server. Please try again.');
+    } finally {
       setLoading(false);
     }
   };

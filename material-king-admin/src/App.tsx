@@ -162,6 +162,7 @@ function Sidebar({ currentModule, setCurrentModule, isOpen }: any) {
     { id: 'brands', label: 'Brands', icon: Tag },
     { id: 'products', label: 'Products', icon: Package },
     { id: 'dealers', label: 'Dealers', icon: Users },
+    { id: 'buyers', label: 'Buyers', icon: CreditCard },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
   ];
 
@@ -199,6 +200,7 @@ function ModuleRenderer({ module }: { module: string }) {
     brands: <BrandsModule />,
     products: <ProductsModule />,
     dealers: <DealersModule />,
+    buyers: <BuyersModule />,
     orders: <OrdersModule />,
   };
 
@@ -918,6 +920,142 @@ function DealersModule() {
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
             <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Save Dealer'}</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// BUYERS MODULE - API-BACKED CRUD
+// ============================================================================
+function BuyersModule() {
+  const [buyers, setBuyers] = useState<Buyer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<Buyer | null>(null);
+  const [formData, setFormData] = useState({
+    company_name: '', gstin: '', pan: '', company_type: '', company_address: '', billing_address: '',
+    first_name: '', last_name: '', email: '', phone: ''
+  });
+  const [saving, setSaving] = useState(false);
+
+  const loadData = async () => {
+    try { const data = await buyerService.getAll(); setBuyers(data); }
+    catch (err) { console.error('Failed to load buyers:', err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdd = () => {
+    setEditingItem(null);
+    setFormData({ company_name: '', gstin: '', pan: '', company_type: '', company_address: '', billing_address: '', first_name: '', last_name: '', email: '', phone: '' });
+    setShowModal(true);
+  };
+
+  const handleEdit = (item: Buyer) => {
+    setEditingItem(item);
+    setFormData({
+      company_name: item.company_name, gstin: item.gstin || '', pan: (item as any).pan || '',
+      company_type: item.company_type || '', company_address: (item as any).company_address || '',
+      billing_address: (item as any).billing_address || '',
+      first_name: item.first_name || '', last_name: item.last_name || '',
+      email: item.email || '', phone: item.phone || ''
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (editingItem) { await buyerService.update(editingItem.id, formData); }
+      else { await buyerService.create(formData); }
+      await loadData(); setShowModal(false);
+    } catch (err) { console.error('Save buyer error:', err); alert('Failed to save buyer.'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Deactivate this buyer?')) {
+      try { await buyerService.delete(id); await loadData(); }
+      catch (err) { console.error('Delete buyer error:', err); alert('Failed to deactivate buyer.'); }
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-mk-gray">Buyer Management</h1>
+        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Buyer</button>
+      </div>
+      <div className="bg-white rounded-xl shadow-md p-6">
+        {buyers.length === 0 ? <p className="text-gray-500 text-center py-8">No buyers found. Add your first buyer.</p> : (
+          <table className="w-full">
+            <thead className="bg-gray-50"><tr>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Company</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Contact Person</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Email</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Phone</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">GSTIN</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Type</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
+            </tr></thead>
+            <tbody>{buyers.map(buyer => (
+              <tr key={buyer.id} className="border-t hover:bg-gray-50">
+                <td className="px-4 py-4 font-bold">{buyer.company_name}</td>
+                <td className="px-4 py-4 text-sm">{buyer.first_name} {buyer.last_name}</td>
+                <td className="px-4 py-4 text-sm">{buyer.email}</td>
+                <td className="px-4 py-4 text-sm">{buyer.phone}</td>
+                <td className="px-4 py-4 font-mono text-sm">{buyer.gstin || '-'}</td>
+                <td className="px-4 py-4 text-sm">{buyer.company_type || '-'}</td>
+                <td className="px-4 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${buyer.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{buyer.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td className="px-4 py-4"><div className="flex gap-2">
+                  <button onClick={() => handleEdit(buyer)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(buyer.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                </div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      {showModal && (
+        <Modal title={editingItem ? 'Edit Buyer' : 'Add Buyer'} onClose={() => setShowModal(false)}>
+          <div className="space-y-4">
+            <div><label className="block text-sm font-bold mb-2">Company Name *</label><input type="text" className="input-field" value={formData.company_name} onChange={e => setFormData({ ...formData, company_name: e.target.value })} placeholder="ABC Builders Pvt Ltd" /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">First Name *</label><input type="text" className="input-field" value={formData.first_name} onChange={e => setFormData({ ...formData, first_name: e.target.value })} placeholder="Raj" /></div>
+              <div><label className="block text-sm font-bold mb-2">Last Name *</label><input type="text" className="input-field" value={formData.last_name} onChange={e => setFormData({ ...formData, last_name: e.target.value })} placeholder="Patel" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Email *</label><input type="email" className="input-field" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="raj@abc.com" /></div>
+              <div><label className="block text-sm font-bold mb-2">Phone *</label><input type="text" className="input-field" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="9876543210" /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div><label className="block text-sm font-bold mb-2">GSTIN</label><input type="text" className="input-field" value={formData.gstin} onChange={e => setFormData({ ...formData, gstin: e.target.value })} placeholder="27AAACR5678C1Z9" /></div>
+              <div><label className="block text-sm font-bold mb-2">PAN</label><input type="text" className="input-field" value={formData.pan} onChange={e => setFormData({ ...formData, pan: e.target.value })} placeholder="AAACR5678C" /></div>
+              <div><label className="block text-sm font-bold mb-2">Company Type</label>
+                <select className="input-field" value={formData.company_type} onChange={e => setFormData({ ...formData, company_type: e.target.value })}>
+                  <option value="">Select Type</option>
+                  <option value="Builder">Builder</option>
+                  <option value="Contractor">Contractor</option>
+                  <option value="Interior Designer">Interior Designer</option>
+                  <option value="Architect">Architect</option>
+                  <option value="Retailer">Retailer</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div><label className="block text-sm font-bold mb-2">Company Address</label><textarea className="input-field" rows={2} value={formData.company_address} onChange={e => setFormData({ ...formData, company_address: e.target.value })} placeholder="Full company address" /></div>
+            <div><label className="block text-sm font-bold mb-2">Billing Address</label><textarea className="input-field" rows={2} value={formData.billing_address} onChange={e => setFormData({ ...formData, billing_address: e.target.value })} placeholder="Billing address (if different)" /></div>
+          </div>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Save Buyer'}</button>
           </div>
         </Modal>
       )}
