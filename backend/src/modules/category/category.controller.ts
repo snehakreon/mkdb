@@ -18,11 +18,12 @@ export const getAll = async (_req: Request, res: Response) => {
 export const create = async (req: Request, res: Response) => {
   try {
     const { category_name, category_code } = req.body;
+    const slug = category_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     const result = await pool.query(
-      `INSERT INTO categories (category_name, category_code, is_active)
-       VALUES ($1, $2, true)
+      `INSERT INTO categories (category_name, category_code, slug, is_active)
+       VALUES ($1, $2, $3, true)
        RETURNING id, category_name, category_code, is_active, created_at`,
-      [category_name, category_code.toUpperCase()]
+      [category_name, category_code.toUpperCase(), slug]
     );
     res.status(201).json(result.rows[0]);
   } catch (error: any) {

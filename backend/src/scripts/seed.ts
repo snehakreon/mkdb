@@ -114,6 +114,31 @@ async function seed() {
     `);
     console.log("  user_roles table OK");
 
+    // -- brands: make slug nullable and backfill --
+    await pool.query(`
+      DO $$
+      BEGIN
+        ALTER TABLE brands ALTER COLUMN slug DROP NOT NULL;
+      EXCEPTION WHEN others THEN NULL;
+      END $$;
+    `);
+    await pool.query(
+      `UPDATE brands SET slug = LOWER(REGEXP_REPLACE(brand_name, '[^a-zA-Z0-9]+', '-', 'g')) WHERE slug IS NULL`
+    );
+
+    // -- categories: make slug nullable and backfill --
+    await pool.query(`
+      DO $$
+      BEGIN
+        ALTER TABLE categories ALTER COLUMN slug DROP NOT NULL;
+      EXCEPTION WHEN others THEN NULL;
+      END $$;
+    `);
+    await pool.query(
+      `UPDATE categories SET slug = LOWER(REGEXP_REPLACE(category_name, '[^a-zA-Z0-9]+', '-', 'g')) WHERE slug IS NULL`
+    );
+    console.log("  slug columns fixed");
+
     // -- categories: add category_code if missing --
     await pool.query(`
       DO $$
