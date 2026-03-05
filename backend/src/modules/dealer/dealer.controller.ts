@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import bcrypt from "bcryptjs";
 import pool from "../../config/db";
 
 // GET /api/dealers
@@ -57,11 +58,12 @@ export const create = async (req: Request, res: Response) => {
     await client.query("BEGIN");
 
     // Create a user account for the dealer
+    const hashedPassword = await bcrypt.hash("dealer123", 10);
     const userResult = await client.query(
       `INSERT INTO users (email, phone, password_hash, first_name, last_name, user_type, is_verified, is_active)
-       VALUES ($1, $2, '$2a$10$placeholder', $3, 'Dealer', 'dealer', false, true)
+       VALUES ($1, $2, $3, $4, 'Dealer', 'dealer', false, true)
        RETURNING id`,
-      [contact_email, contact_phone, company_name]
+      [contact_email, contact_phone, hashedPassword, company_name]
     );
     const userId = userResult.rows[0].id;
 

@@ -47,8 +47,130 @@ async function seed() {
       console.log("  Role: super_admin");
     }
 
-    // Run migrations to add missing columns
+    // Run migrations to add missing columns/tables
     console.log("\nRunning migrations...");
+
+    // -- Enable UUID extension --
+    await pool.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
+
+    // -- Ensure zones table exists --
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS zones (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        zone_name VARCHAR(100) UNIQUE NOT NULL,
+        zone_code VARCHAR(20) UNIQUE NOT NULL,
+        description TEXT,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_by UUID REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("  zones table OK");
+
+    // -- Ensure zone_pincodes table exists --
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS zone_pincodes (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        zone_id UUID NOT NULL REFERENCES zones(id) ON DELETE CASCADE,
+        pincode VARCHAR(10) NOT NULL UNIQUE,
+        city VARCHAR(100),
+        state VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("  zone_pincodes table OK");
+
+    // -- Ensure vendors table exists --
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS vendors (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+        vendor_code VARCHAR(20) UNIQUE NOT NULL,
+        company_name VARCHAR(255) NOT NULL,
+        trading_name VARCHAR(255),
+        gstin VARCHAR(15) UNIQUE NOT NULL,
+        pan VARCHAR(10),
+        business_type VARCHAR(50),
+        bank_account_number VARCHAR(50),
+        bank_ifsc VARCHAR(11),
+        bank_name VARCHAR(100),
+        bank_branch VARCHAR(100),
+        registered_office_address TEXT,
+        warehouse_address TEXT,
+        warehouse_pincode VARCHAR(10),
+        warehouse_city VARCHAR(100),
+        warehouse_state VARCHAR(100),
+        contact_person_name VARCHAR(100),
+        contact_phone VARCHAR(15),
+        contact_email VARCHAR(255),
+        verification_status VARCHAR(20) DEFAULT 'pending',
+        verification_notes TEXT,
+        is_active BOOLEAN DEFAULT TRUE,
+        verified_by UUID REFERENCES users(id),
+        verified_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("  vendors table OK");
+
+    // -- Ensure categories table exists --
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        category_name VARCHAR(100) UNIQUE NOT NULL,
+        category_code VARCHAR(20),
+        slug VARCHAR(100),
+        parent_category_id UUID REFERENCES categories(id),
+        description TEXT,
+        is_active BOOLEAN DEFAULT TRUE,
+        sort_order INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("  categories table OK");
+
+    // -- Ensure brands table exists --
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS brands (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        brand_name VARCHAR(100) UNIQUE NOT NULL,
+        brand_code VARCHAR(20),
+        slug VARCHAR(100),
+        logo_url VARCHAR(500),
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("  brands table OK");
+
+    // -- Ensure products table exists --
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS products (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        sku_code VARCHAR(50) UNIQUE NOT NULL,
+        product_name VARCHAR(255) NOT NULL,
+        category_id UUID NOT NULL REFERENCES categories(id),
+        brand_id UUID REFERENCES brands(id),
+        description TEXT,
+        specifications JSONB DEFAULT '{}',
+        hsn_code VARCHAR(10),
+        weight_kg DECIMAL(10, 2),
+        length_ft DECIMAL(10, 2),
+        width_ft DECIMAL(10, 2),
+        height_ft DECIMAL(10, 3),
+        cbm_per_unit DECIMAL(10, 5),
+        tech_sheet_url VARCHAR(500),
+        is_active BOOLEAN DEFAULT TRUE,
+        created_by UUID REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    console.log("  products table OK");
 
     // -- users table: columns needed by auth controller --
     await pool.query(`

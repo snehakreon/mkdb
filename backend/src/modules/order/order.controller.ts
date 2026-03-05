@@ -88,7 +88,20 @@ export const create = async (req: Request, res: Response) => {
       "SELECT zone_id FROM zone_pincodes WHERE pincode = $1 LIMIT 1",
       [delivery_pincode]
     );
-    const zone_id = zoneResult.rows.length > 0 ? zoneResult.rows[0].zone_id : null;
+    let zone_id = zoneResult.rows.length > 0 ? zoneResult.rows[0].zone_id : null;
+
+    // If no zone found by pincode, use any active zone as fallback
+    if (!zone_id) {
+      const fallbackZone = await client.query(
+        "SELECT id FROM zones WHERE is_active = true LIMIT 1"
+      );
+      if (fallbackZone.rows.length > 0) {
+        zone_id = fallbackZone.rows[0].id;
+      } else {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ message: "No zones configured. Please create a zone first." });
+      }
+    }
 
     // Get assigned vendor from zone
     let assigned_vendor_id = null;
