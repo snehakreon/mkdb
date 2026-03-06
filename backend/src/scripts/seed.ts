@@ -492,13 +492,13 @@ async function seed() {
     let zoneMumId: string, zoneDelId: string, zoneBanId: string;
     if (zoneRows.rows.length === 0) {
       const z1 = await pool.query(
-        `INSERT INTO zones (zone_name, zone_code, description, is_active) VALUES ('Mumbai Metro', 'ZONE-MUM', 'Mumbai Metropolitan Region', true) RETURNING id`
+        `INSERT INTO zones (zone_name, zone_code, is_active) VALUES ('Mumbai Metro', 'ZONE-MUM', true) RETURNING id`
       );
       const z2 = await pool.query(
-        `INSERT INTO zones (zone_name, zone_code, description, is_active) VALUES ('Delhi NCR', 'ZONE-DEL', 'Delhi National Capital Region', true) RETURNING id`
+        `INSERT INTO zones (zone_name, zone_code, is_active) VALUES ('Delhi NCR', 'ZONE-DEL', true) RETURNING id`
       );
       const z3 = await pool.query(
-        `INSERT INTO zones (zone_name, zone_code, description, is_active) VALUES ('Bangalore Urban', 'ZONE-BAN', 'Bangalore Urban District', true) RETURNING id`
+        `INSERT INTO zones (zone_name, zone_code, is_active) VALUES ('Bangalore Urban', 'ZONE-BAN', true) RETURNING id`
       );
       zoneMumId = z1.rows[0].id;
       zoneDelId = z2.rows[0].id;
