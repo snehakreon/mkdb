@@ -502,8 +502,25 @@ async function seed() {
     await addColIfMissing('categories', 'category_code', 'VARCHAR(20)');
     // brands
     await addColIfMissing('brands', 'brand_code', 'VARCHAR(20)');
-    // products
+    // products — handle "sku" vs "sku_code" naming mismatch
+    await pool.query(`
+      DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='sku')
+           AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='sku_code') THEN
+          ALTER TABLE products RENAME COLUMN sku TO sku_code;
+        END IF;
+      END $$;
+    `);
     await addColIfMissing('products', 'sku_code', 'VARCHAR(50)');
+    // handle "name" vs "product_name" mismatch
+    await pool.query(`
+      DO $$ BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='name')
+           AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='product_name') THEN
+          ALTER TABLE products RENAME COLUMN name TO product_name;
+        END IF;
+      END $$;
+    `);
     await addColIfMissing('products', 'product_name', 'VARCHAR(255)');
     await addColIfMissing('products', 'category_id', 'UUID');
     await addColIfMissing('products', 'brand_id', 'UUID');
