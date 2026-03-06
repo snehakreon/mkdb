@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, CreditCard, ShoppingCart, AlertCircle, Truck, AlertTriangle, Receipt, FileText, Bell, Eye, Edit2, Trash2, Plus, Search, X, Check, Save, LogOut } from 'lucide-react';
+import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, CreditCard, ShoppingCart, AlertCircle, Bell, Edit2, Trash2, Plus, X, LogOut } from 'lucide-react';
 import LoginPage from './auth/LoginPage';
 import { zoneService } from './services/zone.service';
 import { vendorService } from './services/vendor.service';
@@ -10,7 +10,7 @@ import { dealerService } from './services/dealer.service';
 import { orderService } from './services/order.service';
 import { buyerService } from './services/buyer.service';
 import { Zone, Vendor, Category, Brand, Product, Order, Dealer, Buyer, Project } from './types';
-import { API_CONFIG } from './config/api.config';
+// API_CONFIG imported via services
 
 // ============================================================================
 // TYPES (extra interfaces not in types/index.ts)
@@ -812,10 +812,11 @@ function DealersModule() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = {
+      const payload: Partial<Dealer> = {
         ...formData,
         credit_limit: formData.credit_limit ? Number(formData.credit_limit) : 0,
         credit_payment_terms_days: Number(formData.credit_payment_terms_days) || 0,
+        approval_status: formData.approval_status as Dealer['approval_status'],
       };
       if (editingItem) { await dealerService.update(editingItem.id, payload); }
       else { await dealerService.create(payload); }

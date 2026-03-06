@@ -3,9 +3,9 @@ import { Category } from '../types';
 import { API_CONFIG } from '../config/api.config';
 
 const MOCK_CATEGORIES: Category[] = [
-  { id: '1', category_name: 'Plywood', slug: 'plywood', is_active: true },
-  { id: '2', category_name: 'Cement', slug: 'cement', is_active: true },
-  { id: '3', category_name: 'Tiles', slug: 'tiles', is_active: true },
+  { id: '1', category_name: 'Plywood', category_code: 'plywood', is_active: true },
+  { id: '2', category_name: 'Cement', category_code: 'cement', is_active: true },
+  { id: '3', category_name: 'Tiles', category_code: 'tiles', is_active: true },
 ];
 
 export const categoryService = {
