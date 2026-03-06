@@ -547,10 +547,20 @@ async function seed() {
     await addColIfMissing('vendors', 'pan', 'VARCHAR(10)');
     await addColIfMissing('vendors', 'contact_person_name', 'VARCHAR(100)');
     // dealers
+    await addColIfMissing('dealers', 'user_id', 'UUID REFERENCES users(id)');
+    await addColIfMissing('dealers', 'dealer_code', 'VARCHAR(20)');
+    await addColIfMissing('dealers', 'company_name', 'VARCHAR(255)');
+    await addColIfMissing('dealers', 'gstin', 'VARCHAR(15)');
+    await addColIfMissing('dealers', 'pan', 'VARCHAR(10)');
+    await addColIfMissing('dealers', 'credit_limit', 'DECIMAL(15,2) DEFAULT 0');
+    await addColIfMissing('dealers', 'available_credit', 'DECIMAL(15,2) DEFAULT 0');
+    await addColIfMissing('dealers', 'credit_payment_terms_days', 'INT DEFAULT 0');
+    await addColIfMissing('dealers', 'approval_status', "VARCHAR(20) DEFAULT 'pending'");
     await addColIfMissing('dealers', 'business_address', 'TEXT');
     await addColIfMissing('dealers', 'contact_phone', 'VARCHAR(15)');
     await addColIfMissing('dealers', 'contact_email', 'VARCHAR(255)');
     // buyers
+    await addColIfMissing('buyers', 'user_id', 'UUID REFERENCES users(id)');
     await addColIfMissing('buyers', 'company_type', 'VARCHAR(50)');
     // orders
     await addColIfMissing('orders', 'delivery_contact_name', 'VARCHAR(100)');
