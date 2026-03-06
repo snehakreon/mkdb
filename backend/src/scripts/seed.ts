@@ -503,21 +503,32 @@ async function seed() {
     // brands
     await addColIfMissing('brands', 'brand_code', 'VARCHAR(20)');
     // products — handle "sku" vs "sku_code" naming mismatch
+    // Case 1: only "sku" exists → rename it
+    // Case 2: both "sku" and "sku_code" exist → drop old "sku" column
+    // Case 3: only "sku_code" exists → nothing to do
     await pool.query(`
       DO $$ BEGIN
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='sku')
-           AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='sku_code') THEN
-          ALTER TABLE products RENAME COLUMN sku TO sku_code;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='sku') THEN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='sku_code') THEN
+            ALTER TABLE products RENAME COLUMN sku TO sku_code;
+          ELSE
+            ALTER TABLE products ALTER COLUMN sku DROP NOT NULL;
+            ALTER TABLE products ALTER COLUMN sku SET DEFAULT NULL;
+          END IF;
         END IF;
       END $$;
     `);
     await addColIfMissing('products', 'sku_code', 'VARCHAR(50)');
-    // handle "name" vs "product_name" mismatch
+    // handle "name" vs "product_name" mismatch (same pattern)
     await pool.query(`
       DO $$ BEGIN
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='name')
-           AND NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='product_name') THEN
-          ALTER TABLE products RENAME COLUMN name TO product_name;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='name') THEN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='product_name') THEN
+            ALTER TABLE products RENAME COLUMN name TO product_name;
+          ELSE
+            ALTER TABLE products ALTER COLUMN name DROP NOT NULL;
+            ALTER TABLE products ALTER COLUMN name SET DEFAULT NULL;
+          END IF;
         END IF;
       END $$;
     `);
