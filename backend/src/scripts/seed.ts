@@ -84,6 +84,15 @@ async function seed() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    // Add description column if missing
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='zones' AND column_name='description') THEN
+          ALTER TABLE zones ADD COLUMN description TEXT;
+        END IF;
+      END $$;
+    `);
     console.log("  zones table OK");
 
     // -- Ensure zone_pincodes table exists --
