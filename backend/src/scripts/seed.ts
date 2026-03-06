@@ -473,6 +473,248 @@ async function seed() {
     `);
     console.log("  zone_vendor_assignments table OK");
 
+    // ========================================================================
+    // DEMO DATA
+    // ========================================================================
+    console.log("\nSeeding demo data...");
+
+    // -- Demo Zones --
+    const zoneRows = await pool.query(`SELECT id FROM zones WHERE zone_code = 'ZONE-MUM'`);
+    let zoneMumId: string, zoneDelId: string, zoneBanId: string;
+    if (zoneRows.rows.length === 0) {
+      const z1 = await pool.query(
+        `INSERT INTO zones (zone_name, zone_code, description, is_active) VALUES ('Mumbai Metro', 'ZONE-MUM', 'Mumbai Metropolitan Region', true) RETURNING id`
+      );
+      const z2 = await pool.query(
+        `INSERT INTO zones (zone_name, zone_code, description, is_active) VALUES ('Delhi NCR', 'ZONE-DEL', 'Delhi National Capital Region', true) RETURNING id`
+      );
+      const z3 = await pool.query(
+        `INSERT INTO zones (zone_name, zone_code, description, is_active) VALUES ('Bangalore Urban', 'ZONE-BAN', 'Bangalore Urban District', true) RETURNING id`
+      );
+      zoneMumId = z1.rows[0].id;
+      zoneDelId = z2.rows[0].id;
+      zoneBanId = z3.rows[0].id;
+
+      // Add pincodes
+      await pool.query(`INSERT INTO zone_pincodes (zone_id, pincode, city, state) VALUES ($1, '400001', 'Mumbai', 'Maharashtra') ON CONFLICT DO NOTHING`, [zoneMumId]);
+      await pool.query(`INSERT INTO zone_pincodes (zone_id, pincode, city, state) VALUES ($1, '400002', 'Mumbai', 'Maharashtra') ON CONFLICT DO NOTHING`, [zoneMumId]);
+      await pool.query(`INSERT INTO zone_pincodes (zone_id, pincode, city, state) VALUES ($1, '110001', 'New Delhi', 'Delhi') ON CONFLICT DO NOTHING`, [zoneDelId]);
+      await pool.query(`INSERT INTO zone_pincodes (zone_id, pincode, city, state) VALUES ($1, '560001', 'Bangalore', 'Karnataka') ON CONFLICT DO NOTHING`, [zoneBanId]);
+      console.log("  3 demo zones + pincodes added");
+    } else {
+      zoneMumId = zoneRows.rows[0].id;
+      const z2 = await pool.query(`SELECT id FROM zones WHERE zone_code = 'ZONE-DEL'`);
+      const z3 = await pool.query(`SELECT id FROM zones WHERE zone_code = 'ZONE-BAN'`);
+      zoneDelId = z2.rows[0]?.id || zoneMumId;
+      zoneBanId = z3.rows[0]?.id || zoneMumId;
+      console.log("  demo zones already exist, skipping");
+    }
+
+    // -- Demo Categories --
+    const catCheck = await pool.query(`SELECT id FROM categories WHERE category_code = 'CAT-PLY'`);
+    let catPlyId: string, catCemId: string, catTilId: string;
+    if (catCheck.rows.length === 0) {
+      const c1 = await pool.query(`INSERT INTO categories (category_name, category_code, is_active) VALUES ('Plywood', 'CAT-PLY', true) RETURNING id`);
+      const c2 = await pool.query(`INSERT INTO categories (category_name, category_code, is_active) VALUES ('Cement', 'CAT-CEM', true) RETURNING id`);
+      const c3 = await pool.query(`INSERT INTO categories (category_name, category_code, is_active) VALUES ('Tiles', 'CAT-TIL', true) RETURNING id`);
+      catPlyId = c1.rows[0].id; catCemId = c2.rows[0].id; catTilId = c3.rows[0].id;
+      console.log("  3 demo categories added");
+    } else {
+      catPlyId = catCheck.rows[0].id;
+      const c2 = await pool.query(`SELECT id FROM categories WHERE category_code = 'CAT-CEM'`);
+      const c3 = await pool.query(`SELECT id FROM categories WHERE category_code = 'CAT-TIL'`);
+      catCemId = c2.rows[0]?.id || catPlyId;
+      catTilId = c3.rows[0]?.id || catPlyId;
+      console.log("  demo categories already exist, skipping");
+    }
+
+    // -- Demo Brands --
+    const brdCheck = await pool.query(`SELECT id FROM brands WHERE brand_code = 'BRD-CEN'`);
+    let brdCenId: string, brdAccId: string, brdKajId: string;
+    if (brdCheck.rows.length === 0) {
+      const b1 = await pool.query(`INSERT INTO brands (brand_name, brand_code, is_active) VALUES ('Century Plyboards', 'BRD-CEN', true) RETURNING id`);
+      const b2 = await pool.query(`INSERT INTO brands (brand_name, brand_code, is_active) VALUES ('ACC Cement', 'BRD-ACC', true) RETURNING id`);
+      const b3 = await pool.query(`INSERT INTO brands (brand_name, brand_code, is_active) VALUES ('Kajaria Tiles', 'BRD-KAJ', true) RETURNING id`);
+      brdCenId = b1.rows[0].id; brdAccId = b2.rows[0].id; brdKajId = b3.rows[0].id;
+      console.log("  3 demo brands added");
+    } else {
+      brdCenId = brdCheck.rows[0].id;
+      const b2 = await pool.query(`SELECT id FROM brands WHERE brand_code = 'BRD-ACC'`);
+      const b3 = await pool.query(`SELECT id FROM brands WHERE brand_code = 'BRD-KAJ'`);
+      brdAccId = b2.rows[0]?.id || brdCenId;
+      brdKajId = b3.rows[0]?.id || brdCenId;
+      console.log("  demo brands already exist, skipping");
+    }
+
+    // -- Demo Vendors --
+    const venCheck = await pool.query(`SELECT id FROM vendors WHERE vendor_code = 'VND-001'`);
+    let vendorId: string;
+    if (venCheck.rows.length === 0) {
+      const v1 = await pool.query(
+        `INSERT INTO vendors (vendor_code, company_name, gstin, pan, contact_person_name, contact_phone, contact_email, verification_status, is_active)
+         VALUES ('VND-001', 'Sharma Building Supplies', '27AAPCS1234F1ZV', 'AAPCS1234F', 'Rajesh Sharma', '9876543210', 'rajesh@sharmasupplies.com', 'verified', true) RETURNING id`
+      );
+      vendorId = v1.rows[0].id;
+      await pool.query(
+        `INSERT INTO vendors (vendor_code, company_name, gstin, pan, contact_person_name, contact_phone, contact_email, verification_status, is_active)
+         VALUES ('VND-002', 'Metro Hardware Distributors', '07BBPPM5678G2ZQ', 'BBPPM5678G', 'Amit Patel', '9876543211', 'amit@metrohardware.com', 'verified', true)`
+      );
+      console.log("  2 demo vendors added");
+    } else {
+      vendorId = venCheck.rows[0].id;
+      console.log("  demo vendors already exist, skipping");
+    }
+
+    // -- Demo Products --
+    const prodCheck = await pool.query(`SELECT id FROM products WHERE sku_code = 'PLY-CEN-18MM-BWP'`);
+    let prod1Id: string, prod2Id: string, prod3Id: string;
+    if (prodCheck.rows.length === 0) {
+      const p1 = await pool.query(
+        `INSERT INTO products (sku_code, product_name, category_id, brand_id, description, hsn_code, weight_kg, length_ft, width_ft, height_ft, specifications, is_active)
+         VALUES ('PLY-CEN-18MM-BWP', 'Century 18mm BWP Plywood', $1, $2, 'Premium boiling water proof plywood, IS:710 grade', '4412', 28.5, 8, 4, 0.059, '{"thickness":"18mm","grade":"BWP","standard":"IS:710"}', true) RETURNING id`,
+        [catPlyId, brdCenId]
+      );
+      const p2 = await pool.query(
+        `INSERT INTO products (sku_code, product_name, category_id, brand_id, description, hsn_code, weight_kg, length_ft, width_ft, height_ft, specifications, is_active)
+         VALUES ('CEM-ACC-53GRD', 'ACC 53 Grade OPC Cement', $1, $2, 'High strength ordinary portland cement, 53 grade', '2523', 50, 0, 0, 0, '{"grade":"53","type":"OPC","bag_size":"50kg"}', true) RETURNING id`,
+        [catCemId, brdAccId]
+      );
+      const p3 = await pool.query(
+        `INSERT INTO products (sku_code, product_name, category_id, brand_id, description, hsn_code, weight_kg, length_ft, width_ft, height_ft, specifications, is_active)
+         VALUES ('TIL-KAJ-60X60-GL', 'Kajaria 60x60 Glazed Floor Tile', $1, $2, 'Premium glazed vitrified tile, anti-skid', '6907', 18, 2, 2, 0.033, '{"size":"60x60cm","finish":"glazed","type":"vitrified"}', true) RETURNING id`,
+        [catTilId, brdKajId]
+      );
+      prod1Id = p1.rows[0].id; prod2Id = p2.rows[0].id; prod3Id = p3.rows[0].id;
+      console.log("  3 demo products added");
+    } else {
+      prod1Id = prodCheck.rows[0].id;
+      const p2 = await pool.query(`SELECT id FROM products WHERE sku_code = 'CEM-ACC-53GRD'`);
+      const p3 = await pool.query(`SELECT id FROM products WHERE sku_code = 'TIL-KAJ-60X60-GL'`);
+      prod2Id = p2.rows[0]?.id || prod1Id;
+      prod3Id = p3.rows[0]?.id || prod1Id;
+      console.log("  demo products already exist, skipping");
+    }
+
+    // -- Demo Dealers --
+    const dlrCheck = await pool.query(`SELECT id FROM dealers WHERE dealer_code = 'DLR-001'`);
+    let dealer1Id: string;
+    if (dlrCheck.rows.length === 0) {
+      // Create dealer user accounts
+      const dlrHash = await bcrypt.hash("dealer123", 10);
+      const du1 = await pool.query(
+        `INSERT INTO users (email, phone, password_hash, first_name, last_name, user_type, is_verified, is_active)
+         VALUES ('dealer1@materialking.com', '9800000001', $1, 'Suresh', 'Gupta', 'dealer', true, true) RETURNING id`, [dlrHash]
+      );
+      const du2 = await pool.query(
+        `INSERT INTO users (email, phone, password_hash, first_name, last_name, user_type, is_verified, is_active)
+         VALUES ('dealer2@materialking.com', '9800000002', $1, 'Priya', 'Mehta', 'dealer', true, true) RETURNING id`, [dlrHash]
+      );
+
+      const d1 = await pool.query(
+        `INSERT INTO dealers (user_id, dealer_code, company_name, gstin, pan, credit_limit, available_credit, credit_payment_terms_days, approval_status, business_address, contact_phone, contact_email)
+         VALUES ($1, 'DLR-001', 'Gupta Building Materials', '27AADCG1234H1ZV', 'AADCG1234H', 1500000, 1200000, 30, 'approved', '45 Commercial St, Andheri West, Mumbai 400058', '9800000001', 'dealer1@materialking.com') RETURNING id`,
+        [du1.rows[0].id]
+      );
+      await pool.query(
+        `INSERT INTO dealers (user_id, dealer_code, company_name, gstin, pan, credit_limit, available_credit, credit_payment_terms_days, approval_status, business_address, contact_phone, contact_email)
+         VALUES ($1, 'DLR-002', 'Mehta Trading Co.', '07BBPPM9876G1ZQ', 'BBPPM9876G', 2000000, 1800000, 45, 'approved', '12 Industrial Area, Phase 2, Gurgaon 122001', '9800000002', 'dealer2@materialking.com')`,
+        [du2.rows[0].id]
+      );
+      dealer1Id = d1.rows[0].id;
+      console.log("  2 demo dealers added");
+    } else {
+      dealer1Id = dlrCheck.rows[0].id;
+      console.log("  demo dealers already exist, skipping");
+    }
+
+    // -- Demo Buyers --
+    const buyCheck = await pool.query(`SELECT id FROM buyers LIMIT 1`);
+    let buyer1Id: string, project1Id: string;
+    if (buyCheck.rows.length === 0) {
+      const buyHash = await bcrypt.hash("buyer123", 10);
+      const bu1 = await pool.query(
+        `INSERT INTO users (email, phone, password_hash, first_name, last_name, user_type, is_verified, is_active)
+         VALUES ('buyer1@example.com', '9700000001', $1, 'Vikram', 'Singh', 'buyer', true, true) RETURNING id`, [buyHash]
+      );
+      const bu2 = await pool.query(
+        `INSERT INTO users (email, phone, password_hash, first_name, last_name, user_type, is_verified, is_active)
+         VALUES ('buyer2@example.com', '9700000002', $1, 'Anita', 'Desai', 'buyer', true, true) RETURNING id`, [buyHash]
+      );
+
+      const by1 = await pool.query(
+        `INSERT INTO buyers (user_id, company_name, gstin, company_type, is_active)
+         VALUES ($1, 'Singh Constructions Pvt Ltd', '27AABCS5678F1ZV', 'private_limited', true) RETURNING id`,
+        [bu1.rows[0].id]
+      );
+      await pool.query(
+        `INSERT INTO buyers (user_id, company_name, gstin, company_type, is_active)
+         VALUES ($1, 'Desai Builders & Developers', '29AABCD1234G1ZQ', 'partnership', true) RETURNING id`,
+        [bu2.rows[0].id]
+      );
+      buyer1Id = by1.rows[0].id;
+
+      // Add projects for buyer1
+      const pj1 = await pool.query(
+        `INSERT INTO projects (buyer_id, project_name, project_code, delivery_address, delivery_pincode, delivery_city, delivery_state, site_manager_name, site_manager_phone, is_active)
+         VALUES ($1, 'Greenfield Residency Tower A', 'PROJ-GRT-001', '101 Greenfield Complex, Powai, Mumbai', '400001', 'Mumbai', 'Maharashtra', 'Rakesh Kumar', '9600000001', true) RETURNING id`,
+        [buyer1Id]
+      );
+      await pool.query(
+        `INSERT INTO projects (buyer_id, project_name, project_code, delivery_address, delivery_pincode, delivery_city, delivery_state, site_manager_name, site_manager_phone, is_active)
+         VALUES ($1, 'Marina Bay Commercial Hub', 'PROJ-MBC-002', '55 Business Park, Bandra Kurla Complex, Mumbai', '400002', 'Mumbai', 'Maharashtra', 'Deepak Joshi', '9600000002', true)`,
+        [buyer1Id]
+      );
+      project1Id = pj1.rows[0].id;
+      console.log("  2 demo buyers + 2 projects added");
+    } else {
+      buyer1Id = buyCheck.rows[0].id;
+      const pjCheck = await pool.query(`SELECT id FROM projects WHERE buyer_id = $1 LIMIT 1`, [buyer1Id]);
+      project1Id = pjCheck.rows[0]?.id;
+      console.log("  demo buyers already exist, skipping");
+    }
+
+    // -- Demo Orders --
+    const ordCheck = await pool.query(`SELECT id FROM orders WHERE order_number = 'ORD-2026-0001'`);
+    if (ordCheck.rows.length === 0 && project1Id) {
+      const o1 = await pool.query(
+        `INSERT INTO orders (order_number, buyer_id, project_id, zone_id, order_type, order_status, payment_status, subtotal, shipping_cost, tax_amount, discount_amount, total_amount, delivery_address, delivery_pincode, delivery_contact_name, delivery_contact_phone, expected_delivery_date, buyer_notes)
+         VALUES ('ORD-2026-0001', $1, $2, $3, 'direct', 'confirmed', 'pending', 85000, 2500, 15300, 0, 102800, '101 Greenfield Complex, Powai, Mumbai', '400001', 'Rakesh Kumar', '9600000001', NOW() + INTERVAL '7 days', 'Please deliver before 10 AM') RETURNING id`,
+        [buyer1Id, project1Id, zoneMumId]
+      );
+      // Add order items
+      await pool.query(
+        `INSERT INTO order_items (order_id, product_id, quantity, unit_price, line_total, product_name_snapshot, sku_code_snapshot)
+         VALUES ($1, $2, 20, 3500, 70000, 'Century 18mm BWP Plywood', 'PLY-CEN-18MM-BWP')`,
+        [o1.rows[0].id, prod1Id]
+      );
+      await pool.query(
+        `INSERT INTO order_items (order_id, product_id, quantity, unit_price, line_total, product_name_snapshot, sku_code_snapshot)
+         VALUES ($1, $2, 30, 500, 15000, 'ACC 53 Grade OPC Cement', 'CEM-ACC-53GRD')`,
+        [o1.rows[0].id, prod2Id]
+      );
+
+      // Order 2 - dealer order
+      const o2 = await pool.query(
+        `INSERT INTO orders (order_number, buyer_id, project_id, dealer_id, zone_id, order_type, order_status, payment_status, subtotal, shipping_cost, tax_amount, discount_amount, total_amount, delivery_address, delivery_pincode, delivery_contact_name, delivery_contact_phone, expected_delivery_date)
+         VALUES ('ORD-2026-0002', $1, $2, $3, $4, 'dealer', 'pending', 'pending', 144000, 3500, 25920, 5000, 168420, '101 Greenfield Complex, Powai, Mumbai', '400001', 'Rakesh Kumar', '9600000001', NOW() + INTERVAL '14 days') RETURNING id`,
+        [buyer1Id, project1Id, dealer1Id, zoneMumId]
+      );
+      await pool.query(
+        `INSERT INTO order_items (order_id, product_id, quantity, unit_price, line_total, product_name_snapshot, sku_code_snapshot)
+         VALUES ($1, $2, 100, 1200, 120000, 'Kajaria 60x60 Glazed Floor Tile', 'TIL-KAJ-60X60-GL')`,
+        [o2.rows[0].id, prod3Id]
+      );
+      await pool.query(
+        `INSERT INTO order_items (order_id, product_id, quantity, unit_price, line_total, product_name_snapshot, sku_code_snapshot)
+         VALUES ($1, $2, 48, 500, 24000, 'ACC 53 Grade OPC Cement', 'CEM-ACC-53GRD')`,
+        [o2.rows[0].id, prod2Id]
+      );
+      console.log("  2 demo orders + 4 order items added");
+    } else {
+      console.log("  demo orders already exist, skipping");
+    }
+
+    console.log("\nDemo data seeding complete.");
     console.log("Migrations complete.");
   } catch (error: any) {
     console.error("Seed error:", error.message);
