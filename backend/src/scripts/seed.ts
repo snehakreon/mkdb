@@ -483,6 +483,57 @@ async function seed() {
     console.log("  zone_vendor_assignments table OK");
 
     // ========================================================================
+    // ENSURE ALL COLUMNS EXIST (patch tables created from older schemas)
+    // ========================================================================
+    const addColIfMissing = async (table: string, col: string, type: string) => {
+      await pool.query(`
+        DO $$ BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='${table}' AND column_name='${col}') THEN
+            ALTER TABLE ${table} ADD COLUMN ${col} ${type};
+          END IF;
+        END $$;
+      `);
+    };
+
+    // zones
+    await addColIfMissing('zones', 'zone_code', 'VARCHAR(20)');
+    await addColIfMissing('zones', 'description', 'TEXT');
+    // categories
+    await addColIfMissing('categories', 'category_code', 'VARCHAR(20)');
+    // brands
+    await addColIfMissing('brands', 'brand_code', 'VARCHAR(20)');
+    // products
+    await addColIfMissing('products', 'sku_code', 'VARCHAR(50)');
+    await addColIfMissing('products', 'product_name', 'VARCHAR(255)');
+    await addColIfMissing('products', 'category_id', 'UUID');
+    await addColIfMissing('products', 'brand_id', 'UUID');
+    await addColIfMissing('products', 'description', 'TEXT');
+    await addColIfMissing('products', 'hsn_code', 'VARCHAR(10)');
+    await addColIfMissing('products', 'weight_kg', 'DECIMAL(10,2)');
+    await addColIfMissing('products', 'length_ft', 'DECIMAL(10,2)');
+    await addColIfMissing('products', 'width_ft', 'DECIMAL(10,2)');
+    await addColIfMissing('products', 'height_ft', 'DECIMAL(10,3)');
+    await addColIfMissing('products', 'specifications', "JSONB DEFAULT '{}'");
+    await addColIfMissing('products', 'is_active', 'BOOLEAN DEFAULT TRUE');
+    // vendors
+    await addColIfMissing('vendors', 'pan', 'VARCHAR(10)');
+    await addColIfMissing('vendors', 'contact_person_name', 'VARCHAR(100)');
+    // dealers
+    await addColIfMissing('dealers', 'business_address', 'TEXT');
+    await addColIfMissing('dealers', 'contact_phone', 'VARCHAR(15)');
+    await addColIfMissing('dealers', 'contact_email', 'VARCHAR(255)');
+    // buyers
+    await addColIfMissing('buyers', 'company_type', 'VARCHAR(50)');
+    // orders
+    await addColIfMissing('orders', 'delivery_contact_name', 'VARCHAR(100)');
+    await addColIfMissing('orders', 'delivery_contact_phone', 'VARCHAR(15)');
+    await addColIfMissing('orders', 'buyer_notes', 'TEXT');
+    // order_items
+    await addColIfMissing('order_items', 'product_name_snapshot', 'VARCHAR(255)');
+    await addColIfMissing('order_items', 'sku_code_snapshot', 'VARCHAR(50)');
+    console.log("  all column migrations applied");
+
+    // ========================================================================
     // DEMO DATA
     // ========================================================================
     console.log("\nSeeding demo data...");
