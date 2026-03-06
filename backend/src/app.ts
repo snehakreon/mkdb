@@ -48,6 +48,28 @@ app.get("/", (_req, res) => {
   res.json({ status: "Material King API running" });
 });
 
+// DB diagnostic endpoint (remove in production)
+app.get("/api/health", async (_req, res) => {
+  try {
+    const pool = (await import("./config/db")).default;
+    const dbTime = await pool.query("SELECT NOW()");
+    const adminCheck = await pool.query(
+      "SELECT u.id, u.email, u.is_active, u.is_verified, ur.role FROM users u LEFT JOIN user_roles ur ON ur.user_id = u.id WHERE u.email = 'admin@platform.com'"
+    );
+    const tables = await pool.query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
+    );
+    res.json({
+      db: "connected",
+      time: dbTime.rows[0].now,
+      admin: adminCheck.rows.length > 0 ? { exists: true, is_active: adminCheck.rows[0].is_active, is_verified: adminCheck.rows[0].is_verified, role: adminCheck.rows[0].role } : { exists: false },
+      tables: tables.rows.map((r: any) => r.table_name),
+    });
+  } catch (err: any) {
+    res.status(500).json({ db: "error", message: err.message });
+  }
+});
+
 // 404 handler
 app.use((_req, res) => {
   res.status(404).json({ message: "Route not found" });

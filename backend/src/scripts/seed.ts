@@ -5,6 +5,9 @@ async function seed() {
   console.log("Seeding database...");
 
   try {
+    // Generate proper bcrypt hash for 'admin123'
+    const hashedPassword = await bcrypt.hash("admin123", 10);
+
     // Check if admin user already exists
     const existing = await pool.query(
       "SELECT id FROM users WHERE email = $1",
@@ -12,11 +15,26 @@ async function seed() {
     );
 
     if (existing.rows.length > 0) {
-      console.log("Admin user already exists, skipping...");
+      const userId = existing.rows[0].id;
+      // Always reset password, ensure active/verified, and ensure role exists
+      await pool.query(
+        `UPDATE users SET password_hash = $1, is_active = true, is_verified = true,
+         failed_login_attempts = 0, locked_until = NULL WHERE id = $2`,
+        [hashedPassword, userId]
+      );
+      // Ensure role exists
+      const roleCheck = await pool.query(
+        `SELECT id FROM user_roles WHERE user_id = $1 AND role = 'super_admin'`,
+        [userId]
+      );
+      if (roleCheck.rows.length === 0) {
+        await pool.query(
+          `INSERT INTO user_roles (user_id, role, is_active) VALUES ($1, 'super_admin', true)`,
+          [userId]
+        );
+      }
+      console.log("Admin user updated (password reset to admin123)");
     } else {
-      // Generate proper bcrypt hash for 'admin123'
-      const hashedPassword = await bcrypt.hash("admin123", 10);
-
       // Insert admin user
       const userResult = await pool.query(
         `INSERT INTO users (email, phone, password_hash, first_name, last_name, user_type, is_verified, is_active)
@@ -42,10 +60,10 @@ async function seed() {
       );
 
       console.log("Admin user created successfully:");
-      console.log("  Email: admin@platform.com");
-      console.log("  Password: admin123");
-      console.log("  Role: super_admin");
     }
+    console.log("  Email: admin@platform.com");
+    console.log("  Password: admin123");
+    console.log("  Role: super_admin");
 
     // Run migrations to add missing columns/tables
     console.log("\nRunning migrations...");
