@@ -542,7 +542,12 @@ async function seed() {
     await addColIfMissing('products', 'width_ft', 'DECIMAL(10,2)');
     await addColIfMissing('products', 'height_ft', 'DECIMAL(10,3)');
     await addColIfMissing('products', 'specifications', "JSONB DEFAULT '{}'");
+    await addColIfMissing('products', 'cbm_per_unit', 'DECIMAL(10,5)');
+    await addColIfMissing('products', 'tech_sheet_url', 'VARCHAR(500)');
     await addColIfMissing('products', 'is_active', 'BOOLEAN DEFAULT TRUE');
+    await addColIfMissing('products', 'created_by', 'UUID');
+    await addColIfMissing('products', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+    await addColIfMissing('products', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
     // vendors
     await addColIfMissing('vendors', 'pan', 'VARCHAR(10)');
     await addColIfMissing('vendors', 'contact_person_name', 'VARCHAR(100)');
@@ -556,17 +561,56 @@ async function seed() {
     await addColIfMissing('dealers', 'available_credit', 'DECIMAL(15,2) DEFAULT 0');
     await addColIfMissing('dealers', 'credit_payment_terms_days', 'INT DEFAULT 0');
     await addColIfMissing('dealers', 'approval_status', "VARCHAR(20) DEFAULT 'pending'");
+    await addColIfMissing('dealers', 'bank_account_number', 'VARCHAR(50)');
+    await addColIfMissing('dealers', 'bank_ifsc', 'VARCHAR(11)');
+    await addColIfMissing('dealers', 'bank_name', 'VARCHAR(100)');
+    await addColIfMissing('dealers', 'bank_branch', 'VARCHAR(100)');
     await addColIfMissing('dealers', 'business_address', 'TEXT');
     await addColIfMissing('dealers', 'contact_phone', 'VARCHAR(15)');
     await addColIfMissing('dealers', 'contact_email', 'VARCHAR(255)');
+    await addColIfMissing('dealers', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
     // buyers
     await addColIfMissing('buyers', 'user_id', 'UUID REFERENCES users(id)');
+    await addColIfMissing('buyers', 'company_name', 'VARCHAR(255)');
+    await addColIfMissing('buyers', 'gstin', 'VARCHAR(15)');
+    await addColIfMissing('buyers', 'pan', 'VARCHAR(10)');
     await addColIfMissing('buyers', 'company_type', 'VARCHAR(50)');
-    // orders
+    await addColIfMissing('buyers', 'company_address', 'TEXT');
+    await addColIfMissing('buyers', 'billing_address', 'TEXT');
+    await addColIfMissing('buyers', 'is_active', 'BOOLEAN DEFAULT TRUE');
+    await addColIfMissing('buyers', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+    await addColIfMissing('buyers', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+    // orders — all columns referenced by order.controller.ts
+    await addColIfMissing('orders', 'order_number', 'VARCHAR(30)');
+    await addColIfMissing('orders', 'buyer_id', 'UUID');
+    await addColIfMissing('orders', 'project_id', 'UUID');
+    await addColIfMissing('orders', 'dealer_id', 'UUID');
+    await addColIfMissing('orders', 'zone_id', 'UUID');
+    await addColIfMissing('orders', 'assigned_vendor_id', 'UUID');
+    await addColIfMissing('orders', 'order_type', "VARCHAR(20) DEFAULT 'direct'");
+    await addColIfMissing('orders', 'order_status', "VARCHAR(30) DEFAULT 'pending'");
+    await addColIfMissing('orders', 'payment_status', "VARCHAR(20) DEFAULT 'pending'");
+    await addColIfMissing('orders', 'subtotal', 'DECIMAL(15,2) DEFAULT 0');
+    await addColIfMissing('orders', 'shipping_cost', 'DECIMAL(10,2) DEFAULT 0');
+    await addColIfMissing('orders', 'tax_amount', 'DECIMAL(15,2) DEFAULT 0');
+    await addColIfMissing('orders', 'discount_amount', 'DECIMAL(15,2) DEFAULT 0');
+    await addColIfMissing('orders', 'total_amount', 'DECIMAL(15,2) DEFAULT 0');
+    await addColIfMissing('orders', 'delivery_address', 'TEXT');
+    await addColIfMissing('orders', 'delivery_pincode', 'VARCHAR(10)');
     await addColIfMissing('orders', 'delivery_contact_name', 'VARCHAR(100)');
     await addColIfMissing('orders', 'delivery_contact_phone', 'VARCHAR(15)');
+    await addColIfMissing('orders', 'expected_delivery_date', 'DATE');
+    await addColIfMissing('orders', 'actual_delivery_date', 'DATE');
     await addColIfMissing('orders', 'buyer_notes', 'TEXT');
+    await addColIfMissing('orders', 'admin_notes', 'TEXT');
+    await addColIfMissing('orders', 'cancellation_reason', 'TEXT');
+    await addColIfMissing('orders', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
     // order_items
+    await addColIfMissing('order_items', 'order_id', 'UUID');
+    await addColIfMissing('order_items', 'product_id', 'UUID');
+    await addColIfMissing('order_items', 'quantity', 'INT DEFAULT 1');
+    await addColIfMissing('order_items', 'unit_price', 'DECIMAL(10,2) DEFAULT 0');
+    await addColIfMissing('order_items', 'line_total', 'DECIMAL(15,2) DEFAULT 0');
     await addColIfMissing('order_items', 'product_name_snapshot', 'VARCHAR(255)');
     await addColIfMissing('order_items', 'sku_code_snapshot', 'VARCHAR(50)');
     console.log("  all column migrations applied");
