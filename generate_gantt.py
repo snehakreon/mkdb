@@ -33,7 +33,7 @@ ws1["A1"] = "MATERIAL KING - Project Status Report"
 ws1["A1"].font = Font(bold=True, size=16, color="2F5496")
 
 ws1.merge_cells("A2:D2")
-ws1["A2"] = f"Generated: {date.today().strftime('%d %b %Y')}  |  Team: 6-7 developers  |  Timeline: 2-3 months"
+ws1["A2"] = f"Generated: {date.today().strftime('%d %b %Y')}  |  Team: 6-7 devs  |  Start: 21 Jan 2026  |  Deadline: 30 Apr 2026  |  7.5 weeks remaining"
 ws1["A2"].font = Font(size=10, color="666666")
 
 # Headers
@@ -47,8 +47,8 @@ for col, val in enumerate(["Module / Feature", "Area", "Status", "Notes"], 1):
 
 # Data
 data = [
-    # BACKEND - COMPLETED
-    ("BACKEND - CORE", "", "", ""),
+    # BACKEND - COMPLETED (Jan 21 - Mar 10)
+    ("BACKEND - COMPLETED (Jan 21 - Mar 10, ~7 weeks)", "", "", ""),
     ("Auth Module (register, login, JWT, refresh, logout)", "Backend", "DONE", "Full JWT auth with role middleware"),
     ("Products CRUD API", "Backend", "DONE", "List, create, update, delete"),
     ("Brands CRUD API", "Backend", "DONE", "List, create, update, delete"),
@@ -62,8 +62,17 @@ data = [
     ("Validation & Error Middleware", "Backend", "DONE", "Request validation middleware"),
     ("Role-based Access Control", "Backend", "DONE", "Admin, dealer, buyer, vendor roles"),
 
+    # FRONTEND - PARTIAL
+    ("FRONTEND - COMPLETED / PARTIAL", "", "", ""),
+    ("Vite + React 19 + TypeScript", "Frontend", "DONE", "Project scaffolded"),
+    ("Axios API Client + Auth Interceptor", "Frontend", "DONE", "Base URL, token injection"),
+    ("AuthContext (basic shell)", "Frontend", "PARTIAL", "Context created; no useAuth hook, no token refresh"),
+    ("Header Component", "Frontend", "DONE", "Navigation header"),
+    ("Route Definitions (skeleton)", "Frontend", "PARTIAL", "4 routes defined; BrowserRouter missing"),
+    ("Tailwind CSS Config", "Frontend", "PARTIAL", "Installed but content paths empty"),
+
     # BACKEND - PENDING
-    ("BACKEND - PENDING FEATURES", "", "", ""),
+    ("BACKEND - PENDING (must complete by Apr 30)", "", "", ""),
     ("Inventory Management", "Backend", "MISSING", "Stock tracking, low-stock alerts, reorder points"),
     ("Pricing Tiers / Discount Structures", "Backend", "PARTIAL", "Dealer credit exists; tier logic not implemented"),
     ("Order Workflow State Machine", "Backend", "PARTIAL", "Status fields exist; no transition validation"),
@@ -75,17 +84,8 @@ data = [
     ("Search & Filtering + Pagination", "Backend", "MISSING", "No query params, pagination in any controller"),
     ("Notifications (Email/SMS)", "Backend", "MISSING", "No nodemailer/twilio integration"),
 
-    # FRONTEND - PARTIAL
-    ("FRONTEND - SETUP", "", "", ""),
-    ("Vite + React 19 + TypeScript", "Frontend", "DONE", "Project scaffolded"),
-    ("Axios API Client + Auth Interceptor", "Frontend", "DONE", "Base URL, token injection"),
-    ("AuthContext (basic shell)", "Frontend", "PARTIAL", "Context created; no useAuth hook, no token refresh"),
-    ("Header Component", "Frontend", "DONE", "Navigation header"),
-    ("Route Definitions (skeleton)", "Frontend", "PARTIAL", "4 routes defined; BrowserRouter missing"),
-    ("Tailwind CSS Config", "Frontend", "PARTIAL", "Installed but content paths empty"),
-
     # FRONTEND - MISSING
-    ("FRONTEND - PAGES & MODULES", "", "", ""),
+    ("FRONTEND - PAGES & MODULES (must complete by Apr 30)", "", "", ""),
     ("Login Page", "Frontend", "MISSING", ""),
     ("Register Page", "Frontend", "MISSING", ""),
     ("Admin Dashboard", "Frontend", "MISSING", "Stats, charts, recent orders"),
@@ -104,7 +104,7 @@ data = [
     ("Reporting / Dashboard Charts", "Frontend", "MISSING", "Sales summary, top products, dealer analytics"),
 
     # FRONTEND - INFRA
-    ("FRONTEND - INFRASTRUCTURE", "", "", ""),
+    ("FRONTEND - INFRASTRUCTURE (must complete by Apr 30)", "", "", ""),
     ("React Query Setup (QueryClientProvider)", "Frontend", "MISSING", "Installed but not configured"),
     ("API Service Layer (per module)", "Frontend", "MISSING", "No service methods for API calls"),
     ("Protected Routes / Route Guards", "Frontend", "MISSING", "No auth-based route protection"),
@@ -146,100 +146,105 @@ for item in data:
     row += 1
 
 # Column widths
-ws1.column_dimensions["A"].width = 48
+ws1.column_dimensions["A"].width = 55
 ws1.column_dimensions["B"].width = 12
 ws1.column_dimensions["C"].width = 12
-ws1.column_dimensions["D"].width = 50
+ws1.column_dimensions["D"].width = 55
 
 # ============================================================
 # SHEET 2: GANTT CHART
 # ============================================================
 ws2 = wb.create_sheet("Gantt Chart")
 
-# Project timeline: March 10 2026 to June 7 2026 (13 weeks)
-project_start = date(2026, 3, 10)
-num_weeks = 13
+# Full project: Jan 21 to Apr 30 = 14.3 weeks => 15 week columns
+project_start = date(2026, 1, 19)  # Monday of week containing Jan 21
+today_marker = date(2026, 3, 10)
+deadline = date(2026, 4, 30)
+num_weeks = 15  # Jan 19 to Apr 27 (15 weeks)
 
-# Gantt tasks: (name, phase, start_week, duration_weeks, team, status)
-# week 0 = Mar 10, week 1 = Mar 17, etc.
+# Gantt tasks: (name, area, start_week, duration_weeks, team, status)
+# week 0 = Jan 19, week 1 = Jan 26, week 2 = Feb 2, ...
+# week 7 = Mar 9 (THIS WEEK), week 14 = Apr 20
 gantt_tasks = [
-    # Phase 1: Foundation (Weeks 1-2)
-    ("PHASE 1: FOUNDATION & SETUP", "", 0, 0, "", ""),
-    ("Fix Tailwind + BrowserRouter + React Query setup", "Frontend", 0, 1, "Dev 1", "Pending"),
-    ("Auth Pages (Login + Register)", "Frontend", 0, 1, "Dev 2", "Pending"),
-    ("Protected Routes + useAuth hook + Token Refresh", "Frontend", 0, 1, "Dev 1", "Pending"),
-    ("API Service Layer (all modules)", "Frontend", 1, 1, "Dev 1", "Pending"),
-    ("Search & Filtering + Pagination (Backend)", "Backend", 0, 2, "Dev 3", "Pending"),
-    ("File Upload Middleware (Multer/S3)", "Backend", 0, 1, "Dev 4", "Pending"),
-    ("Inventory Management Backend", "Backend", 1, 2, "Dev 4", "Pending"),
+    # COMPLETED PHASE (Weeks 0-7, Jan 21 - Mar 10)
+    ("COMPLETED: Backend CRUD & Setup (Jan 21 - Mar 10)", "", 0, 0, "", "done"),
+    ("Project Setup (Vite, Express, DB, TypeScript)", "Full Stack", 0, 2, "All Devs", "done"),
+    ("Auth Module (JWT, register, login, roles)", "Backend", 1, 2, "Dev 3, Dev 4", "done"),
+    ("Products + Brands + Categories CRUD APIs", "Backend", 2, 2, "Dev 1, Dev 2", "done"),
+    ("Vendors + Zones CRUD APIs", "Backend", 3, 2, "Dev 3, Dev 5", "done"),
+    ("Buyers + Dealers + Orders CRUD APIs", "Backend", 4, 3, "Dev 4, Dev 6, Dev 7", "done"),
+    ("DB Schema (15 tables) + Seed + Middleware", "Backend", 5, 2, "Dev 3", "done"),
+    ("Frontend Scaffolding (Axios, AuthContext, Header)", "Frontend", 5, 2, "Dev 1", "done"),
 
-    # Phase 2: Core CRUD Modules (Weeks 3-5)
-    ("PHASE 2: CORE CRUD MODULES", "", 0, 0, "", ""),
-    ("Products Module UI (list + create/edit + upload)", "Frontend", 2, 2, "Dev 1", "Pending"),
-    ("Brands Module UI (list + create/edit)", "Frontend", 2, 1, "Dev 2", "Pending"),
-    ("Categories Module UI (list + create/edit)", "Frontend", 3, 1, "Dev 2", "Pending"),
-    ("Vendors Module UI (list + create/edit)", "Frontend", 3, 1, "Dev 5", "Pending"),
-    ("Zones Module UI (list + create/edit + pincodes)", "Frontend", 4, 1, "Dev 5", "Pending"),
-    ("Dealers Module UI (list + create/edit + approval)", "Frontend", 3, 2, "Dev 6", "Pending"),
-    ("Buyers Module UI (list + create/edit + projects)", "Frontend", 3, 2, "Dev 3", "Pending"),
-    ("Pricing Tiers / Discount Backend", "Backend", 2, 2, "Dev 4", "Pending"),
-    ("Order Workflow State Machine", "Backend", 2, 1, "Dev 7", "Pending"),
+    # ── TODAY LINE (Week 7 = Mar 9) ──
 
-    # Phase 3: Orders & Business Logic (Weeks 5-7)
-    ("PHASE 3: ORDERS & BUSINESS LOGIC", "", 0, 0, "", ""),
-    ("Orders Module UI (list + detail + create flow)", "Frontend", 5, 2, "Dev 1, Dev 2", "Pending"),
-    ("Inventory Module UI (stock levels, alerts)", "Frontend", 5, 2, "Dev 5", "Pending"),
-    ("Payment Integration Backend (Razorpay)", "Backend", 5, 2, "Dev 4, Dev 7", "Pending"),
-    ("Invoice Generation Backend (PDF)", "Backend", 5, 2, "Dev 3", "Pending"),
-    ("Delivery Tracking Backend (tracking #, logistics)", "Backend", 6, 2, "Dev 7", "Pending"),
+    # PHASE 1: Foundation & Quick Wins (Week 8-9, Mar 10-23) — 2 weeks
+    ("PHASE 1: FOUNDATION (Mar 10 - Mar 23) ⚡ START NOW", "", 0, 0, "", ""),
+    ("Fix Tailwind + BrowserRouter + React Query setup", "Frontend", 7, 1, "Dev 1", "pending"),
+    ("Auth Pages (Login + Register + Token Refresh)", "Frontend", 7, 1, "Dev 2", "pending"),
+    ("Protected Routes + useAuth hook", "Frontend", 7, 1, "Dev 1", "pending"),
+    ("API Service Layer (all modules)", "Frontend", 8, 1, "Dev 1, Dev 2", "pending"),
+    ("Search & Filtering + Pagination (all backends)", "Backend", 7, 2, "Dev 3", "pending"),
+    ("File Upload Middleware (Multer/S3)", "Backend", 7, 1, "Dev 4", "pending"),
+    ("Order Workflow State Machine", "Backend", 7, 1, "Dev 7", "pending"),
+    ("Inventory Management Backend", "Backend", 8, 1, "Dev 4", "pending"),
 
-    # Phase 4: Dashboard & Reporting (Weeks 7-9)
-    ("PHASE 4: DASHBOARD & REPORTING", "", 0, 0, "", ""),
-    ("Admin Dashboard (stats, charts, recent orders)", "Frontend", 7, 2, "Dev 1, Dev 2", "Pending"),
-    ("Reporting APIs (sales, top products, dealer analytics)", "Backend", 7, 2, "Dev 3, Dev 4", "Pending"),
-    ("Payment Module UI (payment screens)", "Frontend", 7, 1, "Dev 5", "Pending"),
-    ("Invoice Module UI (view/download)", "Frontend", 7, 1, "Dev 6", "Pending"),
-    ("Delivery Tracking UI", "Frontend", 8, 1, "Dev 6", "Pending"),
-    ("Notifications Backend (Email/SMS)", "Backend", 8, 2, "Dev 7", "Pending"),
+    # PHASE 2: Core CRUD Modules (Week 9-11, Mar 24 - Apr 6) — 2 weeks
+    ("PHASE 2: CORE CRUD MODULES (Mar 24 - Apr 6)", "", 0, 0, "", ""),
+    ("Products Module UI (list + forms + file upload)", "Frontend", 9, 2, "Dev 1", "pending"),
+    ("Brands + Categories Module UI", "Frontend", 9, 1, "Dev 2", "pending"),
+    ("Vendors Module UI", "Frontend", 9, 1, "Dev 5", "pending"),
+    ("Zones Module UI (with pincodes)", "Frontend", 10, 1, "Dev 5", "pending"),
+    ("Dealers Module UI (with approval workflow)", "Frontend", 9, 2, "Dev 6", "pending"),
+    ("Buyers Module UI (with projects)", "Frontend", 9, 2, "Dev 2", "pending"),
+    ("Pricing Tiers / Discount Backend", "Backend", 9, 1, "Dev 4", "pending"),
+    ("Payment Integration Backend (Razorpay)", "Backend", 9, 2, "Dev 7", "pending"),
+    ("Invoice Generation Backend (PDF)", "Backend", 10, 1, "Dev 3", "pending"),
 
-    # Phase 5: Polish & Role-based (Weeks 9-11)
-    ("PHASE 5: ROLE-BASED UI & POLISH", "", 0, 0, "", ""),
-    ("Role-based Dashboards (dealer, buyer, vendor views)", "Frontend", 9, 2, "Dev 1, Dev 6", "Pending"),
-    ("Reporting Dashboard Charts (frontend)", "Frontend", 9, 2, "Dev 2, Dev 5", "Pending"),
-    ("Search & Filter Components (frontend)", "Frontend", 9, 1, "Dev 3", "Pending"),
-    ("Responsive Design / Mobile Optimization", "Frontend", 10, 2, "Dev 2, Dev 5", "Pending"),
-    ("Notification UI (in-app + email prefs)", "Frontend", 10, 1, "Dev 6", "Pending"),
+    # PHASE 3: Orders, Business Logic & Dashboard (Week 11-13, Apr 7-20) — 2 weeks
+    ("PHASE 3: ORDERS & DASHBOARD (Apr 7 - Apr 20)", "", 0, 0, "", ""),
+    ("Orders Module UI (list + detail + create flow)", "Frontend", 11, 2, "Dev 1, Dev 2", "pending"),
+    ("Inventory Module UI (stock levels, alerts)", "Frontend", 11, 1, "Dev 5", "pending"),
+    ("Payment Module UI", "Frontend", 11, 1, "Dev 6", "pending"),
+    ("Invoice Module UI (view/download)", "Frontend", 12, 1, "Dev 6", "pending"),
+    ("Admin Dashboard (stats, charts, recent orders)", "Frontend", 11, 2, "Dev 2, Dev 5", "pending"),
+    ("Reporting APIs (sales, top products, analytics)", "Backend", 11, 1, "Dev 3", "pending"),
+    ("Delivery Tracking Backend + UI", "Full Stack", 11, 2, "Dev 7", "pending"),
+    ("Notifications Backend (Email/SMS)", "Backend", 12, 1, "Dev 4", "pending"),
 
-    # Phase 6: Testing & Launch (Weeks 11-13)
-    ("PHASE 6: TESTING & LAUNCH", "", 0, 0, "", ""),
-    ("Integration Testing (API + UI)", "Full Stack", 11, 1, "All Devs", "Pending"),
-    ("Bug Fixes & Performance Optimization", "Full Stack", 11, 1, "All Devs", "Pending"),
-    ("UAT (User Acceptance Testing)", "Full Stack", 12, 1, "All Devs", "Pending"),
-    ("Production Deployment & Go-Live", "DevOps", 12, 1, "Dev 4, Dev 7", "Pending"),
+    # PHASE 4: Role-based, Polish & Launch (Week 13-15, Apr 21-30) — 1.5 weeks
+    ("PHASE 4: POLISH & LAUNCH (Apr 21 - Apr 30) 🚀 DEADLINE", "", 0, 0, "", ""),
+    ("Role-based Dashboards (dealer, buyer, vendor)", "Frontend", 13, 1, "Dev 1, Dev 6", "pending"),
+    ("Reporting Dashboard Charts (frontend)", "Frontend", 13, 1, "Dev 2, Dev 5", "pending"),
+    ("Search & Filter Components + Responsive Design", "Frontend", 13, 1, "Dev 3", "pending"),
+    ("Integration Testing (API + UI)", "Full Stack", 13, 1, "All Devs", "pending"),
+    ("Bug Fixes & Performance Optimization", "Full Stack", 14, 1, "All Devs", "pending"),
+    ("UAT + Production Deployment", "Full Stack", 14, 1, "All Devs", "pending"),
 ]
 
-# Colors for Gantt bars
+# Colors
+completed_color = "A9D18E"   # Green for done
 phase_colors = {
-    "PHASE 1": "4472C4",  # Blue
-    "PHASE 2": "ED7D31",  # Orange
-    "PHASE 3": "70AD47",  # Green
-    "PHASE 4": "FFC000",  # Gold
-    "PHASE 5": "5B9BD5",  # Light Blue
-    "PHASE 6": "FF6B6B",  # Red
+    "PHASE 1": "4472C4",     # Blue
+    "PHASE 2": "ED7D31",     # Orange
+    "PHASE 3": "70AD47",     # Green
+    "PHASE 4": "FF6B6B",     # Red/urgent
+    "COMPLETED": completed_color,
 }
 
 # Title
 ws2.merge_cells("A1:F1")
-ws2["A1"] = "MATERIAL KING - Gantt Chart (Mar 2026 - Jun 2026)"
+ws2["A1"] = "MATERIAL KING - Gantt Chart (Jan 21, 2026 - Apr 30, 2026)"
 ws2["A1"].font = Font(bold=True, size=16, color="2F5496")
 
 ws2.merge_cells("A2:F2")
-ws2["A2"] = "Team: 6-7 Developers  |  Duration: 13 Weeks  |  Start: 10 Mar 2026"
-ws2["A2"].font = Font(size=10, color="666666")
+ws2["A2"] = "Team: 6-7 Developers  |  Total: 14 Weeks  |  Elapsed: 7 weeks  |  REMAINING: 7.5 weeks  |  Deadline: 30 Apr 2026"
+ws2["A2"].font = Font(size=10, color="CC0000")
+ws2["A2"].font = Font(bold=True, size=10, color="CC0000")
 
 # Header row
 header_row = 4
-headers = ["Task", "Area", "Team", "Start Date", "End Date", "Weeks"]
+headers = ["Task", "Area", "Team", "Start Date", "End Date", "Wks"]
 for col, val in enumerate(headers, 1):
     cell = ws2.cell(row=header_row, column=col, value=val)
     cell.font = header_font
@@ -249,15 +254,23 @@ for col, val in enumerate(headers, 1):
 
 # Week columns (start at col 7)
 week_start_col = 7
+today_week_index = 7  # week 7 = Mar 9 (this week)
+today_col_fill = PatternFill(start_color="FFD700", end_color="FFD700", fill_type="solid")
+
 for w in range(num_weeks):
     week_date = project_start + timedelta(weeks=w)
     col = week_start_col + w
-    cell = ws2.cell(row=header_row, column=col, value=f"W{w+1}\n{week_date.strftime('%d %b')}")
+    label = f"W{w+1}\n{week_date.strftime('%d %b')}"
+    cell = ws2.cell(row=header_row, column=col, value=label)
     cell.font = Font(bold=True, size=8, color="FFFFFF")
-    cell.fill = header_fill
     cell.alignment = Alignment(horizontal="center", wrap_text=True)
     cell.border = thin_border
     ws2.column_dimensions[get_column_letter(col)].width = 8
+
+    if w == today_week_index:
+        cell.fill = PatternFill(start_color="CC0000", end_color="CC0000", fill_type="solid")
+    else:
+        cell.fill = header_fill
 
 # Data rows
 row = 5
@@ -275,7 +288,17 @@ for task in gantt_tasks:
         for c in range(2, week_start_col + num_weeks):
             ws2.cell(row=row, column=c).fill = section_fill
             ws2.cell(row=row, column=c).border = thin_border
-        current_phase = name.split(":")[0].strip()
+        # Determine phase key
+        if "COMPLETED" in name:
+            current_phase = "COMPLETED"
+        elif "PHASE 1" in name:
+            current_phase = "PHASE 1"
+        elif "PHASE 2" in name:
+            current_phase = "PHASE 2"
+        elif "PHASE 3" in name:
+            current_phase = "PHASE 3"
+        elif "PHASE 4" in name:
+            current_phase = "PHASE 4"
         row += 1
         continue
 
@@ -300,6 +323,11 @@ for task in gantt_tasks:
     ws2.cell(row=row, column=6, value=duration).border = thin_border
     ws2.cell(row=row, column=6).alignment = Alignment(horizontal="center")
 
+    # Mark done tasks differently
+    if status == "done":
+        name_cell = ws2.cell(row=row, column=1)
+        name_cell.font = done_font
+
     # Gantt bars
     bar_color = phase_colors.get(current_phase, "4472C4")
     bar_fill = PatternFill(start_color=bar_color, end_color=bar_color, fill_type="solid")
@@ -311,19 +339,57 @@ for task in gantt_tasks:
         cell.border = thin_border
         if start_week <= w < start_week + duration:
             cell.fill = bar_fill
-            cell.value = ""
+            if status == "done":
+                cell.value = "✓"
+                cell.font = Font(color="FFFFFF", bold=True, size=9)
+                cell.alignment = Alignment(horizontal="center")
         else:
             cell.fill = empty_fill
 
+    # Today marker column highlight
+    today_cell = ws2.cell(row=row, column=week_start_col + today_week_index)
+    if not (start_week <= today_week_index < start_week + duration):
+        today_cell.fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
+
+    row += 1
+
+# Add TODAY marker row
+ws2.merge_cells(f"A{row}:F{row}")
+ws2.cell(row=row, column=1, value="▲ TODAY (Mar 10, 2026) — 7.5 weeks to deadline").font = Font(bold=True, size=11, color="CC0000")
+ws2.cell(row=row, column=1).fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
+for c in range(2, week_start_col + num_weeks):
+    ws2.cell(row=row, column=c).fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
+today_marker_cell = ws2.cell(row=row, column=week_start_col + today_week_index)
+today_marker_cell.value = "▲ NOW"
+today_marker_cell.font = Font(bold=True, size=9, color="CC0000")
+today_marker_cell.fill = PatternFill(start_color="FFD700", end_color="FFD700", fill_type="solid")
+today_marker_cell.alignment = Alignment(horizontal="center")
+
+# Add legend
+row += 2
+ws2.cell(row=row, column=1, value="LEGEND:").font = Font(bold=True, size=10)
+row += 1
+legends = [
+    (completed_color, "Completed (Jan 21 - Mar 10)"),
+    ("4472C4", "Phase 1: Foundation (Mar 10-23)"),
+    ("ED7D31", "Phase 2: Core CRUD (Mar 24 - Apr 6)"),
+    ("70AD47", "Phase 3: Orders & Dashboard (Apr 7-20)"),
+    ("FF6B6B", "Phase 4: Polish & Launch (Apr 21-30)"),
+    ("CC0000", "TODAY marker (Mar 10)"),
+]
+for color, label in legends:
+    ws2.cell(row=row, column=1).fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+    ws2.cell(row=row, column=2, value=label).font = Font(size=9)
+    ws2.merge_cells(f"B{row}:D{row}")
     row += 1
 
 # Column widths for Gantt
-ws2.column_dimensions["A"].width = 48
+ws2.column_dimensions["A"].width = 52
 ws2.column_dimensions["B"].width = 12
 ws2.column_dimensions["C"].width = 16
 ws2.column_dimensions["D"].width = 11
 ws2.column_dimensions["E"].width = 11
-ws2.column_dimensions["F"].width = 7
+ws2.column_dimensions["F"].width = 5
 
 # ============================================================
 # SHEET 3: SUMMARY STATS
@@ -334,40 +400,67 @@ ws3.merge_cells("A1:C1")
 ws3["A1"] = "PROJECT SUMMARY"
 ws3["A1"].font = Font(bold=True, size=14, color="2F5496")
 
+ws3.merge_cells("A2:C2")
+ws3["A2"] = "Start: 21 Jan 2026  |  Today: 10 Mar 2026  |  Deadline: 30 Apr 2026"
+ws3["A2"].font = Font(bold=True, size=10, color="CC0000")
+
 stats = [
     ("", "", ""),
-    ("Category", "Count", ""),
-    ("Backend Modules Completed", "13", "Auth, Products, Brands, Categories, Vendors, Zones, Buyers, Dealers, Orders, Schema, Seed, Validation, RBAC"),
-    ("Backend Features Pending", "8", "Inventory, Pricing Tiers, Order Workflow, File Upload, Payments, Invoices, Delivery Tracking, Reporting, Search, Notifications"),
-    ("Frontend Completed", "4", "Vite setup, Axios client, AuthContext shell, Header"),
-    ("Frontend Pending", "22", "All pages, modules, dashboard, role-based UI"),
+    ("TIMELINE", "", ""),
+    ("Project Start", "21 Jan 2026", ""),
+    ("Today", "10 Mar 2026", "7 weeks elapsed"),
+    ("Hard Deadline", "30 Apr 2026", "7.5 weeks remaining"),
+    ("Total Duration", "14 weeks", "No buffer for delays"),
     ("", "", ""),
-    ("Overall Completion", "~25%", "Backend CRUD done, everything else pending"),
+    ("COMPLETION STATUS", "Count", "Details"),
+    ("Backend CRUD Completed", "13 modules", "Auth, Products, Brands, Categories, Vendors, Zones, Buyers, Dealers, Orders, Schema, Seed, Validation, RBAC"),
+    ("Backend Features Pending", "10 features", "Inventory, Pricing, Workflow, Upload, Payments, Invoices, Delivery, Reporting, Search/Pagination, Notifications"),
+    ("Frontend Completed", "4 items", "Vite setup, Axios client, AuthContext shell, Header"),
+    ("Frontend Pending", "22+ items", "All pages, modules, dashboard, role-based UI, integration"),
     ("", "", ""),
-    ("Phase", "Weeks", "Focus"),
-    ("Phase 1: Foundation", "Weeks 1-2", "Auth pages, routing, API service, file upload, search/filter backend"),
-    ("Phase 2: Core CRUD", "Weeks 3-5", "All entity CRUD UIs, pricing tiers, order workflow"),
-    ("Phase 3: Orders & Business", "Weeks 5-7", "Orders UI, inventory UI, payments, invoices, delivery"),
-    ("Phase 4: Dashboard & Reporting", "Weeks 7-9", "Admin dashboard, reporting APIs, payment/invoice UI"),
-    ("Phase 5: Polish & Roles", "Weeks 9-11", "Role-based views, responsive design, notifications"),
-    ("Phase 6: Testing & Launch", "Weeks 11-13", "Integration testing, UAT, deployment"),
+    ("Overall Completion", "~25%", "Backend CRUD done. Frontend barely started. 75% work remains in 50% time."),
+    ("", "", ""),
+    ("RISK ASSESSMENT", "", ""),
+    ("Schedule Risk", "HIGH", "75% work in 7.5 weeks with 6-7 devs. Very tight."),
+    ("Critical Path", "Orders + Payments + Invoices", "These depend on each other — must start early"),
+    ("Parallel Tracks Needed", "YES", "Backend features + Frontend CRUD must run simultaneously"),
+    ("Recommended Action", "AGGRESSIVE SPRINTS", "2-week sprints, daily standups, no scope creep"),
+    ("", "", ""),
+    ("PHASE PLAN (REMAINING)", "Duration", "Focus"),
+    ("Phase 1: Foundation", "Mar 10-23 (2 wks)", "Auth UI, routing, API layer, search/filter backend, file upload, workflow"),
+    ("Phase 2: Core CRUD", "Mar 24 - Apr 6 (2 wks)", "ALL entity CRUD UIs, pricing, payments backend, invoices backend"),
+    ("Phase 3: Orders & Dashboard", "Apr 7-20 (2 wks)", "Orders UI, inventory UI, payment/invoice UI, dashboard, reporting, delivery, notifications"),
+    ("Phase 4: Polish & Launch", "Apr 21-30 (1.5 wks)", "Role-based UI, responsive design, testing, UAT, deployment"),
+    ("", "", ""),
+    ("TEAM ALLOCATION (suggested)", "", ""),
+    ("Dev 1 (Frontend Lead)", "", "Foundation setup → Products UI → Orders UI → Role-based dashboards"),
+    ("Dev 2 (Frontend)", "", "Auth pages → Brands/Categories/Buyers UI → Orders UI → Dashboard charts"),
+    ("Dev 3 (Backend + Frontend)", "", "Search/Pagination → Invoice backend → Reporting APIs → Filter components"),
+    ("Dev 4 (Backend Lead)", "", "File upload → Inventory backend → Pricing tiers → Notifications"),
+    ("Dev 5 (Frontend)", "", "Vendors/Zones UI → Inventory UI → Dashboard → Responsive design"),
+    ("Dev 6 (Frontend)", "", "Dealers UI → Payment UI → Invoice UI → Role-based views"),
+    ("Dev 7 (Backend)", "", "Order workflow → Payment integration → Delivery tracking → Testing"),
 ]
 
-for i, (a, b, c) in enumerate(stats, 2):
+for i, (a, b, c) in enumerate(stats, 4):
     ws3.cell(row=i, column=1, value=a).border = thin_border if a else Border()
     ws3.cell(row=i, column=2, value=b).border = thin_border if a else Border()
     ws3.cell(row=i, column=3, value=c).border = thin_border if a else Border()
-    if a in ("Category", "Phase"):
+    if a in ("COMPLETION STATUS", "PHASE PLAN (REMAINING)", "TEAM ALLOCATION (suggested)", "TIMELINE", "RISK ASSESSMENT"):
         for col in range(1, 4):
             ws3.cell(row=i, column=col).font = header_font
             ws3.cell(row=i, column=col).fill = header_fill
     if a == "Overall Completion":
         ws3.cell(row=i, column=1).font = Font(bold=True, size=12, color="9C0006")
         ws3.cell(row=i, column=2).font = Font(bold=True, size=12, color="9C0006")
+        ws3.cell(row=i, column=3).font = Font(bold=True, size=11, color="9C0006")
+    if "HIGH" in str(b):
+        ws3.cell(row=i, column=2).font = Font(bold=True, color="CC0000")
+        ws3.cell(row=i, column=2).fill = missing_fill
 
-ws3.column_dimensions["A"].width = 35
-ws3.column_dimensions["B"].width = 15
-ws3.column_dimensions["C"].width = 70
+ws3.column_dimensions["A"].width = 38
+ws3.column_dimensions["B"].width = 32
+ws3.column_dimensions["C"].width = 75
 
 # Save
 output_path = "/home/user/materialking/MaterialKing_Gantt_Chart.xlsx"
