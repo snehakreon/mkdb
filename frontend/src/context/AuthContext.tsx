@@ -1,39 +1,66 @@
-import { createContext, useState, useEffect, ReactNode } from "react"
+import { createContext, useState, useEffect, useContext, ReactNode } from "react"
+import { api } from "../services/api"
 
 interface User {
   id: string
-  role: string
+  email: string
   firstName: string
+  lastName: string
+  userType: string
+  roles: string[]
 }
 
 interface AuthContextType {
   user: User | null
-  login: (token: string, user: User) => void
+  loading: boolean
+  login: (token: string, refreshToken: string, user: User) => void
   logout: () => void
+  isAdmin: boolean
 }
 
-export const AuthContext = createContext<AuthContextType | null>(null)
+const AuthContext = createContext<AuthContextType | null>(null)
+
+export const useAuth = () => {
+  const context = useContext(AuthContext)
+  if (!context) throw new Error("useAuth must be used within AuthProvider")
+  return context
+}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const login = (token: string, userData: User) => {
+  const login = (token: string, refreshToken: string, userData: User) => {
     localStorage.setItem("accessToken", token)
+    localStorage.setItem("refreshToken", refreshToken)
     setUser(userData)
   }
 
   const logout = () => {
     localStorage.removeItem("accessToken")
+    localStorage.removeItem("refreshToken")
     setUser(null)
   }
 
+  const isAdmin = user?.userType === "admin" || user?.roles?.includes("super_admin") || false
+
   useEffect(() => {
     const token = localStorage.getItem("accessToken")
-    if (!token) return
+    if (!token) {
+      setLoading(false)
+      return
+    }
+    api.get("/auth/me")
+      .then((res) => setUser(res.data))
+      .catch(() => {
+        localStorage.removeItem("accessToken")
+        localStorage.removeItem("refreshToken")
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin }}>
       {children}
     </AuthContext.Provider>
   )
