@@ -2,9 +2,84 @@
 @tailwind components;
 @tailwind utilities;
 
+* {
+  font-family: 'Montserrat', 'Century Gothic', sans-serif;
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
-  background-color: #f8fafc;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.hero-gradient {
+  background: linear-gradient(135deg, #1F2937 0%, #374151 50%, #4D4D4D 100%);
+}
+
+.login-bg {
+  background: linear-gradient(135deg, #1F2937 0%, #374151 50%, #4D4D4D 100%);
+}
+
+.category-card {
+  transition: all 0.3s ease;
+}
+.category-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.12);
+}
+
+.product-card {
+  transition: all 0.3s ease;
+}
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+}
+
+.brand-logo {
+  filter: grayscale(100%);
+  opacity: 0.6;
+  transition: all 0.3s ease;
+}
+.brand-logo:hover {
+  filter: grayscale(0%);
+  opacity: 1;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #ED1C24;
+  box-shadow: 0 0 0 3px rgba(237,28,36,0.1);
+}
+
+.search-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #ED1C24;
+}
+
+.qty-btn:hover {
+  background-color: #ED1C24;
+  color: white;
+}
+
+.thumb-img {
+  transition: all 0.2s ease;
+}
+.thumb-img:hover,
+.thumb-img.active {
+  border-color: #ED1C24;
+}
+
+.tab-btn.active {
+  color: #ED1C24;
+  border-bottom-color: #ED1C24;
+}
+
+.user-type-card.selected {
+  border-color: #ED1C24;
+  background-color: #FEF2F2;
+}
+.user-type-card.selected .type-icon {
+  background-color: #ED1C24;
+  color: white;
 }
