@@ -9,9 +9,9 @@ export interface RegisterPayload {
   email: string
   phone: string
   password: string
-  first_name: string
-  last_name: string
-  user_type: string
+  firstName: string
+  lastName: string
+  userType: string
 }
 
 export const authService = {

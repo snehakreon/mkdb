@@ -5,8 +5,8 @@ import { authService } from "../../services/auth.service"
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
-    first_name: "", last_name: "", email: "", phone: "",
-    password: "", user_type: "buyer",
+    firstName: "", lastName: "", email: "", phone: "",
+    password: "", userType: "buyer",
   })
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
@@ -108,10 +108,10 @@ export default function RegisterPage() {
                   <div className="grid grid-cols-3 gap-3">
                     {userTypes.map((t) => (
                       <label key={t.value}
-                        className={`user-type-card border-2 rounded-xl p-3 text-center cursor-pointer transition-all hover:border-mk-red/50 ${form.user_type === t.value ? "selected border-mk-red bg-mk-red-50" : "border-gray-200"}`}>
-                        <input type="radio" name="user_type" value={t.value} checked={form.user_type === t.value}
+                        className={`user-type-card border-2 rounded-xl p-3 text-center cursor-pointer transition-all hover:border-mk-red/50 ${form.userType === t.value ? "selected border-mk-red bg-mk-red-50" : "border-gray-200"}`}>
+                        <input type="radio" name="userType" value={t.value} checked={form.userType === t.value}
                           onChange={handleChange} className="hidden" />
-                        <div className={`type-icon w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2 transition-colors ${form.user_type === t.value ? "bg-mk-red text-white" : "bg-mk-gray-100"}`}>
+                        <div className={`type-icon w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-2 transition-colors ${form.userType === t.value ? "bg-mk-red text-white" : "bg-mk-gray-100"}`}>
                           <i className={`fas ${t.icon} text-sm`}></i>
                         </div>
                         <div className="font-semibold text-xs text-mk-gray-800">{t.label}</div>
@@ -125,12 +125,12 @@ export default function RegisterPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-semibold text-mk-gray-800 mb-1.5">First Name</label>
-                    <input name="first_name" value={form.first_name} onChange={handleChange} placeholder="Rajesh"
+                    <input name="firstName" value={form.firstName} onChange={handleChange} placeholder="Rajesh"
                       className="form-input w-full border-2 border-gray-200 rounded-lg py-2.5 px-3 text-sm transition-all" required />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-mk-gray-800 mb-1.5">Last Name</label>
-                    <input name="last_name" value={form.last_name} onChange={handleChange} placeholder="Kumar"
+                    <input name="lastName" value={form.lastName} onChange={handleChange} placeholder="Kumar"
                       className="form-input w-full border-2 border-gray-200 rounded-lg py-2.5 px-3 text-sm transition-all" required />
                   </div>
                 </div>
