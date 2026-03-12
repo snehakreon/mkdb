@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom"
 // Layouts
 import PublicLayout from "../components/layout/PublicLayout"
 import AdminLayout from "../components/layout/AdminLayout"
+import AccountLayout from "../components/layout/AccountLayout"
 import ProtectedRoute from "../components/ProtectedRoute"
 
 // Public storefront pages
@@ -15,6 +16,12 @@ import StorefrontCategoriesPage from "../modules/storefront/CategoriesPage"
 import CartPage from "../modules/storefront/CartPage"
 import AboutPage from "../modules/storefront/AboutPage"
 import ContactPage from "../modules/storefront/ContactPage"
+
+// Buyer account pages
+import MyAccountPage from "../modules/account/MyAccountPage"
+import MyOrdersPage from "../modules/account/MyOrdersPage"
+import AddressesPage from "../modules/account/AddressesPage"
+import WishlistPage from "../modules/account/WishlistPage"
 
 // Admin CRUD pages
 import DashboardPage from "../modules/dashboard/DashboardPage"
@@ -43,6 +50,18 @@ export default function AppRoutes() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
+
+        {/* Buyer account — protected, within storefront layout */}
+        <Route path="/account" element={
+          <ProtectedRoute>
+            <AccountLayout />
+          </ProtectedRoute>
+        }>
+          <Route index element={<MyAccountPage />} />
+          <Route path="orders" element={<MyOrdersPage />} />
+          <Route path="addresses" element={<AddressesPage />} />
+          <Route path="wishlist" element={<WishlistPage />} />
+        </Route>
       </Route>
 
       {/* Admin panel — protected */}

@@ -1,8 +1,26 @@
-import { Link } from "react-router-dom"
+import { useState, useRef, useEffect } from "react"
+import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
 
 export default function PublicHeader() {
-  const { user } = useAuth()
+  const { user, logout, isAdmin } = useAuth()
+  const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false)
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
+  const handleLogout = () => {
+    logout()
+    setMenuOpen(false)
+    navigate("/login")
+  }
 
   return (
     <>
@@ -14,7 +32,7 @@ export default function PublicHeader() {
             <span className="hidden md:flex items-center gap-1"><i className="fas fa-envelope text-mk-red"></i> support@materialking.com</span>
           </div>
           <div className="flex items-center gap-6">
-            <a href="#" className="hover:text-mk-red transition-colors">Track Order</a>
+            <Link to="/account/orders" className="hover:text-mk-red transition-colors">Track Order</Link>
             <a href="#" className="hover:text-mk-red transition-colors">Become a Seller</a>
           </div>
         </div>
@@ -45,10 +63,56 @@ export default function PublicHeader() {
 
           <div className="flex items-center gap-5 flex-shrink-0">
             {user ? (
-              <Link to="/admin" className="flex items-center gap-2 text-sm hover:text-mk-red transition-colors">
-                <i className="fas fa-user text-lg"></i>
-                <span className="hidden md:inline font-medium">{user.firstName || "Account"}</span>
-              </Link>
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  className="flex items-center gap-2 text-sm hover:text-mk-red transition-colors"
+                >
+                  <div className="w-8 h-8 bg-mk-red rounded-full flex items-center justify-center">
+                    <span className="text-white font-bold text-xs">{user.firstName?.[0]}{user.lastName?.[0]}</span>
+                  </div>
+                  <span className="hidden md:inline font-medium">{user.firstName}</span>
+                  <i className={`fas fa-chevron-down text-[10px] transition-transform ${menuOpen ? "rotate-180" : ""}`}></i>
+                </button>
+
+                {menuOpen && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-2 z-50">
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <p className="text-sm font-semibold text-mk-gray-900">{user.firstName} {user.lastName}</p>
+                      <p className="text-xs text-mk-gray-500">{user.email}</p>
+                    </div>
+
+                    <div className="py-1">
+                      <Link to="/account" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-2 text-sm text-mk-gray-700 hover:bg-gray-50">
+                        <i className="fas fa-user w-4 text-center text-mk-gray-400"></i> My Account
+                      </Link>
+                      <Link to="/account/orders" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-2 text-sm text-mk-gray-700 hover:bg-gray-50">
+                        <i className="fas fa-box w-4 text-center text-mk-gray-400"></i> My Orders
+                      </Link>
+                      <Link to="/account/addresses" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-2 text-sm text-mk-gray-700 hover:bg-gray-50">
+                        <i className="fas fa-map-marker-alt w-4 text-center text-mk-gray-400"></i> My Addresses
+                      </Link>
+                      <Link to="/account/wishlist" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-2 text-sm text-mk-gray-700 hover:bg-gray-50">
+                        <i className="fas fa-heart w-4 text-center text-mk-gray-400"></i> Wishlist
+                      </Link>
+                    </div>
+
+                    {isAdmin && (
+                      <div className="border-t border-gray-100 py-1">
+                        <Link to="/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-2 text-sm text-mk-gray-700 hover:bg-gray-50">
+                          <i className="fas fa-cog w-4 text-center text-mk-gray-400"></i> Admin Panel
+                        </Link>
+                      </div>
+                    )}
+
+                    <div className="border-t border-gray-100 py-1">
+                      <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 w-full">
+                        <i className="fas fa-sign-out-alt w-4 text-center"></i> Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <Link to="/login" className="flex items-center gap-2 text-sm hover:text-mk-red transition-colors">
                 <i className="fas fa-user text-lg"></i>

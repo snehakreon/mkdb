@@ -23,7 +23,8 @@ export default function RegisterPage() {
     try {
       const res = await authService.register(form)
       login(res.data.accessToken, res.data.refreshToken, res.data.user)
-      navigate("/admin")
+      const dest = res.data.user.userType === "admin" ? "/admin" : "/account"
+      navigate(dest)
     } catch (err: any) {
       const data = err.response?.data
       const msg = data?.errors?.length ? data.errors.join(", ") : data?.message || "Registration failed"
