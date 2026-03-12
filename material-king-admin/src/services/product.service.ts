@@ -4,11 +4,11 @@ import { API_CONFIG } from '../config/api.config';
 
 const MOCK_PRODUCTS: Product[] = [
   {
-    id: '1', sku_code: 'PLY-CEN-18MM', product_name: 'Century 18mm BWP Plywood',
+    id: '1', sku: 'PLY-CEN-18MM', name: 'Century 18mm BWP Plywood', slug: 'century-18mm-bwp-plywood',
     category_id: '1', brand_id: '1', category_name: 'Plywood', brand_name: 'Century',
-    description: '', specifications: {}, hsn_code: '4412',
-    weight_kg: 25, length_ft: 8, width_ft: 4, height_ft: 0.059, cbm_per_unit: 0.054,
-    tech_sheet_url: '', is_active: true
+    description: '', specifications: {}, unit: 'piece',
+    price: 2500, mrp: 3000, stock_qty: 100, min_order_qty: 1,
+    is_active: true
   },
 ];
 

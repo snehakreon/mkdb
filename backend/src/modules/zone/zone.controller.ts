@@ -4,17 +4,9 @@ import pool from "../../config/db";
 // GET /api/zones
 export const getAll = async (_req: Request, res: Response) => {
   try {
-    const result = await pool.query(`
-      SELECT z.id, z.zone_code, z.zone_name, z.is_active, z.created_at,
-             COALESCE(
-               json_agg(zp.pincode ORDER BY zp.pincode) FILTER (WHERE zp.pincode IS NOT NULL),
-               '[]'
-             ) as pincodes
-      FROM zones z
-      LEFT JOIN zone_pincodes zp ON zp.zone_id = z.id
-      GROUP BY z.id
-      ORDER BY z.created_at DESC
-    `);
+    const result = await pool.query(
+      "SELECT id, name, code, description, is_active, created_at FROM zones ORDER BY name"
+    );
     res.json(result.rows);
   } catch (error: any) {
     console.error("Zone getAll error:", error);
@@ -26,18 +18,10 @@ export const getAll = async (_req: Request, res: Response) => {
 export const getById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(`
-      SELECT z.id, z.zone_code, z.zone_name, z.is_active, z.created_at,
-             COALESCE(
-               json_agg(zp.pincode ORDER BY zp.pincode) FILTER (WHERE zp.pincode IS NOT NULL),
-               '[]'
-             ) as pincodes
-      FROM zones z
-      LEFT JOIN zone_pincodes zp ON zp.zone_id = z.id
-      WHERE z.id = $1
-      GROUP BY z.id
-    `, [id]);
-
+    const result = await pool.query(
+      "SELECT id, name, code, description, is_active, created_at FROM zones WHERE id = $1",
+      [id]
+    );
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Zone not found" });
     }
@@ -50,98 +34,49 @@ export const getById = async (req: Request, res: Response) => {
 
 // POST /api/zones
 export const create = async (req: Request, res: Response) => {
-  const client = await pool.connect();
   try {
-    const { zone_code, zone_name, pincodes } = req.body;
-
-    await client.query("BEGIN");
-
-    const zoneResult = await client.query(
-      `INSERT INTO zones (zone_code, zone_name, is_active)
-       VALUES ($1, $2, true)
-       RETURNING id, zone_code, zone_name, is_active, created_at`,
-      [zone_code, zone_name]
+    const { name, code, description } = req.body;
+    const result = await pool.query(
+      `INSERT INTO zones (name, code, description, is_active)
+       VALUES ($1, $2, $3, true)
+       RETURNING id, name, code, description, is_active, created_at`,
+      [name, code, description || null]
     );
-
-    const zone = zoneResult.rows[0];
-
-    // Insert pincodes if provided
-    if (pincodes && Array.isArray(pincodes) && pincodes.length > 0) {
-      for (const pincode of pincodes) {
-        const trimmed = pincode.trim();
-        if (trimmed) {
-          await client.query(
-            `INSERT INTO zone_pincodes (zone_id, pincode) VALUES ($1, $2)`,
-            [zone.id, trimmed]
-          );
-        }
-      }
-    }
-
-    await client.query("COMMIT");
-
-    res.status(201).json({ ...zone, pincodes: pincodes || [] });
+    res.status(201).json(result.rows[0]);
   } catch (error: any) {
-    await client.query("ROLLBACK");
     console.error("Zone create error:", error);
     if (error.code === "23505") {
-      return res.status(409).json({ message: "Zone code or pincode already exists" });
+      return res.status(409).json({ message: "Zone code already exists" });
     }
     res.status(500).json({ message: error.message });
-  } finally {
-    client.release();
   }
 };
 
 // PUT /api/zones/:id
 export const update = async (req: Request, res: Response) => {
-  const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { zone_code, zone_name, is_active, pincodes } = req.body;
-
-    await client.query("BEGIN");
-
-    const zoneResult = await client.query(
-      `UPDATE zones SET zone_code = COALESCE($1, zone_code),
-                        zone_name = COALESCE($2, zone_name),
-                        is_active = COALESCE($3, is_active)
-       WHERE id = $4
-       RETURNING id, zone_code, zone_name, is_active`,
-      [zone_code, zone_name, is_active, id]
+    const { name, code, description, is_active } = req.body;
+    const result = await pool.query(
+      `UPDATE zones SET name = COALESCE($1, name),
+                        code = COALESCE($2, code),
+                        description = COALESCE($3, description),
+                        is_active = COALESCE($4, is_active),
+                        updated_at = NOW()
+       WHERE id = $5
+       RETURNING id, name, code, description, is_active`,
+      [name, code, description, is_active, id]
     );
-
-    if (zoneResult.rows.length === 0) {
-      await client.query("ROLLBACK");
+    if (result.rows.length === 0) {
       return res.status(404).json({ message: "Zone not found" });
     }
-
-    // Replace pincodes if provided
-    if (pincodes && Array.isArray(pincodes)) {
-      await client.query("DELETE FROM zone_pincodes WHERE zone_id = $1", [id]);
-      for (const pincode of pincodes) {
-        const trimmed = pincode.trim();
-        if (trimmed) {
-          await client.query(
-            `INSERT INTO zone_pincodes (zone_id, pincode) VALUES ($1, $2)`,
-            [id, trimmed]
-          );
-        }
-      }
-    }
-
-    await client.query("COMMIT");
-
-    res.json({ ...zoneResult.rows[0], pincodes: pincodes || [] });
+    res.json(result.rows[0]);
   } catch (error: any) {
-    await client.query("ROLLBACK");
     console.error("Zone update error:", error);
     if (error.code === "23505") {
-      return res.status(409).json({ message: "Zone code or pincode already exists" });
+      return res.status(409).json({ message: "Zone code already exists" });
     }
     res.status(500).json({ message: error.message });
-  } finally {
-    client.release();
   }
 };
 

@@ -3,27 +3,17 @@ import { Vendor } from '../types';
 import { API_CONFIG } from '../config/api.config';
 
 const MOCK_VENDORS: Vendor[] = [
-  { 
-    id: '1', 
-    vendor_code: 'VND-001', 
-    company_name: 'ABC Distributors Pvt Ltd', 
-    gstin: '27AAACR5678C1Z9',
-    contact_person_name: 'John Doe',
-    contact_phone: '9876543210',
-    contact_email: 'john@abc.com',
-    verification_status: 'verified',
-    is_active: true 
+  {
+    id: '1', company_name: 'ABC Distributors Pvt Ltd',
+    contact_name: 'John Doe', email: 'john@abc.com', phone: '9876543210',
+    gstin: '27AAACR5678C1Z9', city: 'Mumbai', state: 'Maharashtra',
+    is_active: true, is_verified: true
   },
-  { 
-    id: '2', 
-    vendor_code: 'VND-002', 
-    company_name: 'XYZ Suppliers Ltd', 
-    gstin: '27AAAXS1234D1Z5',
-    contact_person_name: 'Jane Smith',
-    contact_phone: '9876543211',
-    contact_email: 'jane@xyz.com',
-    verification_status: 'pending',
-    is_active: true 
+  {
+    id: '2', company_name: 'XYZ Suppliers Ltd',
+    contact_name: 'Jane Smith', email: 'jane@xyz.com', phone: '9876543211',
+    gstin: '27AAAXS1234D1Z5', city: 'Delhi', state: 'Delhi',
+    is_active: true, is_verified: false
   },
 ];
 
@@ -39,13 +29,7 @@ export const vendorService = {
     if (API_CONFIG.USE_REAL_API) {
       return apiService.create<Vendor>('/vendors', data);
     }
-    const newVendor = { 
-      ...data, 
-      id: String(Date.now()), 
-      verification_status: 'pending',
-      is_active: true 
-    } as Vendor;
-    return Promise.resolve(newVendor);
+    return Promise.resolve({ ...data, id: String(Date.now()), is_active: true, is_verified: false } as Vendor);
   },
 
   async update(id: string, data: Partial<Vendor>): Promise<Vendor> {

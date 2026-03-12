@@ -5,24 +5,16 @@ import pool from "../../config/db";
 export const getAll = async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(
-      `SELECT o.id, o.order_number, o.order_type, o.order_status, o.payment_status,
-              o.subtotal, o.shipping_cost, o.tax_amount, o.discount_amount, o.total_amount,
-              o.delivery_address, o.delivery_pincode, o.delivery_contact_name, o.delivery_contact_phone,
-              o.expected_delivery_date, o.actual_delivery_date,
-              o.buyer_notes, o.admin_notes, o.cancellation_reason,
-              o.buyer_id, o.project_id, o.dealer_id, o.zone_id, o.assigned_vendor_id,
-              o.created_at,
-              b.company_name AS buyer_company,
-              p.project_name,
-              d.company_name AS dealer_company, d.dealer_code,
-              v.company_name AS vendor_company, v.vendor_code,
-              z.zone_name
+      `SELECT o.id, o.order_number, o.status, o.total_amount,
+              o.shipping_address, o.notes, o.created_at, o.updated_at,
+              o.buyer_id, o.dealer_id, o.vendor_id,
+              b.company_name AS buyer_company, b.contact_name AS buyer_contact,
+              d.company_name AS dealer_company,
+              v.company_name AS vendor_company
        FROM orders o
-       JOIN buyers b ON o.buyer_id = b.id
-       JOIN projects p ON o.project_id = p.id
+       LEFT JOIN buyers b ON o.buyer_id = b.id
        LEFT JOIN dealers d ON o.dealer_id = d.id
-       LEFT JOIN vendors v ON o.assigned_vendor_id = v.id
-       JOIN zones z ON o.zone_id = z.id
+       LEFT JOIN vendors v ON o.vendor_id = v.id
        ORDER BY o.created_at DESC`
     );
     res.json(result.rows);
@@ -37,17 +29,16 @@ export const getById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const orderResult = await pool.query(
-      `SELECT o.*, b.company_name AS buyer_company,
-              p.project_name, p.delivery_address AS project_delivery_address,
-              d.company_name AS dealer_company, d.dealer_code,
-              v.company_name AS vendor_company, v.vendor_code,
-              z.zone_name
+      `SELECT o.id, o.order_number, o.status, o.total_amount,
+              o.shipping_address, o.notes, o.created_at, o.updated_at,
+              o.buyer_id, o.dealer_id, o.vendor_id,
+              b.company_name AS buyer_company, b.contact_name AS buyer_contact,
+              d.company_name AS dealer_company,
+              v.company_name AS vendor_company
        FROM orders o
-       JOIN buyers b ON o.buyer_id = b.id
-       JOIN projects p ON o.project_id = p.id
+       LEFT JOIN buyers b ON o.buyer_id = b.id
        LEFT JOIN dealers d ON o.dealer_id = d.id
-       LEFT JOIN vendors v ON o.assigned_vendor_id = v.id
-       JOIN zones z ON o.zone_id = z.id
+       LEFT JOIN vendors v ON o.vendor_id = v.id
        WHERE o.id = $1`,
       [id]
     );
@@ -57,9 +48,10 @@ export const getById = async (req: Request, res: Response) => {
 
     // Get order items
     const itemsResult = await pool.query(
-      `SELECT oi.*, pr.product_name, pr.sku_code
+      `SELECT oi.id, oi.order_id, oi.product_id, oi.quantity, oi.unit_price, oi.total_price,
+              p.name AS product_name, p.sku
        FROM order_items oi
-       JOIN products pr ON oi.product_id = pr.id
+       LEFT JOIN products p ON oi.product_id = p.id
        WHERE oi.order_id = $1`,
       [id]
     );
@@ -75,106 +67,48 @@ export const getById = async (req: Request, res: Response) => {
 export const create = async (req: Request, res: Response) => {
   const client = await pool.connect();
   try {
-    const {
-      buyer_id, project_id, dealer_id, order_type,
-      delivery_address, delivery_pincode, delivery_contact_name, delivery_contact_phone,
-      expected_delivery_date, buyer_notes, admin_notes, items
-    } = req.body;
+    const { buyer_id, dealer_id, vendor_id, shipping_address, notes, items } = req.body;
 
     await client.query("BEGIN");
-
-    // Get zone from pincode
-    const zoneResult = await client.query(
-      "SELECT zone_id FROM zone_pincodes WHERE pincode = $1 LIMIT 1",
-      [delivery_pincode]
-    );
-    let zone_id = zoneResult.rows.length > 0 ? zoneResult.rows[0].zone_id : null;
-
-    // If no zone found by pincode, use any active zone as fallback
-    if (!zone_id) {
-      const fallbackZone = await client.query(
-        "SELECT id FROM zones WHERE is_active = true LIMIT 1"
-      );
-      if (fallbackZone.rows.length > 0) {
-        zone_id = fallbackZone.rows[0].id;
-      } else {
-        await client.query("ROLLBACK");
-        return res.status(400).json({ message: "No zones configured. Please create a zone first." });
-      }
-    }
-
-    // Get assigned vendor from zone
-    let assigned_vendor_id = null;
-    if (zone_id) {
-      const vendorResult = await client.query(
-        "SELECT vendor_id FROM zone_vendor_assignments WHERE zone_id = $1 AND is_active = true LIMIT 1",
-        [zone_id]
-      );
-      if (vendorResult.rows.length > 0) {
-        assigned_vendor_id = vendorResult.rows[0].vendor_id;
-      }
-    }
 
     // Generate order number
     const countResult = await client.query("SELECT COUNT(*) FROM orders");
     const orderNum = String(Number(countResult.rows[0].count) + 1).padStart(7, "0");
     const order_number = `ORD-${orderNum}`;
 
-    // Calculate totals from items
-    let subtotal = 0;
-    for (const item of items) {
-      subtotal += item.quantity * item.unit_price;
+    // Calculate total from items
+    let total_amount = 0;
+    if (items && items.length > 0) {
+      for (const item of items) {
+        total_amount += item.quantity * item.unit_price;
+      }
     }
-    const tax_amount = Math.round(subtotal * 0.18 * 100) / 100; // 18% GST
-    const total_amount = subtotal + tax_amount;
-
-    const initial_status = order_type === "dealer" ? "pending_dealer_approval" : "pending";
 
     const orderResult = await client.query(
-      `INSERT INTO orders (order_number, buyer_id, project_id, dealer_id, zone_id,
-                           assigned_vendor_id, order_type, order_status,
-                           subtotal, shipping_cost, tax_amount, discount_amount, total_amount,
-                           payment_status, delivery_address, delivery_pincode,
-                           delivery_contact_name, delivery_contact_phone,
-                           expected_delivery_date, buyer_notes, admin_notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 0, $10, 0, $11, 'pending',
-               $12, $13, $14, $15, $16, $17, $18)
+      `INSERT INTO orders (order_number, buyer_id, dealer_id, vendor_id, status,
+                           total_amount, shipping_address, notes)
+       VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7)
        RETURNING *`,
-      [order_number, buyer_id, project_id, dealer_id || null, zone_id,
-       assigned_vendor_id, order_type, initial_status,
-       subtotal, tax_amount, total_amount,
-       delivery_address, delivery_pincode, delivery_contact_name, delivery_contact_phone,
-       expected_delivery_date || null, buyer_notes || null, admin_notes || null]
+      [order_number, buyer_id || null, dealer_id || null, vendor_id || null,
+       total_amount, shipping_address || null, notes || null]
     );
 
     const order_id = orderResult.rows[0].id;
 
     // Insert order items
-    for (const item of items) {
-      const line_total = item.quantity * item.unit_price;
-      await client.query(
-        `INSERT INTO order_items (order_id, product_id, quantity, unit_price, line_total,
-                                  product_name_snapshot, sku_code_snapshot)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [order_id, item.product_id, item.quantity, item.unit_price, line_total,
-         item.product_name || null, item.sku_code || null]
-      );
+    if (items && items.length > 0) {
+      for (const item of items) {
+        const total_price = item.quantity * item.unit_price;
+        await client.query(
+          `INSERT INTO order_items (order_id, product_id, quantity, unit_price, total_price)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [order_id, item.product_id, item.quantity, item.unit_price, total_price]
+        );
+      }
     }
 
     await client.query("COMMIT");
-
-    // Return full order
-    const fullOrder = await pool.query(
-      `SELECT o.*, b.company_name AS buyer_company, p.project_name, z.zone_name
-       FROM orders o
-       JOIN buyers b ON o.buyer_id = b.id
-       JOIN projects p ON o.project_id = p.id
-       JOIN zones z ON o.zone_id = z.id
-       WHERE o.id = $1`,
-      [order_id]
-    );
-
-    res.status(201).json(fullOrder.rows[0]);
+    res.status(201).json(orderResult.rows[0]);
   } catch (error: any) {
     await client.query("ROLLBACK");
     console.error("Order create error:", error);
@@ -188,28 +122,19 @@ export const create = async (req: Request, res: Response) => {
 export const update = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const {
-      order_status, payment_status, admin_notes, cancellation_reason,
-      expected_delivery_date, actual_delivery_date,
-      assigned_vendor_id, delivery_contact_name, delivery_contact_phone
-    } = req.body;
+    const { status, total_amount, shipping_address, notes, vendor_id } = req.body;
 
     const result = await pool.query(
       `UPDATE orders SET
-        order_status = COALESCE($1, order_status),
-        payment_status = COALESCE($2, payment_status),
-        admin_notes = COALESCE($3, admin_notes),
-        cancellation_reason = COALESCE($4, cancellation_reason),
-        expected_delivery_date = COALESCE($5, expected_delivery_date),
-        actual_delivery_date = COALESCE($6, actual_delivery_date),
-        assigned_vendor_id = COALESCE($7, assigned_vendor_id),
-        delivery_contact_name = COALESCE($8, delivery_contact_name),
-        delivery_contact_phone = COALESCE($9, delivery_contact_phone)
-       WHERE id = $10
+        status = COALESCE($1, status),
+        total_amount = COALESCE($2, total_amount),
+        shipping_address = COALESCE($3, shipping_address),
+        notes = COALESCE($4, notes),
+        vendor_id = COALESCE($5, vendor_id),
+        updated_at = NOW()
+       WHERE id = $6
        RETURNING *`,
-      [order_status, payment_status, admin_notes, cancellation_reason,
-       expected_delivery_date, actual_delivery_date, assigned_vendor_id,
-       delivery_contact_name, delivery_contact_phone, id]
+      [status, total_amount, shipping_address, notes, vendor_id, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Order not found" });
@@ -226,8 +151,8 @@ export const remove = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      `UPDATE orders SET order_status = 'cancelled', cancellation_reason = 'Cancelled by admin'
-       WHERE id = $1 AND order_status NOT IN ('delivered', 'cancelled')
+      `UPDATE orders SET status = 'cancelled', updated_at = NOW()
+       WHERE id = $1 AND status NOT IN ('delivered', 'cancelled')
        RETURNING id, order_number`,
       [id]
     );

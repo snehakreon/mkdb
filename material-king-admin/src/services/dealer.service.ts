@@ -4,12 +4,10 @@ import { API_CONFIG } from '../config/api.config';
 
 const MOCK_DEALERS: Dealer[] = [
   {
-    id: '1', dealer_code: 'DLR-MUM-001', company_name: 'Sharma Trading Co',
-    gstin: '27AABCS1234D1Z5', pan: 'AABCS1234D',
-    bank_account_number: '1234567890', bank_ifsc: 'SBIN0001234', bank_name: 'SBI', bank_branch: 'Andheri',
-    credit_limit: 500000, available_credit: 350000, credit_payment_terms_days: 30,
-    approval_status: 'approved', business_address: 'Andheri West, Mumbai',
-    contact_phone: '9876543210', contact_email: 'sharma@trading.com'
+    id: '1', company_name: 'Sharma Trading Co',
+    contact_name: 'Rajesh Sharma', email: 'sharma@trading.com', phone: '9876543210',
+    gstin: '27AABCS1234D1Z5', city: 'Mumbai', state: 'Maharashtra',
+    is_active: true
   },
 ];
 
@@ -32,7 +30,7 @@ export const dealerService = {
     if (API_CONFIG.USE_REAL_API) {
       return apiService.create<Dealer>('/dealers', data);
     }
-    return Promise.resolve({ ...data, id: String(Date.now()), approval_status: 'pending' } as Dealer);
+    return Promise.resolve({ ...data, id: String(Date.now()), is_active: true } as Dealer);
   },
 
   async update(id: string, data: Partial<Dealer>): Promise<Dealer> {
