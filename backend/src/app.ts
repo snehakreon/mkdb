@@ -11,6 +11,7 @@ import productRoutes from "./modules/product/product.routes";
 import dealerRoutes from "./modules/dealer/dealer.routes";
 import orderRoutes from "./modules/order/order.routes";
 import buyerRoutes from "./modules/buyer/buyer.routes";
+import addressRoutes from "./modules/address/address.routes";
 import { errorHandler } from "./middleware/error.middleware";
 
 dotenv.config();
@@ -42,6 +43,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/dealers", dealerRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/buyers", buyerRoutes);
+app.use("/api/addresses", addressRoutes);
 
 // Health check
 app.get("/", (_req, res) => {

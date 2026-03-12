@@ -4,6 +4,7 @@ import { api } from "../services/api"
 interface User {
   id: string
   email: string
+  phone?: string
   firstName: string
   lastName: string
   userType: string
@@ -15,6 +16,7 @@ interface AuthContextType {
   loading: boolean
   login: (token: string, refreshToken: string, user: User) => void
   logout: () => void
+  updateUser: (userData: Partial<User>) => void
   isAdmin: boolean
 }
 
@@ -42,6 +44,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser(null)
   }
 
+  const updateUser = (userData: Partial<User>) => {
+    setUser((prev) => prev ? { ...prev, ...userData } : null)
+  }
+
   const isAdmin = user?.userType === "admin" || user?.roles?.includes("super_admin") || false
 
   useEffect(() => {
@@ -60,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, isAdmin }}>
       {children}
     </AuthContext.Provider>
   )

@@ -214,6 +214,49 @@ export const logout = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// PUT /api/auth/profile — update user profile
+export const updateProfile = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { firstName, lastName, phone } = req.body;
+
+    await pool.query(
+      `UPDATE users SET first_name = COALESCE($1, first_name), last_name = COALESCE($2, last_name),
+       phone = COALESCE($3, phone), updated_at = NOW()
+       WHERE id = $4`,
+      [firstName, lastName, phone, req.user.userId]
+    );
+
+    // Return updated user
+    const result = await pool.query(
+      `SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.user_type,
+              COALESCE(json_agg(ur.role) FILTER (WHERE ur.role IS NOT NULL), '[]') as roles
+       FROM users u
+       LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.is_active = true
+       WHERE u.id = $1
+       GROUP BY u.id`,
+      [req.user.userId]
+    );
+
+    const user = result.rows[0];
+    res.json({
+      id: user.id,
+      email: user.email,
+      phone: user.phone,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      userType: user.user_type,
+      roles: user.roles,
+    });
+  } catch (error: any) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // GET /api/auth/me
 export const me = async (req: AuthRequest, res: Response) => {
   try {

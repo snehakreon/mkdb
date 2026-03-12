@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { register, login, refresh, logout, me } from "./auth.controller";
+import { register, login, refresh, logout, me, updateProfile } from "./auth.controller";
 import { authenticate } from "../../middleware/auth.middleware";
 import { validate } from "../../middleware/validate.middleware";
 
@@ -35,5 +35,6 @@ router.post(
 router.post("/logout", authenticate, logout);
 
 router.get("/me", authenticate, me);
+router.put("/profile", authenticate, updateProfile);
 
 export default router;
