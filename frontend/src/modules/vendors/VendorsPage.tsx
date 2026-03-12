@@ -4,10 +4,11 @@ import DataTable from "../../components/ui/DataTable"
 import FormModal from "../../components/ui/FormModal"
 import FormField from "../../components/ui/FormField"
 import StatusBadge from "../../components/ui/StatusBadge"
+import { STATE_OPTIONS } from "../../constants/indianStates"
 
 const emptyForm = {
-  vendor_code: "", company_name: "", gstin: "", pan: "",
-  contact_person_name: "", contact_phone: "", contact_email: "",
+  company_name: "", contact_name: "", email: "", phone: "", gstin: "",
+  address: "", city: "", state: "", pincode: "",
 }
 
 export default function VendorsPage() {
@@ -30,10 +31,9 @@ export default function VendorsPage() {
   const openCreate = () => { setForm(emptyForm); setEditId(null); setModalOpen(true) }
   const openEdit = (row: any) => {
     setForm({
-      vendor_code: row.vendor_code || "", company_name: row.company_name || "",
-      gstin: row.gstin || "", pan: row.pan || "",
-      contact_person_name: row.contact_person_name || "",
-      contact_phone: row.contact_phone || "", contact_email: row.contact_email || "",
+      company_name: row.company_name || "", contact_name: row.contact_name || "",
+      email: row.email || "", phone: row.phone || "", gstin: row.gstin || "",
+      address: row.address || "", city: row.city || "", state: row.state || "", pincode: row.pincode || "",
     })
     setEditId(row.id); setModalOpen(true)
   }
@@ -54,12 +54,12 @@ export default function VendorsPage() {
   }
 
   const columns = [
-    { key: "vendor_code", label: "Code" },
     { key: "company_name", label: "Company" },
+    { key: "contact_name", label: "Contact" },
     { key: "gstin", label: "GSTIN" },
-    { key: "contact_person_name", label: "Contact Person" },
-    { key: "contact_phone", label: "Phone" },
-    { key: "verification_status", label: "Status", render: (v: string) => <StatusBadge status={v} /> },
+    { key: "phone", label: "Phone" },
+    { key: "state", label: "State" },
+    { key: "is_verified", label: "Verified", render: (v: boolean) => <StatusBadge status={v ? "Verified" : "Pending"} /> },
   ]
 
   return (
@@ -70,18 +70,20 @@ export default function VendorsPage() {
       </div>
       <DataTable columns={columns} data={vendors} loading={loading} onEdit={openEdit} onDelete={handleDelete} />
       <FormModal title={editId ? "Edit Vendor" : "Add Vendor"} open={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleSubmit} loading={saving}>
+        <FormField label="Company Name" name="company_name" value={form.company_name} onChange={handleChange} required />
         <div className="grid grid-cols-2 gap-3">
-          <FormField label="Vendor Code" name="vendor_code" value={form.vendor_code} onChange={handleChange} required />
-          <FormField label="Company Name" name="company_name" value={form.company_name} onChange={handleChange} required />
+          <FormField label="Contact Person" name="contact_name" value={form.contact_name} onChange={handleChange} required />
+          <FormField label="GSTIN" name="gstin" value={form.gstin} onChange={handleChange} />
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <FormField label="GSTIN" name="gstin" value={form.gstin} onChange={handleChange} required />
-          <FormField label="PAN" name="pan" value={form.pan} onChange={handleChange} />
+          <FormField label="Phone" name="phone" value={form.phone} onChange={handleChange} required />
+          <FormField label="Email" name="email" value={form.email} onChange={handleChange} type="email" required />
         </div>
-        <FormField label="Contact Person" name="contact_person_name" value={form.contact_person_name} onChange={handleChange} required />
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Phone" name="contact_phone" value={form.contact_phone} onChange={handleChange} required />
-          <FormField label="Email" name="contact_email" value={form.contact_email} onChange={handleChange} type="email" required />
+        <FormField label="Address" name="address" value={form.address} onChange={handleChange} textarea />
+        <div className="grid grid-cols-3 gap-3">
+          <FormField label="City" name="city" value={form.city} onChange={handleChange} />
+          <FormField label="State" name="state" value={form.state} onChange={handleChange} options={STATE_OPTIONS} />
+          <FormField label="Pincode" name="pincode" value={form.pincode} onChange={handleChange} />
         </div>
       </FormModal>
     </div>

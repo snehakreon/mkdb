@@ -1,16 +1,13 @@
 import { Request, Response } from "express";
-import bcrypt from "bcryptjs";
 import pool from "../../config/db";
 
 // GET /api/dealers
 export const getAll = async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(
-      `SELECT id, dealer_code, company_name, gstin, pan,
-              bank_account_number, bank_ifsc, bank_name, bank_branch,
-              credit_limit, available_credit, credit_payment_terms_days,
-              approval_status, business_address, contact_phone, contact_email,
-              created_at
+      `SELECT id, company_name, contact_name, email, phone, gstin,
+              address, city, state, pincode, zone_id,
+              is_active, created_at
        FROM dealers
        ORDER BY created_at DESC`
     );
@@ -26,11 +23,9 @@ export const getById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      `SELECT id, dealer_code, company_name, gstin, pan,
-              bank_account_number, bank_ifsc, bank_name, bank_branch,
-              credit_limit, available_credit, credit_payment_terms_days,
-              approval_status, business_address, contact_phone, contact_email,
-              created_at
+      `SELECT id, company_name, contact_name, email, phone, gstin,
+              address, city, state, pincode, zone_id,
+              is_active, created_at
        FROM dealers WHERE id = $1`,
       [id]
     );
@@ -46,54 +41,28 @@ export const getById = async (req: Request, res: Response) => {
 
 // POST /api/dealers
 export const create = async (req: Request, res: Response) => {
-  const client = await pool.connect();
   try {
     const {
-      dealer_code, company_name, gstin, pan,
-      bank_account_number, bank_ifsc, bank_name, bank_branch,
-      credit_limit, credit_payment_terms_days,
-      business_address, contact_phone, contact_email
+      company_name, contact_name, email, phone, gstin,
+      address, city, state, pincode,
     } = req.body;
 
-    await client.query("BEGIN");
-
-    // Create a user account for the dealer
-    const hashedPassword = await bcrypt.hash("dealer123", 10);
-    const userResult = await client.query(
-      `INSERT INTO users (email, phone, password_hash, first_name, last_name, user_type, is_verified, is_active)
-       VALUES ($1, $2, $3, $4, 'Dealer', 'dealer', false, true)
-       RETURNING id`,
-      [contact_email, contact_phone, hashedPassword, company_name]
-    );
-    const userId = userResult.rows[0].id;
-
-    const result = await client.query(
-      `INSERT INTO dealers (user_id, dealer_code, company_name, gstin, pan,
-                            bank_account_number, bank_ifsc, bank_name, bank_branch,
-                            credit_limit, available_credit, credit_payment_terms_days,
-                            approval_status, business_address, contact_phone, contact_email)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10, $11, 'pending', $12, $13, $14)
-       RETURNING id, dealer_code, company_name, gstin, pan,
-                 bank_account_number, bank_ifsc, bank_name, bank_branch,
-                 credit_limit, available_credit, credit_payment_terms_days,
-                 approval_status, business_address, contact_phone, contact_email, created_at`,
-      [userId, dealer_code, company_name, gstin, pan,
-       bank_account_number || null, bank_ifsc || null, bank_name || null, bank_branch || null,
-       credit_limit || 0, credit_payment_terms_days || 0,
-       business_address || null, contact_phone, contact_email]
+    const result = await pool.query(
+      `INSERT INTO dealers (company_name, contact_name, email, phone, gstin,
+                            address, city, state, pincode, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true)
+       RETURNING *`,
+      [company_name, contact_name || null, email || null, phone || null, gstin || null,
+       address || null, city || null, state || null, pincode || null]
     );
 
-    await client.query("COMMIT");
     res.status(201).json(result.rows[0]);
   } catch (error: any) {
-    await client.query("ROLLBACK");
     console.error("Dealer create error:", error);
     if (error.code === "23505") {
-      return res.status(409).json({ message: "Dealer with this GSTIN or code already exists" });
+      return res.status(409).json({ message: "Dealer already exists" });
     }
     res.status(500).json({ message: error.message });
-  } finally {
-    client.release();
   }
 };
 
@@ -102,38 +71,27 @@ export const update = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const {
-      dealer_code, company_name, gstin, pan,
-      bank_account_number, bank_ifsc, bank_name, bank_branch,
-      credit_limit, available_credit, credit_payment_terms_days,
-      approval_status, business_address, contact_phone, contact_email
+      company_name, contact_name, email, phone, gstin,
+      address, city, state, pincode, is_active,
     } = req.body;
 
     const result = await pool.query(
       `UPDATE dealers SET
-        dealer_code = COALESCE($1, dealer_code),
-        company_name = COALESCE($2, company_name),
-        gstin = COALESCE($3, gstin),
-        pan = COALESCE($4, pan),
-        bank_account_number = COALESCE($5, bank_account_number),
-        bank_ifsc = COALESCE($6, bank_ifsc),
-        bank_name = COALESCE($7, bank_name),
-        bank_branch = COALESCE($8, bank_branch),
-        credit_limit = COALESCE($9, credit_limit),
-        available_credit = COALESCE($10, available_credit),
-        credit_payment_terms_days = COALESCE($11, credit_payment_terms_days),
-        approval_status = COALESCE($12, approval_status),
-        business_address = COALESCE($13, business_address),
-        contact_phone = COALESCE($14, contact_phone),
-        contact_email = COALESCE($15, contact_email)
-       WHERE id = $16
-       RETURNING id, dealer_code, company_name, gstin, pan,
-                 bank_account_number, bank_ifsc, bank_name, bank_branch,
-                 credit_limit, available_credit, credit_payment_terms_days,
-                 approval_status, business_address, contact_phone, contact_email`,
-      [dealer_code, company_name, gstin, pan,
-       bank_account_number, bank_ifsc, bank_name, bank_branch,
-       credit_limit, available_credit, credit_payment_terms_days,
-       approval_status, business_address, contact_phone, contact_email, id]
+        company_name = COALESCE($1, company_name),
+        contact_name = COALESCE($2, contact_name),
+        email = COALESCE($3, email),
+        phone = COALESCE($4, phone),
+        gstin = COALESCE($5, gstin),
+        address = COALESCE($6, address),
+        city = COALESCE($7, city),
+        state = COALESCE($8, state),
+        pincode = COALESCE($9, pincode),
+        is_active = COALESCE($10, is_active),
+        updated_at = NOW()
+       WHERE id = $11
+       RETURNING *`,
+      [company_name, contact_name, email, phone, gstin,
+       address, city, state, pincode, is_active, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Dealer not found" });
@@ -145,18 +103,18 @@ export const update = async (req: Request, res: Response) => {
   }
 };
 
-// DELETE /api/dealers/:id (soft delete via approval_status)
+// DELETE /api/dealers/:id (soft delete)
 export const remove = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      "UPDATE dealers SET approval_status = 'suspended' WHERE id = $1 RETURNING id",
+      "UPDATE dealers SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id",
       [id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Dealer not found" });
     }
-    res.json({ message: "Dealer suspended" });
+    res.json({ message: "Dealer deactivated" });
   } catch (error: any) {
     console.error("Dealer delete error:", error);
     res.status(500).json({ message: error.message });

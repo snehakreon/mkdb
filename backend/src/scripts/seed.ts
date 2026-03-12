@@ -348,6 +348,20 @@ async function seed() {
     `);
     console.log("  buyers table OK");
 
+    // Add state columns to buyers if missing
+    await pool.query(`
+      DO $$ BEGIN
+        ALTER TABLE buyers ADD COLUMN company_state VARCHAR(10);
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+    await pool.query(`
+      DO $$ BEGIN
+        ALTER TABLE buyers ADD COLUMN billing_state VARCHAR(10);
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
+
     // -- Ensure projects table exists --
     await pool.query(`
       CREATE TABLE IF NOT EXISTS projects (
@@ -402,6 +416,14 @@ async function seed() {
       );
     `);
     console.log("  dealers table OK");
+
+    // Add state column to dealers if missing
+    await pool.query(`
+      DO $$ BEGIN
+        ALTER TABLE dealers ADD COLUMN business_state VARCHAR(10);
+      EXCEPTION WHEN duplicate_column THEN NULL;
+      END $$;
+    `);
 
     // -- Ensure orders table exists --
     await pool.query(`

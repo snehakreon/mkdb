@@ -5,9 +5,9 @@ import pool from "../../config/db";
 export const getAll = async (_req: Request, res: Response) => {
   try {
     const result = await pool.query(
-      `SELECT id, vendor_code, company_name, gstin,
-              contact_person_name, contact_phone, contact_email,
-              verification_status, is_active, created_at
+      `SELECT id, company_name, contact_name, email, phone, gstin,
+              address, city, state, pincode, zone_id,
+              is_verified, is_active, created_at
        FROM vendors
        ORDER BY created_at DESC`
     );
@@ -23,9 +23,9 @@ export const getById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      `SELECT id, vendor_code, company_name, gstin,
-              contact_person_name, contact_phone, contact_email,
-              verification_status, is_active, created_at
+      `SELECT id, company_name, contact_name, email, phone, gstin,
+              address, city, state, pincode, zone_id,
+              is_verified, is_active, created_at
        FROM vendors WHERE id = $1`,
       [id]
     );
@@ -43,26 +43,24 @@ export const getById = async (req: Request, res: Response) => {
 export const create = async (req: Request, res: Response) => {
   try {
     const {
-      vendor_code, company_name, gstin, pan,
-      contact_person_name, contact_phone, contact_email,
+      company_name, contact_name, email, phone, gstin,
+      address, city, state, pincode,
     } = req.body;
 
     const result = await pool.query(
-      `INSERT INTO vendors (vendor_code, company_name, gstin, pan,
-                            contact_person_name, contact_phone, contact_email,
-                            verification_status, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', true)
-       RETURNING id, vendor_code, company_name, gstin, pan,
-                 contact_person_name, contact_phone, contact_email,
-                 verification_status, is_active, created_at`,
-      [vendor_code, company_name, gstin, pan || 'AAAAAAAAAA', contact_person_name, contact_phone, contact_email]
+      `INSERT INTO vendors (company_name, contact_name, email, phone, gstin,
+                            address, city, state, pincode, is_verified, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, true)
+       RETURNING *`,
+      [company_name, contact_name || null, email || null, phone || null, gstin || null,
+       address || null, city || null, state || null, pincode || null]
     );
 
     res.status(201).json(result.rows[0]);
   } catch (error: any) {
     console.error("Vendor create error:", error);
     if (error.code === "23505") {
-      return res.status(409).json({ message: "Vendor code or GSTIN already exists" });
+      return res.status(409).json({ message: "Vendor already exists" });
     }
     res.status(500).json({ message: error.message });
   }
@@ -73,26 +71,28 @@ export const update = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const {
-      vendor_code, company_name, gstin,
-      contact_person_name, contact_phone, contact_email,
-      verification_status, is_active,
+      company_name, contact_name, email, phone, gstin,
+      address, city, state, pincode, is_verified, is_active,
     } = req.body;
 
     const result = await pool.query(
       `UPDATE vendors SET
-        vendor_code = COALESCE($1, vendor_code),
-        company_name = COALESCE($2, company_name),
-        gstin = COALESCE($3, gstin),
-        contact_person_name = COALESCE($4, contact_person_name),
-        contact_phone = COALESCE($5, contact_phone),
-        contact_email = COALESCE($6, contact_email),
-        verification_status = COALESCE($7, verification_status),
-        is_active = COALESCE($8, is_active)
-       WHERE id = $9
-       RETURNING id, vendor_code, company_name, gstin,
-                 contact_person_name, contact_phone, contact_email,
-                 verification_status, is_active`,
-      [vendor_code, company_name, gstin, contact_person_name, contact_phone, contact_email, verification_status, is_active, id]
+        company_name = COALESCE($1, company_name),
+        contact_name = COALESCE($2, contact_name),
+        email = COALESCE($3, email),
+        phone = COALESCE($4, phone),
+        gstin = COALESCE($5, gstin),
+        address = COALESCE($6, address),
+        city = COALESCE($7, city),
+        state = COALESCE($8, state),
+        pincode = COALESCE($9, pincode),
+        is_verified = COALESCE($10, is_verified),
+        is_active = COALESCE($11, is_active),
+        updated_at = NOW()
+       WHERE id = $12
+       RETURNING *`,
+      [company_name, contact_name, email, phone, gstin,
+       address, city, state, pincode, is_verified, is_active, id]
     );
 
     if (result.rows.length === 0) {
@@ -110,7 +110,7 @@ export const remove = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const result = await pool.query(
-      "UPDATE vendors SET is_active = false WHERE id = $1 RETURNING id",
+      "UPDATE vendors SET is_active = false, updated_at = NOW() WHERE id = $1 RETURNING id",
       [id]
     );
     if (result.rows.length === 0) {

@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { INDIAN_STATES } from "../../constants/indianStates"
 
 interface Address {
   id: string
@@ -55,7 +56,12 @@ export default function AddressesPage() {
             </div>
             <div>
               <label className="block text-xs font-medium text-mk-gray-600 mb-1">State</label>
-              <input type="text" className="w-full border border-gray-200 rounded-lg py-2 px-3 text-sm" placeholder="Maharashtra" />
+              <select className="w-full border border-gray-200 rounded-lg py-2 px-3 text-sm">
+                <option value="">Select State...</option>
+                {INDIAN_STATES.map((s) => (
+                  <option key={s.code} value={s.code}>{s.name} ({s.code})</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-mk-gray-600 mb-1">Pincode</label>

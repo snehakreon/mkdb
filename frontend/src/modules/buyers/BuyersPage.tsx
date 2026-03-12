@@ -4,11 +4,11 @@ import DataTable from "../../components/ui/DataTable"
 import FormModal from "../../components/ui/FormModal"
 import FormField from "../../components/ui/FormField"
 import StatusBadge from "../../components/ui/StatusBadge"
+import { STATE_OPTIONS } from "../../constants/indianStates"
 
 const emptyForm = {
-  company_name: "", gstin: "", pan: "", company_type: "",
-  company_address: "", billing_address: "",
-  first_name: "", last_name: "", email: "", phone: "",
+  company_name: "", contact_name: "", email: "", phone: "", gstin: "",
+  address: "", city: "", state: "", pincode: "",
 }
 
 export default function BuyersPage() {
@@ -31,11 +31,9 @@ export default function BuyersPage() {
   const openCreate = () => { setForm(emptyForm); setEditId(null); setModalOpen(true) }
   const openEdit = (row: any) => {
     setForm({
-      company_name: row.company_name || "", gstin: row.gstin || "", pan: row.pan || "",
-      company_type: row.company_type || "", company_address: row.company_address || "",
-      billing_address: row.billing_address || "",
-      first_name: row.first_name || "", last_name: row.last_name || "",
-      email: row.email || "", phone: row.phone || "",
+      company_name: row.company_name || "", contact_name: row.contact_name || "",
+      email: row.email || "", phone: row.phone || "", gstin: row.gstin || "",
+      address: row.address || "", city: row.city || "", state: row.state || "", pincode: row.pincode || "",
     })
     setEditId(row.id); setModalOpen(true)
   }
@@ -57,11 +55,11 @@ export default function BuyersPage() {
 
   const columns = [
     { key: "company_name", label: "Company" },
-    { key: "company_type", label: "Type" },
+    { key: "contact_name", label: "Contact" },
     { key: "gstin", label: "GSTIN" },
-    { key: "first_name", label: "Contact", render: (_v: string, row: any) => `${row.first_name || ""} ${row.last_name || ""}`.trim() || "-" },
     { key: "email", label: "Email" },
     { key: "phone", label: "Phone" },
+    { key: "state", label: "State" },
     { key: "is_active", label: "Status", render: (v: boolean) => <StatusBadge status={v ? "Active" : "Inactive"} /> },
   ]
 
@@ -75,21 +73,19 @@ export default function BuyersPage() {
       <FormModal title={editId ? "Edit Buyer" : "Add Buyer"} open={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleSubmit} loading={saving}>
         <FormField label="Company Name" name="company_name" value={form.company_name} onChange={handleChange} required />
         <div className="grid grid-cols-2 gap-3">
-          <FormField label="Company Type" name="company_type" value={form.company_type} onChange={handleChange}
-            options={[{ value: "individual", label: "Individual" }, { value: "partnership", label: "Partnership" }, { value: "pvt_ltd", label: "Pvt Ltd" }, { value: "llp", label: "LLP" }]} />
+          <FormField label="Contact Name" name="contact_name" value={form.contact_name} onChange={handleChange} required />
           <FormField label="GSTIN" name="gstin" value={form.gstin} onChange={handleChange} />
-        </div>
-        <FormField label="PAN" name="pan" value={form.pan} onChange={handleChange} />
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="First Name" name="first_name" value={form.first_name} onChange={handleChange} required />
-          <FormField label="Last Name" name="last_name" value={form.last_name} onChange={handleChange} required />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <FormField label="Email" name="email" value={form.email} onChange={handleChange} type="email" required />
           <FormField label="Phone" name="phone" value={form.phone} onChange={handleChange} required />
         </div>
-        <FormField label="Company Address" name="company_address" value={form.company_address} onChange={handleChange} textarea />
-        <FormField label="Billing Address" name="billing_address" value={form.billing_address} onChange={handleChange} textarea />
+        <FormField label="Address" name="address" value={form.address} onChange={handleChange} textarea />
+        <div className="grid grid-cols-3 gap-3">
+          <FormField label="City" name="city" value={form.city} onChange={handleChange} />
+          <FormField label="State" name="state" value={form.state} onChange={handleChange} options={STATE_OPTIONS} />
+          <FormField label="Pincode" name="pincode" value={form.pincode} onChange={handleChange} />
+        </div>
       </FormModal>
     </div>
   )
