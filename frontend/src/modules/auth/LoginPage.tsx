@@ -21,7 +21,9 @@ export default function LoginPage() {
       login(res.data.accessToken, res.data.refreshToken, res.data.user)
       navigate("/admin")
     } catch (err: any) {
-      setError(err.response?.data?.message || "Login failed")
+      const data = err.response?.data
+      const msg = data?.errors?.length ? data.errors.join(", ") : data?.message || "Login failed"
+      setError(msg)
     } finally {
       setLoading(false)
     }

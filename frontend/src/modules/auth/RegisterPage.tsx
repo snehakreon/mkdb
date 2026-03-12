@@ -25,7 +25,9 @@ export default function RegisterPage() {
       login(res.data.accessToken, res.data.refreshToken, res.data.user)
       navigate("/admin")
     } catch (err: any) {
-      setError(err.response?.data?.message || "Registration failed")
+      const data = err.response?.data
+      const msg = data?.errors?.length ? data.errors.join(", ") : data?.message || "Registration failed"
+      setError(msg)
     } finally {
       setLoading(false)
     }
