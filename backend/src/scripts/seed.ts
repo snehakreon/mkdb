@@ -382,6 +382,18 @@ async function seed() {
     `);
     console.log("  buyer_addresses table OK");
 
+    // -- Ensure wishlists table exists --
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS wishlists (
+        id SERIAL PRIMARY KEY,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(user_id, product_id)
+      );
+    `);
+    console.log("  wishlists table OK");
+
     // -- Ensure projects table exists --
     await pool.query(`
       CREATE TABLE IF NOT EXISTS projects (

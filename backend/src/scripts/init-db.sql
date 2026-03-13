@@ -208,6 +208,36 @@ CREATE TABLE IF NOT EXISTS order_items (
 );
 
 -- ============================================================
+-- BUYER ADDRESSES
+-- ============================================================
+CREATE TABLE IF NOT EXISTS buyer_addresses (
+  id          SERIAL PRIMARY KEY,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  label       VARCHAR(50) NOT NULL DEFAULT 'Home',
+  full_name   VARCHAR(200) NOT NULL,
+  phone       VARCHAR(20) NOT NULL,
+  address_line1 TEXT NOT NULL,
+  address_line2 TEXT,
+  city        VARCHAR(100) NOT NULL,
+  state       VARCHAR(100) NOT NULL,
+  pincode     VARCHAR(10) NOT NULL,
+  is_default  BOOLEAN NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+-- WISHLISTS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS wishlists (
+  id          SERIAL PRIMARY KEY,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  product_id  INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, product_id)
+);
+
+-- ============================================================
 -- INDEXES
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -219,3 +249,6 @@ CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id);
 CREATE INDEX IF NOT EXISTS idx_products_vendor ON products(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(buyer_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+CREATE INDEX IF NOT EXISTS idx_buyer_addresses_user ON buyer_addresses(user_id);
+CREATE INDEX IF NOT EXISTS idx_wishlists_user ON wishlists(user_id);
+CREATE INDEX IF NOT EXISTS idx_wishlists_product ON wishlists(product_id);

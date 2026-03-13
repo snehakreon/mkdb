@@ -1,6 +1,31 @@
-import { Link } from "react-router-dom"
+import { useState } from "react"
+import { Link, useParams, useNavigate } from "react-router-dom"
+import { useAuth } from "../../context/AuthContext"
+import { wishlistService } from "../../services/wishlist.service"
 
 export default function ProductDetailPage() {
+  const { id } = useParams<{ id: string }>()
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [wishlisted, setWishlisted] = useState(false)
+  const [wishLoading, setWishLoading] = useState(false)
+  const productId = Number(id)
+
+  const toggleWishlist = async () => {
+    if (!user) { navigate("/login"); return }
+    setWishLoading(true)
+    try {
+      if (wishlisted) {
+        await wishlistService.remove(productId)
+        setWishlisted(false)
+      } else {
+        await wishlistService.add(productId)
+        setWishlisted(true)
+      }
+    } catch { /* empty */ }
+    setWishLoading(false)
+  }
+
   return (
     <div>
       {/* Breadcrumb */}
@@ -22,8 +47,12 @@ export default function ProductDetailPage() {
               <div className="bg-mk-gray-50 rounded-xl h-96 flex items-center justify-center mb-4 relative">
                 <span className="absolute top-4 left-4 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded">15% OFF</span>
                 <i className="fas fa-th-large text-7xl text-gray-300"></i>
-                <button className="absolute top-4 right-4 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md hover:text-mk-red transition-colors">
-                  <i className="far fa-heart text-lg"></i>
+                <button
+                  onClick={toggleWishlist}
+                  disabled={wishLoading}
+                  className={`absolute top-4 right-4 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-md transition-colors disabled:opacity-50 ${wishlisted ? "text-mk-red" : "hover:text-mk-red"}`}
+                >
+                  <i className={`${wishlisted ? "fas" : "far"} fa-heart text-lg`}></i>
                 </button>
               </div>
               <div className="flex gap-3">

@@ -1,4 +1,7 @@
-import { Link } from "react-router-dom"
+import { useState } from "react"
+import { Link, useNavigate } from "react-router-dom"
+import { useAuth } from "../../context/AuthContext"
+import { wishlistService } from "../../services/wishlist.service"
 
 const products = [
   { brand: "Kajaria", name: "Polished Vitrified Floor Tile 600x600mm - Marble White", price: "45", oldPrice: "53", unit: "/sq.ft", badge: "15% OFF", badgeColor: "bg-green-500", icon: "fa-th-large", moq: "100 sq.ft" },
@@ -15,6 +18,25 @@ const filterBrands = ["Kajaria", "Asian Paints", "Somany", "Hindware", "Godrej",
 const priceRanges = ["Under ₹100", "₹100 - ₹500", "₹500 - ₹2,000", "₹2,000 - ₹10,000", "Above ₹10,000"]
 
 export default function ProductsListPage() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const [wishlisted, setWishlisted] = useState<Set<number>>(new Set())
+
+  const toggleWishlist = async (e: React.MouseEvent, productId: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!user) { navigate("/login"); return }
+    try {
+      if (wishlisted.has(productId)) {
+        await wishlistService.remove(productId)
+        setWishlisted((prev) => { const s = new Set(prev); s.delete(productId); return s })
+      } else {
+        await wishlistService.add(productId)
+        setWishlisted((prev) => new Set(prev).add(productId))
+      }
+    } catch { /* empty */ }
+  }
+
   return (
     <div>
       {/* Breadcrumb */}
@@ -99,8 +121,11 @@ export default function ProductsListPage() {
                   <div className="relative bg-mk-gray-50 p-4 h-48 flex items-center justify-center">
                     {p.badge && <span className={`absolute top-3 left-3 ${p.badgeColor} text-white text-[10px] font-bold px-2 py-0.5 rounded`}>{p.badge}</span>}
                     <i className={`fas ${p.icon} text-5xl text-gray-300`}></i>
-                    <button onClick={(e) => e.preventDefault()} className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:text-mk-red transition-colors">
-                      <i className="far fa-heart text-sm"></i>
+                    <button
+                      onClick={(e) => toggleWishlist(e, i + 1)}
+                      className={`absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm transition-colors ${wishlisted.has(i + 1) ? "text-mk-red" : "hover:text-mk-red"}`}
+                    >
+                      <i className={`${wishlisted.has(i + 1) ? "fas" : "far"} fa-heart text-sm`}></i>
                     </button>
                   </div>
                   <div className="p-4">
