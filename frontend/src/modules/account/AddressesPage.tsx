@@ -14,10 +14,16 @@ export default function AddressesPage() {
   const [saving, setSaving] = useState(false)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState(emptyForm)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
 
   const fetchAddresses = async () => {
     setLoading(true)
-    try { setAddresses((await addressService.getAll()).data) } catch { /* empty */ }
+    try {
+      setAddresses((await addressService.getAll()).data)
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to load addresses")
+    }
     setLoading(false)
   }
 
@@ -28,7 +34,7 @@ export default function AddressesPage() {
     setForm({ ...form, [name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value })
   }
 
-  const openCreate = () => { setForm(emptyForm); setEditId(null); setShowForm(true) }
+  const openCreate = () => { setForm(emptyForm); setEditId(null); setShowForm(true); setError(""); setSuccess("") }
   const openEdit = (addr: any) => {
     setForm({
       label: addr.label || "Home", full_name: addr.full_name || "", phone: addr.phone || "",
@@ -38,25 +44,37 @@ export default function AddressesPage() {
     })
     setEditId(addr.id)
     setShowForm(true)
+    setError("")
+    setSuccess("")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
+    setError("")
     try {
       if (editId) await addressService.update(editId, form)
       else await addressService.create(form)
       setShowForm(false)
       setEditId(null)
+      setSuccess(editId ? "Address updated successfully!" : "Address added successfully!")
       fetchAddresses()
-    } catch { /* empty */ }
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to save address. Please try again.")
+    }
     setSaving(false)
   }
 
   const handleDelete = async (id: number) => {
     if (!confirm("Delete this address?")) return
-    await addressService.delete(id)
-    fetchAddresses()
+    setError("")
+    try {
+      await addressService.delete(id)
+      setSuccess("Address deleted successfully!")
+      fetchAddresses()
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Failed to delete address")
+    }
   }
 
   const getStateName = (code: string) => {
@@ -73,6 +91,13 @@ export default function AddressesPage() {
           <i className="fas fa-plus mr-2"></i>Add New Address
         </button>
       </div>
+
+      {success && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{success}</div>
+      )}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>
+      )}
 
       {showForm && (
         <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6">
