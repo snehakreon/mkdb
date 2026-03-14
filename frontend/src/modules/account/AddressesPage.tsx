@@ -61,8 +61,9 @@ export default function AddressesPage() {
       fetchAddresses()
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to save address. Please try again.")
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   const handleDelete = async (id: number) => {
