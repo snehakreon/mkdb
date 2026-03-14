@@ -1,27 +1,27 @@
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
+import { api } from "../../services/api"
 
-const categories = [
-  { name: "Tiles & Flooring", count: "2,500+", icon: "fa-th-large", bg: "bg-mk-red-50", color: "text-mk-red" },
-  { name: "Paints & Coatings", count: "1,800+", icon: "fa-paint-roller", bg: "bg-blue-50", color: "text-blue-500" },
-  { name: "Sanitaryware", count: "3,200+", icon: "fa-bath", bg: "bg-cyan-50", color: "text-cyan-500" },
-  { name: "Hardware & Tools", count: "4,100+", icon: "fa-tools", bg: "bg-amber-50", color: "text-amber-600" },
-  { name: "Boards & Laminates", count: "1,500+", icon: "fa-layer-group", bg: "bg-yellow-50", color: "text-yellow-600" },
-  { name: "Electrical", count: "2,800+", icon: "fa-bolt", bg: "bg-orange-50", color: "text-orange-500" },
-  { name: "Plumbing & Pipes", count: "1,900+", icon: "fa-faucet", bg: "bg-teal-50", color: "text-teal-500" },
-  { name: "Kitchen", count: "1,200+", icon: "fa-blender", bg: "bg-purple-50", color: "text-purple-500" },
-  { name: "Cement & Steel", count: "800+", icon: "fa-cubes", bg: "bg-gray-100", color: "text-gray-600" },
-  { name: "Lighting", count: "1,600+", icon: "fa-lightbulb", bg: "bg-green-50", color: "text-green-500" },
-]
+const categoryIcons: Record<string, { icon: string; bg: string; color: string }> = {
+  "tiles": { icon: "fa-th-large", bg: "bg-mk-red-50", color: "text-mk-red" },
+  "paints": { icon: "fa-paint-roller", bg: "bg-blue-50", color: "text-blue-500" },
+  "sanitary": { icon: "fa-bath", bg: "bg-cyan-50", color: "text-cyan-500" },
+  "hardware": { icon: "fa-tools", bg: "bg-amber-50", color: "text-amber-600" },
+  "boards": { icon: "fa-layer-group", bg: "bg-yellow-50", color: "text-yellow-600" },
+  "electrical": { icon: "fa-bolt", bg: "bg-orange-50", color: "text-orange-500" },
+  "plumbing": { icon: "fa-faucet", bg: "bg-teal-50", color: "text-teal-500" },
+  "kitchen": { icon: "fa-blender", bg: "bg-purple-50", color: "text-purple-500" },
+  "cement": { icon: "fa-cubes", bg: "bg-gray-100", color: "text-gray-600" },
+  "lighting": { icon: "fa-lightbulb", bg: "bg-green-50", color: "text-green-500" },
+}
 
-const products = [
-  { brand: "Kajaria", name: "Polished Vitrified Floor Tile 600x600mm - Marble White", price: "45", oldPrice: "53", unit: "/sq.ft", badge: "15% OFF", badgeColor: "bg-green-500", icon: "fa-th-large" },
-  { brand: "Asian Paints", name: "Apex Ultima Emulsion Weather Proof - 20 Litre", price: "4,850", oldPrice: "5,500", unit: "/bucket", badge: "BEST SELLER", badgeColor: "bg-mk-red", icon: "fa-paint-roller" },
-  { brand: "Hindware", name: "Enigma One-Piece Ceramic Western Toilet - White", price: "12,500", oldPrice: "15,800", unit: "/piece", icon: "fa-toilet" },
-  { brand: "Godrej", name: "7 Lever Deadbolt Door Lock - Satin Steel Finish", price: "2,350", oldPrice: "2,800", unit: "/piece", badge: "NEW", badgeColor: "bg-orange-500", icon: "fa-door-open" },
-  { brand: "Havells", name: "Lifeline HRFR 1.5 sq.mm Wire - 90m Roll", price: "1,450", oldPrice: "1,800", unit: "/roll", badge: "20% OFF", badgeColor: "bg-green-500", icon: "fa-plug" },
-]
-
-const brands = ["Kajaria", "Asian Paints", "Hindware", "Godrej", "Havells", "Somany", "Berger", "Finolex", "Cera", "Jaquar", "Anchor", "Polycab", "Parryware", "Greenply", "Century", "RAK"]
+function getCategoryStyle(name: string) {
+  const lower = name.toLowerCase()
+  for (const [key, style] of Object.entries(categoryIcons)) {
+    if (lower.includes(key)) return style
+  }
+  return { icon: "fa-box", bg: "bg-gray-100", color: "text-gray-600" }
+}
 
 const testimonials = [
   { text: "Material King saved us 30% on our construction materials for a 200-unit residential project. The quality is top-notch and delivery was on time.", name: "Rajesh Kumar", company: "ABC Constructions, Delhi", initials: "RK", bg: "bg-mk-red-50", color: "text-mk-red" },
@@ -30,6 +30,16 @@ const testimonials = [
 ]
 
 export default function HomePage() {
+  const [categories, setCategories] = useState<any[]>([])
+  const [products, setProducts] = useState<any[]>([])
+  const [brands, setBrands] = useState<any[]>([])
+
+  useEffect(() => {
+    api.get("/categories/active").then((r) => setCategories(r.data)).catch(() => {})
+    api.get("/products/active?limit=10").then((r) => setProducts(r.data)).catch(() => {})
+    api.get("/brands").then((r) => setBrands(r.data.filter((b: any) => b.is_active))).catch(() => {})
+  }, [])
+
   return (
     <div>
       {/* Hero Section */}
@@ -68,7 +78,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
               { value: "500+", label: "Verified Vendors" },
-              { value: "50,000+", label: "Products Listed" },
+              { value: products.length > 0 ? `${products.length}+` : "50,000+", label: "Products Listed" },
               { value: "1,000+", label: "Cities Served" },
               { value: "10,000+", label: "Happy Buyers" },
             ].map((s) => (
@@ -92,15 +102,18 @@ export default function HomePage() {
             <Link to="/categories" className="text-mk-red font-semibold text-sm hover:underline hidden md:block">View All Categories <i className="fas fa-arrow-right ml-1"></i></Link>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
-            {categories.map((cat) => (
-              <Link key={cat.name} to="/products" className="category-card bg-white rounded-xl p-6 text-center cursor-pointer border border-gray-100 hover:border-mk-red/30">
-                <div className={`w-16 h-16 ${cat.bg} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
-                  <i className={`fas ${cat.icon} text-2xl ${cat.color}`}></i>
-                </div>
-                <h3 className="font-bold text-sm text-mk-gray-800">{cat.name}</h3>
-                <p className="text-xs text-mk-gray-600 mt-1">{cat.count} Products</p>
-              </Link>
-            ))}
+            {categories.map((cat) => {
+              const style = getCategoryStyle(cat.name)
+              return (
+                <Link key={cat.id} to={`/products?category=${cat.id}`} className="category-card bg-white rounded-xl p-6 text-center cursor-pointer border border-gray-100 hover:border-mk-red/30">
+                  <div className={`w-16 h-16 ${style.bg} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
+                    <i className={`fas ${style.icon} text-2xl ${style.color}`}></i>
+                  </div>
+                  <h3 className="font-bold text-sm text-mk-gray-800">{cat.name}</h3>
+                  <p className="text-xs text-mk-gray-600 mt-1">{cat.product_count || 0} Products</p>
+                </Link>
+              )
+            })}
           </div>
         </div>
       </section>
@@ -115,31 +128,45 @@ export default function HomePage() {
             </div>
             <Link to="/products" className="text-mk-red font-semibold text-sm hover:underline hidden md:block">View All <i className="fas fa-arrow-right ml-1"></i></Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
-            {products.map((p, i) => (
-              <div key={i} className="product-card bg-white rounded-xl border border-gray-100 overflow-hidden">
-                <div className="relative bg-mk-gray-50 p-4 h-48 flex items-center justify-center">
-                  {p.badge && <span className={`absolute top-3 left-3 ${p.badgeColor} text-white text-[10px] font-bold px-2 py-0.5 rounded`}>{p.badge}</span>}
-                  <i className={`fas ${p.icon} text-5xl text-gray-300`}></i>
-                  <button className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:text-mk-red transition-colors">
-                    <i className="far fa-heart text-sm"></i>
-                  </button>
-                </div>
-                <div className="p-4">
-                  <div className="text-[10px] text-mk-gray-600 uppercase tracking-wider mb-1">{p.brand}</div>
-                  <h3 className="font-semibold text-sm text-mk-gray-800 mb-2 line-clamp-2">{p.name}</h3>
-                  <div className="flex items-baseline gap-2 mb-3">
-                    <span className="text-lg font-bold text-mk-gray-900">₹{p.price}</span>
-                    <span className="text-sm text-mk-gray-600 line-through">₹{p.oldPrice}</span>
-                    <span className="text-xs text-green-600 font-semibold">{p.unit}</span>
-                  </div>
-                  <Link to="/products/1" className="block w-full bg-mk-red hover:bg-mk-red-600 text-white text-center text-sm font-semibold py-2 rounded-lg transition-colors">
-                    View Details
+          {products.length === 0 ? (
+            <div className="text-center py-12 text-mk-gray-500">
+              <i className="fas fa-box-open text-4xl mb-3 text-gray-300"></i>
+              <p className="text-sm">No products available yet. Check back soon!</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+              {products.map((p) => {
+                const discount = p.mrp && p.price ? Math.round((1 - p.price / p.mrp) * 100) : 0
+                return (
+                  <Link key={p.id} to={`/products/${p.id}`} className="product-card bg-white rounded-xl border border-gray-100 overflow-hidden">
+                    <div className="relative bg-mk-gray-50 p-4 h-48 flex items-center justify-center">
+                      {discount > 0 && <span className="absolute top-3 left-3 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded">{discount}% OFF</span>}
+                      {p.image_url ? (
+                        <img src={p.image_url} alt={p.name} className="max-h-full max-w-full object-contain" />
+                      ) : (
+                        <i className="fas fa-box text-5xl text-gray-300"></i>
+                      )}
+                      <button className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm hover:text-mk-red transition-colors">
+                        <i className="far fa-heart text-sm"></i>
+                      </button>
+                    </div>
+                    <div className="p-4">
+                      <div className="text-[10px] text-mk-gray-600 uppercase tracking-wider mb-1">{p.brand_name || "—"}</div>
+                      <h3 className="font-semibold text-sm text-mk-gray-800 mb-2 line-clamp-2">{p.name}</h3>
+                      <div className="flex items-baseline gap-2 mb-3">
+                        <span className="text-lg font-bold text-mk-gray-900">₹{Number(p.price).toLocaleString("en-IN")}</span>
+                        {p.mrp && p.mrp > p.price && <span className="text-sm text-mk-gray-600 line-through">₹{Number(p.mrp).toLocaleString("en-IN")}</span>}
+                        <span className="text-xs text-green-600 font-semibold">/{p.unit || "piece"}</span>
+                      </div>
+                      <span className="block w-full bg-mk-red hover:bg-mk-red-600 text-white text-center text-sm font-semibold py-2 rounded-lg transition-colors">
+                        View Details
+                      </span>
+                    </div>
                   </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </section>
 
@@ -191,8 +218,12 @@ export default function HomePage() {
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-6">
             {brands.map((b) => (
-              <div key={b} className="brand-logo bg-white rounded-xl p-4 flex items-center justify-center h-20 border border-gray-100">
-                <span className="font-bold text-sm text-mk-gray-600">{b}</span>
+              <div key={b.id} className="brand-logo bg-white rounded-xl p-4 flex items-center justify-center h-20 border border-gray-100">
+                {b.logo_url ? (
+                  <img src={b.logo_url} alt={b.name} className="max-h-10 max-w-full object-contain" />
+                ) : (
+                  <span className="font-bold text-sm text-mk-gray-600">{b.name}</span>
+                )}
               </div>
             ))}
           </div>

@@ -1,26 +1,41 @@
-import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
 import { wishlistService } from "../../services/wishlist.service"
-
-const products = [
-  { brand: "Kajaria", name: "Polished Vitrified Floor Tile 600x600mm - Marble White", price: "45", oldPrice: "53", unit: "/sq.ft", badge: "15% OFF", badgeColor: "bg-green-500", icon: "fa-th-large", moq: "100 sq.ft" },
-  { brand: "Asian Paints", name: "Apex Ultima Emulsion Weather Proof - 20 Litre", price: "4,850", oldPrice: "5,500", unit: "/bucket", badge: "BEST SELLER", badgeColor: "bg-mk-red", icon: "fa-paint-roller", moq: "5 Buckets" },
-  { brand: "Somany", name: "Floor Tile 600x600 - Grey Matt Anti-Skid", price: "38", oldPrice: "46", unit: "/sq.ft", icon: "fa-th-large", moq: "100 sq.ft" },
-  { brand: "Hindware", name: "Enigma One-Piece Ceramic Western Toilet - White", price: "12,500", oldPrice: "15,800", unit: "/piece", icon: "fa-toilet", moq: "1 Piece" },
-  { brand: "Godrej", name: "7 Lever Deadbolt Door Lock - Satin Steel", price: "2,350", oldPrice: "2,800", unit: "/piece", badge: "NEW", badgeColor: "bg-orange-500", icon: "fa-door-open", moq: "10 Pieces" },
-  { brand: "Havells", name: "Lifeline HRFR 1.5 sq.mm Wire - 90m Roll", price: "1,450", oldPrice: "1,800", unit: "/roll", badge: "20% OFF", badgeColor: "bg-green-500", icon: "fa-plug", moq: "5 Rolls" },
-  { brand: "RAK", name: "Porcelain Tile 800x800mm - Nero Marquina", price: "95", oldPrice: "120", unit: "/sq.ft", icon: "fa-th-large", moq: "50 sq.ft" },
-  { brand: "Berger", name: "WeatherCoat All Guard Exterior Paint - 10L", price: "3,200", oldPrice: "3,800", unit: "/bucket", icon: "fa-paint-roller", moq: "3 Buckets" },
-]
-
-const filterBrands = ["Kajaria", "Asian Paints", "Somany", "Hindware", "Godrej", "Havells", "RAK", "Berger"]
-const priceRanges = ["Under ₹100", "₹100 - ₹500", "₹500 - ₹2,000", "₹2,000 - ₹10,000", "Above ₹10,000"]
+import { api } from "../../services/api"
 
 export default function ProductsListPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [products, setProducts] = useState<any[]>([])
+  const [categories, setCategories] = useState<any[]>([])
+  const [brands, setBrands] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const [wishlisted, setWishlisted] = useState<Set<number>>(new Set())
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get("category") || "")
+  const [selectedBrand, setSelectedBrand] = useState("")
+  const [search, setSearch] = useState(searchParams.get("search") || "")
+
+  const fetchProducts = async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (selectedCategory) params.set("category_id", selectedCategory)
+      if (selectedBrand) params.set("brand_id", selectedBrand)
+      if (search) params.set("search", search)
+      const res = await api.get(`/products/active?${params.toString()}`)
+      setProducts(res.data)
+    } catch { /* empty */ }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    api.get("/categories/active").then((r) => setCategories(r.data)).catch(() => {})
+    api.get("/brands").then((r) => setBrands(r.data.filter((b: any) => b.is_active))).catch(() => {})
+  }, [])
+
+  useEffect(() => { fetchProducts() }, [selectedCategory, selectedBrand, search])
 
   const toggleWishlist = async (e: React.MouseEvent, productId: number) => {
     e.preventDefault()
@@ -55,14 +70,26 @@ export default function ProductsListPage() {
             <div className="bg-white rounded-xl border border-gray-200 p-5 sticky top-24">
               <h3 className="font-bold text-mk-gray-900 mb-4">Filters</h3>
 
+              {/* Search */}
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-mk-gray-800 mb-3">Search</h4>
+                <input type="text" placeholder="Search products..." value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-mk-red" />
+              </div>
+
               {/* Category */}
               <div className="mb-6">
                 <h4 className="text-sm font-semibold text-mk-gray-800 mb-3">Category</h4>
                 <ul className="space-y-2 text-sm text-mk-gray-600">
-                  {["Floor Tiles", "Wall Tiles", "Vitrified", "Ceramic", "Porcelain"].map((c) => (
-                    <li key={c} className="flex items-center gap-2">
-                      <input type="checkbox" className="rounded border-gray-300 text-mk-red focus:ring-mk-red" />
-                      <span>{c}</span>
+                  <li className="flex items-center gap-2 cursor-pointer" onClick={() => setSelectedCategory("")}>
+                    <input type="radio" name="category" checked={!selectedCategory} readOnly className="text-mk-red focus:ring-mk-red" />
+                    <span>All Categories</span>
+                  </li>
+                  {categories.map((c) => (
+                    <li key={c.id} className="flex items-center gap-2 cursor-pointer" onClick={() => setSelectedCategory(String(c.id))}>
+                      <input type="radio" name="category" checked={selectedCategory === String(c.id)} readOnly className="text-mk-red focus:ring-mk-red" />
+                      <span>{c.name} ({c.product_count || 0})</span>
                     </li>
                   ))}
                 </ul>
@@ -72,30 +99,22 @@ export default function ProductsListPage() {
               <div className="mb-6">
                 <h4 className="text-sm font-semibold text-mk-gray-800 mb-3">Brand</h4>
                 <ul className="space-y-2 text-sm text-mk-gray-600">
-                  {filterBrands.map((b) => (
-                    <li key={b} className="flex items-center gap-2">
-                      <input type="checkbox" className="rounded border-gray-300 text-mk-red focus:ring-mk-red" />
-                      <span>{b}</span>
+                  <li className="flex items-center gap-2 cursor-pointer" onClick={() => setSelectedBrand("")}>
+                    <input type="radio" name="brand" checked={!selectedBrand} readOnly className="text-mk-red focus:ring-mk-red" />
+                    <span>All Brands</span>
+                  </li>
+                  {brands.map((b) => (
+                    <li key={b.id} className="flex items-center gap-2 cursor-pointer" onClick={() => setSelectedBrand(String(b.id))}>
+                      <input type="radio" name="brand" checked={selectedBrand === String(b.id)} readOnly className="text-mk-red focus:ring-mk-red" />
+                      <span>{b.name}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
-              {/* Price Range */}
-              <div className="mb-6">
-                <h4 className="text-sm font-semibold text-mk-gray-800 mb-3">Price Range</h4>
-                <ul className="space-y-2 text-sm text-mk-gray-600">
-                  {priceRanges.map((r) => (
-                    <li key={r} className="flex items-center gap-2">
-                      <input type="radio" name="price" className="text-mk-red focus:ring-mk-red" />
-                      <span>{r}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <button className="w-full bg-mk-red text-white text-sm font-semibold py-2 rounded-lg hover:bg-mk-red-600 transition-colors">
-                Apply Filters
+              <button onClick={() => { setSelectedCategory(""); setSelectedBrand(""); setSearch("") }}
+                className="w-full bg-gray-100 text-mk-gray-700 text-sm font-semibold py-2 rounded-lg hover:bg-gray-200 transition-colors">
+                Clear Filters
               </button>
             </div>
           </aside>
@@ -104,46 +123,54 @@ export default function ProductsListPage() {
           <div className="flex-1">
             <div className="flex items-center justify-between mb-6">
               <h1 className="text-2xl font-extrabold text-mk-gray-900">All <span className="text-mk-red">Products</span></h1>
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-mk-gray-600">{products.length} products</span>
-                <select className="border border-gray-200 rounded-lg py-2 px-3 text-sm text-mk-gray-600 focus:outline-none focus:border-mk-red">
-                  <option>Sort by: Relevance</option>
-                  <option>Price: Low to High</option>
-                  <option>Price: High to Low</option>
-                  <option>Newest First</option>
-                </select>
-              </div>
+              <span className="text-sm text-mk-gray-600">{products.length} products</span>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
-              {products.map((p, i) => (
-                <Link key={i} to={`/products/${i + 1}`} className="product-card bg-white rounded-xl border border-gray-100 overflow-hidden">
-                  <div className="relative bg-mk-gray-50 p-4 h-48 flex items-center justify-center">
-                    {p.badge && <span className={`absolute top-3 left-3 ${p.badgeColor} text-white text-[10px] font-bold px-2 py-0.5 rounded`}>{p.badge}</span>}
-                    <i className={`fas ${p.icon} text-5xl text-gray-300`}></i>
-                    <button
-                      onClick={(e) => toggleWishlist(e, i + 1)}
-                      className={`absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm transition-colors ${wishlisted.has(i + 1) ? "text-mk-red" : "hover:text-mk-red"}`}
-                    >
-                      <i className={`${wishlisted.has(i + 1) ? "fas" : "far"} fa-heart text-sm`}></i>
-                    </button>
-                  </div>
-                  <div className="p-4">
-                    <div className="text-[10px] text-mk-gray-600 uppercase tracking-wider mb-1">{p.brand}</div>
-                    <h3 className="font-semibold text-sm text-mk-gray-800 mb-2 line-clamp-2">{p.name}</h3>
-                    <div className="flex items-baseline gap-2 mb-1">
-                      <span className="text-lg font-bold text-mk-gray-900">₹{p.price}</span>
-                      <span className="text-sm text-mk-gray-600 line-through">₹{p.oldPrice}</span>
-                      <span className="text-xs text-green-600 font-semibold">{p.unit}</span>
-                    </div>
-                    <div className="text-[10px] text-mk-gray-600 mb-3">MOQ: {p.moq}</div>
-                    <span className="block w-full bg-mk-red hover:bg-mk-red-600 text-white text-center text-sm font-semibold py-2 rounded-lg transition-colors">
-                      View Details
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            {loading ? (
+              <div className="text-center py-12 text-mk-gray-500 text-sm">Loading products...</div>
+            ) : products.length === 0 ? (
+              <div className="text-center py-12 text-mk-gray-500">
+                <i className="fas fa-box-open text-4xl mb-3 text-gray-300"></i>
+                <p className="text-sm">No products found. Try adjusting your filters.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
+                {products.map((p) => {
+                  const discount = p.mrp && p.price ? Math.round((1 - p.price / p.mrp) * 100) : 0
+                  return (
+                    <Link key={p.id} to={`/products/${p.id}`} className="product-card bg-white rounded-xl border border-gray-100 overflow-hidden">
+                      <div className="relative bg-mk-gray-50 p-4 h-48 flex items-center justify-center">
+                        {discount > 0 && <span className="absolute top-3 left-3 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded">{discount}% OFF</span>}
+                        {p.image_url ? (
+                          <img src={p.image_url} alt={p.name} className="max-h-full max-w-full object-contain" />
+                        ) : (
+                          <i className="fas fa-box text-5xl text-gray-300"></i>
+                        )}
+                        <button
+                          onClick={(e) => toggleWishlist(e, p.id)}
+                          className={`absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm transition-colors ${wishlisted.has(p.id) ? "text-mk-red" : "hover:text-mk-red"}`}
+                        >
+                          <i className={`${wishlisted.has(p.id) ? "fas" : "far"} fa-heart text-sm`}></i>
+                        </button>
+                      </div>
+                      <div className="p-4">
+                        <div className="text-[10px] text-mk-gray-600 uppercase tracking-wider mb-1">{p.brand_name || "—"}</div>
+                        <h3 className="font-semibold text-sm text-mk-gray-800 mb-2 line-clamp-2">{p.name}</h3>
+                        <div className="flex items-baseline gap-2 mb-1">
+                          <span className="text-lg font-bold text-mk-gray-900">₹{Number(p.price).toLocaleString("en-IN")}</span>
+                          {p.mrp && p.mrp > p.price && <span className="text-sm text-mk-gray-600 line-through">₹{Number(p.mrp).toLocaleString("en-IN")}</span>}
+                          <span className="text-xs text-green-600 font-semibold">/{p.unit || "piece"}</span>
+                        </div>
+                        <div className="text-[10px] text-mk-gray-600 mb-3">MOQ: {p.min_order_qty || 1} {p.unit || "piece"}</div>
+                        <span className="block w-full bg-mk-red hover:bg-mk-red-600 text-white text-center text-sm font-semibold py-2 rounded-lg transition-colors">
+                          View Details
+                        </span>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

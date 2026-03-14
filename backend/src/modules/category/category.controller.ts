@@ -14,6 +14,25 @@ export const getAll = async (_req: Request, res: Response) => {
   }
 };
 
+// GET /api/categories/active — public endpoint with product counts
+export const getActive = async (_req: Request, res: Response) => {
+  try {
+    const result = await pool.query(
+      `SELECT c.id, c.name, c.slug, c.description, c.parent_id, c.image_url, c.sort_order,
+              COUNT(p.id) FILTER (WHERE p.is_active = true) AS product_count
+       FROM categories c
+       LEFT JOIN products p ON p.category_id = c.id
+       WHERE c.is_active = true
+       GROUP BY c.id
+       ORDER BY c.sort_order, c.name`
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error("Category getActive error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // POST /api/categories
 export const create = async (req: Request, res: Response) => {
   try {

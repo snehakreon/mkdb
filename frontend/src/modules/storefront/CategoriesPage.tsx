@@ -1,18 +1,51 @@
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
+import { api } from "../../services/api"
 
-const categories = [
-  { name: "Tiles & Flooring", count: "2,500+", icon: "fa-th-large", gradient: "from-red-50 to-red-100", color: "text-mk-red", subs: ["Floor Tiles", "Wall Tiles", "Vitrified", "Ceramic", "Porcelain", "Marble", "Mosaic", "Outdoor"] },
-  { name: "Paints & Coatings", count: "1,800+", icon: "fa-paint-roller", gradient: "from-blue-50 to-blue-100", color: "text-blue-500", subs: ["Interior", "Exterior", "Primer", "Wood Finish", "Metal Paint", "Waterproofing", "Putty"] },
-  { name: "Sanitaryware & Bath", count: "3,200+", icon: "fa-bath", gradient: "from-cyan-50 to-cyan-100", color: "text-cyan-500", subs: ["Toilets", "Wash Basins", "Faucets", "Showers", "Bath Accessories", "Cisterns"] },
-  { name: "Hardware & Tools", count: "4,100+", icon: "fa-tools", gradient: "from-amber-50 to-amber-100", color: "text-amber-600", subs: ["Door Locks", "Hinges", "Door Handles", "Tower Bolts", "Power Tools", "Hand Tools"] },
-  { name: "Boards & Laminates", count: "1,500+", icon: "fa-layer-group", gradient: "from-yellow-50 to-yellow-100", color: "text-yellow-600", subs: ["Plywood", "MDF", "Laminates", "Particle Board", "Block Board", "Veneer"] },
-  { name: "Electrical & Lighting", count: "2,800+", icon: "fa-bolt", gradient: "from-orange-50 to-orange-100", color: "text-orange-500", subs: ["Wires & Cables", "Switches", "MCBs", "LED Lights", "Fans", "Panels"] },
-  { name: "Plumbing & Pipes", count: "1,900+", icon: "fa-faucet", gradient: "from-teal-50 to-teal-100", color: "text-teal-500", subs: ["PVC Pipes", "CPVC", "GI Pipes", "Fittings", "Valves", "Water Tanks"] },
-  { name: "Kitchen", count: "1,200+", icon: "fa-blender", gradient: "from-purple-50 to-purple-100", color: "text-purple-500", subs: ["Kitchen Sinks", "Faucets", "Chimneys", "Hobs", "Accessories"] },
-  { name: "Cement & Steel", count: "800+", icon: "fa-cubes", gradient: "from-gray-100 to-gray-200", color: "text-gray-600", subs: ["OPC Cement", "PPC Cement", "TMT Bars", "Sand", "Aggregates"] },
+const gradients = [
+  "from-red-50 to-red-100", "from-blue-50 to-blue-100", "from-cyan-50 to-cyan-100",
+  "from-amber-50 to-amber-100", "from-yellow-50 to-yellow-100", "from-orange-50 to-orange-100",
+  "from-teal-50 to-teal-100", "from-purple-50 to-purple-100", "from-gray-100 to-gray-200",
+  "from-green-50 to-green-100",
 ]
+const iconColors = [
+  "text-mk-red", "text-blue-500", "text-cyan-500", "text-amber-600",
+  "text-yellow-600", "text-orange-500", "text-teal-500", "text-purple-500",
+  "text-gray-600", "text-green-500",
+]
+const categoryIcons: Record<string, string> = {
+  "tiles": "fa-th-large", "paints": "fa-paint-roller", "sanitary": "fa-bath",
+  "hardware": "fa-tools", "boards": "fa-layer-group", "electrical": "fa-bolt",
+  "plumbing": "fa-faucet", "kitchen": "fa-blender", "cement": "fa-cubes",
+  "lighting": "fa-lightbulb", "steel": "fa-cubes",
+}
+
+function getIcon(name: string) {
+  const lower = name.toLowerCase()
+  for (const [key, icon] of Object.entries(categoryIcons)) {
+    if (lower.includes(key)) return icon
+  }
+  return "fa-box"
+}
 
 export default function CategoriesPage() {
+  const [categories, setCategories] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.get("/categories/active").then((r) => {
+      // Build parent-child structure
+      const all = r.data
+      const parents = all.filter((c: any) => !c.parent_id)
+      const children = all.filter((c: any) => c.parent_id)
+      const grouped = parents.map((p: any) => ({
+        ...p,
+        subs: children.filter((c: any) => c.parent_id === p.id).map((c: any) => c.name),
+      }))
+      setCategories(grouped)
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [])
+
   return (
     <div>
       {/* Breadcrumb */}
@@ -30,31 +63,47 @@ export default function CategoriesPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 pb-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categories.map((cat) => (
-            <Link key={cat.name} to="/products" className="category-card bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-mk-red">
-              <div className={`bg-gradient-to-br ${cat.gradient} p-6 flex items-center gap-4`}>
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm">
-                  <i className={`fas ${cat.icon} text-2xl ${cat.color}`}></i>
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg text-mk-gray-900">{cat.name}</h3>
-                  <p className="text-sm text-mk-gray-600">{cat.count} Products</p>
-                </div>
-              </div>
-              <div className="p-5">
-                <div className="flex flex-wrap gap-2">
-                  {cat.subs.map((s) => (
-                    <span key={s} className="text-xs text-mk-gray-600 bg-mk-gray-50 px-2 py-1 rounded hover:text-mk-red transition-colors">{s}</span>
-                  ))}
-                </div>
-                <div className="mt-4 flex items-center text-mk-red text-sm font-semibold">
-                  View All <i className="fas fa-arrow-right ml-2 text-xs"></i>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        {loading ? (
+          <div className="text-center py-12 text-mk-gray-500 text-sm">Loading categories...</div>
+        ) : categories.length === 0 ? (
+          <div className="text-center py-12 text-mk-gray-500">
+            <i className="fas fa-folder-open text-4xl mb-3 text-gray-300"></i>
+            <p className="text-sm">No categories available yet.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {categories.map((cat, idx) => {
+              const gradient = gradients[idx % gradients.length]
+              const color = iconColors[idx % iconColors.length]
+              const icon = getIcon(cat.name)
+              return (
+                <Link key={cat.id} to={`/products?category=${cat.id}`} className="category-card bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-mk-red">
+                  <div className={`bg-gradient-to-br ${gradient} p-6 flex items-center gap-4`}>
+                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm">
+                      <i className={`fas ${icon} text-2xl ${color}`}></i>
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg text-mk-gray-900">{cat.name}</h3>
+                      <p className="text-sm text-mk-gray-600">{cat.product_count || 0} Products</p>
+                    </div>
+                  </div>
+                  {cat.subs && cat.subs.length > 0 && (
+                    <div className="p-5">
+                      <div className="flex flex-wrap gap-2">
+                        {cat.subs.map((s: string) => (
+                          <span key={s} className="text-xs text-mk-gray-600 bg-mk-gray-50 px-2 py-1 rounded hover:text-mk-red transition-colors">{s}</span>
+                        ))}
+                      </div>
+                      <div className="mt-4 flex items-center text-mk-red text-sm font-semibold">
+                        View All <i className="fas fa-arrow-right ml-2 text-xs"></i>
+                      </div>
+                    </div>
+                  )}
+                </Link>
+              )
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
