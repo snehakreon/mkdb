@@ -34,7 +34,7 @@ export const getAll = async (_req: Request, res: Response) => {
 // GET /api/products/active — public endpoint for buyer storefront
 export const getActive = async (req: Request, res: Response) => {
   try {
-    const { category_id, brand_id, search, limit } = req.query;
+    const { category_id, brand_id, search, limit, min_price, max_price, sort } = req.query;
     let query = `SELECT ${PRODUCT_FIELDS},
               c.name AS category_name, b.name AS brand_name
        FROM products p
@@ -45,19 +45,40 @@ export const getActive = async (req: Request, res: Response) => {
     let paramIdx = 1;
 
     if (category_id) {
-      query += ` AND p.category_id = $${paramIdx++}`;
+      // Support filtering by parent category (include subcategory products)
+      query += ` AND (p.category_id = $${paramIdx} OR p.category_id IN (SELECT id FROM categories WHERE parent_id = $${paramIdx}))`;
       params.push(category_id);
+      paramIdx++;
     }
     if (brand_id) {
       query += ` AND p.brand_id = $${paramIdx++}`;
       params.push(brand_id);
+    }
+    if (min_price) {
+      query += ` AND p.price >= $${paramIdx++}`;
+      params.push(parseFloat(min_price as string));
+    }
+    if (max_price) {
+      query += ` AND p.price <= $${paramIdx++}`;
+      params.push(parseFloat(max_price as string));
     }
     if (search) {
       query += ` AND (p.name ILIKE $${paramIdx} OR p.description ILIKE $${paramIdx} OR b.name ILIKE $${paramIdx})`;
       params.push(`%${search}%`);
       paramIdx++;
     }
-    query += ` ORDER BY p.created_at DESC`;
+
+    // Sorting
+    if (sort === "price_asc") {
+      query += ` ORDER BY p.price ASC`;
+    } else if (sort === "price_desc") {
+      query += ` ORDER BY p.price DESC`;
+    } else if (sort === "name_asc") {
+      query += ` ORDER BY p.name ASC`;
+    } else {
+      query += ` ORDER BY p.created_at DESC`;
+    }
+
     if (limit) {
       query += ` LIMIT $${paramIdx++}`;
       params.push(parseInt(limit as string));
@@ -67,6 +88,63 @@ export const getActive = async (req: Request, res: Response) => {
     res.json(result.rows);
   } catch (error: any) {
     console.error("Product getActive error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/products/filters — dynamic filter options for storefront
+export const getFilters = async (req: Request, res: Response) => {
+  try {
+    const { category_id } = req.query;
+    let catFilter = "";
+    const params: any[] = [];
+
+    if (category_id) {
+      catFilter = ` AND (p.category_id = $1 OR p.category_id IN (SELECT id FROM categories WHERE parent_id = $1))`;
+      params.push(category_id);
+    }
+
+    // Get brands with product counts for this category
+    const brandsResult = await pool.query(
+      `SELECT b.id, b.name, COUNT(p.id) AS product_count
+       FROM brands b
+       JOIN products p ON p.brand_id = b.id AND p.is_active = true${catFilter}
+       WHERE b.is_active = true
+       GROUP BY b.id, b.name
+       ORDER BY b.name`,
+      params
+    );
+
+    // Get price range
+    const priceResult = await pool.query(
+      `SELECT MIN(p.price)::numeric AS min_price, MAX(p.price)::numeric AS max_price
+       FROM products p
+       WHERE p.is_active = true${catFilter}`,
+      params
+    );
+
+    // Get subcategories if a parent category is selected
+    let subcategories: any[] = [];
+    if (category_id) {
+      const subsResult = await pool.query(
+        `SELECT c.id, c.name, c.slug, COUNT(p.id) FILTER (WHERE p.is_active = true) AS product_count
+         FROM categories c
+         LEFT JOIN products p ON p.category_id = c.id
+         WHERE c.parent_id = $1 AND c.is_active = true
+         GROUP BY c.id
+         ORDER BY c.sort_order, c.name`,
+        [category_id]
+      );
+      subcategories = subsResult.rows;
+    }
+
+    res.json({
+      brands: brandsResult.rows,
+      price_range: priceResult.rows[0] || { min_price: 0, max_price: 0 },
+      subcategories,
+    });
+  } catch (error: any) {
+    console.error("Product getFilters error:", error);
     res.status(500).json({ message: error.message });
   }
 };

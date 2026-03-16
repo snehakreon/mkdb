@@ -21,6 +21,14 @@ export default function ProductDetailPage() {
       .catch(() => {}).finally(() => setLoading(false))
   }, [id])
 
+  // Check wishlist state for logged-in user
+  useEffect(() => {
+    if (!user || !productId) return
+    wishlistService.check(productId)
+      .then((r) => setWishlisted(r.data.inWishlist))
+      .catch(() => {})
+  }, [user, productId])
+
   const toggleWishlist = async () => {
     if (!user) { navigate("/login"); return }
     setWishLoading(true)

@@ -28,23 +28,34 @@ function getIcon(name: string) {
   return "fa-box"
 }
 
+interface Category {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  parent_id: number | null
+  product_count: number
+}
+
 export default function CategoriesPage() {
-  const [categories, setCategories] = useState<any[]>([])
+  const [allCategories, setAllCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     api.get("/categories/active").then((r) => {
-      // Build parent-child structure
-      const all = r.data
-      const parents = all.filter((c: any) => !c.parent_id)
-      const children = all.filter((c: any) => c.parent_id)
-      const grouped = parents.map((p: any) => ({
-        ...p,
-        subs: children.filter((c: any) => c.parent_id === p.id).map((c: any) => c.name),
-      }))
-      setCategories(grouped)
+      setAllCategories(r.data)
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
+
+  // Build parent-child structure
+  const parentCategories = allCategories.filter((c) => !c.parent_id)
+  const getSubcategories = (parentId: number) => allCategories.filter((c) => c.parent_id === parentId)
+
+  // Total product count for parent = its own + sum of subcategories
+  const getTotalProductCount = (parent: Category) => {
+    const subs = getSubcategories(parent.id)
+    return Number(parent.product_count || 0) + subs.reduce((sum, s) => sum + Number(s.product_count || 0), 0)
+  }
 
   return (
     <div>
@@ -59,47 +70,70 @@ export default function CategoriesPage() {
 
       <div className="max-w-7xl mx-auto px-4 mb-8">
         <h1 className="text-3xl font-extrabold text-mk-gray-900">All <span className="text-mk-red">Categories</span></h1>
-        <p className="text-mk-gray-600 mt-2">Explore our complete range of building materials across {categories.length} major categories</p>
+        <p className="text-mk-gray-600 mt-2">Explore our complete range of building materials across {parentCategories.length} major categories</p>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 pb-16">
         {loading ? (
           <div className="text-center py-12 text-mk-gray-500 text-sm">Loading categories...</div>
-        ) : categories.length === 0 ? (
+        ) : parentCategories.length === 0 ? (
           <div className="text-center py-12 text-mk-gray-500">
             <i className="fas fa-folder-open text-4xl mb-3 text-gray-300"></i>
             <p className="text-sm">No categories available yet.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {categories.map((cat, idx) => {
+            {parentCategories.map((cat, idx) => {
               const gradient = gradients[idx % gradients.length]
               const color = iconColors[idx % iconColors.length]
               const icon = getIcon(cat.name)
+              const subs = getSubcategories(cat.id)
+              const totalProducts = getTotalProductCount(cat)
               return (
-                <Link key={cat.id} to={`/products?category=${cat.id}`} className="category-card bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-mk-red">
-                  <div className={`bg-gradient-to-br ${gradient} p-6 flex items-center gap-4`}>
-                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm">
-                      <i className={`fas ${icon} text-2xl ${color}`}></i>
+                <div key={cat.id} className="category-card bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-mk-red transition-colors">
+                  <Link to={`/products?category=${cat.id}`}>
+                    <div className={`bg-gradient-to-br ${gradient} p-6 flex items-center gap-4`}>
+                      <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm">
+                        <i className={`fas ${icon} text-2xl ${color}`}></i>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg text-mk-gray-900">{cat.name}</h3>
+                        <p className="text-sm text-mk-gray-600">{totalProducts} Products</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-lg text-mk-gray-900">{cat.name}</h3>
-                      <p className="text-sm text-mk-gray-600">{cat.product_count || 0} Products</p>
-                    </div>
-                  </div>
-                  {cat.subs && cat.subs.length > 0 && (
+                  </Link>
+                  {subs.length > 0 && (
                     <div className="p-5">
+                      {cat.description && (
+                        <p className="text-xs text-mk-gray-500 mb-3">{cat.description}</p>
+                      )}
                       <div className="flex flex-wrap gap-2">
-                        {cat.subs.map((s: string) => (
-                          <span key={s} className="text-xs text-mk-gray-600 bg-mk-gray-50 px-2 py-1 rounded hover:text-mk-red transition-colors">{s}</span>
+                        {subs.map((sub) => (
+                          <Link
+                            key={sub.id}
+                            to={`/products?category=${sub.id}`}
+                            className="text-xs text-mk-gray-600 bg-mk-gray-50 px-2.5 py-1.5 rounded hover:text-mk-red hover:bg-mk-red-50 transition-colors"
+                          >
+                            {sub.name} ({sub.product_count || 0})
+                          </Link>
                         ))}
                       </div>
-                      <div className="mt-4 flex items-center text-mk-red text-sm font-semibold">
+                      <Link to={`/products?category=${cat.id}`} className="mt-4 flex items-center text-mk-red text-sm font-semibold">
                         View All <i className="fas fa-arrow-right ml-2 text-xs"></i>
-                      </div>
+                      </Link>
                     </div>
                   )}
-                </Link>
+                  {subs.length === 0 && (
+                    <div className="p-5">
+                      {cat.description && (
+                        <p className="text-xs text-mk-gray-500 mb-3">{cat.description}</p>
+                      )}
+                      <Link to={`/products?category=${cat.id}`} className="flex items-center text-mk-red text-sm font-semibold">
+                        View Products <i className="fas fa-arrow-right ml-2 text-xs"></i>
+                      </Link>
+                    </div>
+                  )}
+                </div>
               )
             })}
           </div>

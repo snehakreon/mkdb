@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { getAll, getActive, getById, create, update, remove } from "./product.controller";
+import { getAll, getActive, getFilters, getById, create, update, remove } from "./product.controller";
 
 const router = Router();
 
 router.get("/", getAll);
 router.get("/active", getActive);
+router.get("/filters", getFilters);
 router.get("/:id", getById);
 router.post("/", create);
 router.put("/:id", update);

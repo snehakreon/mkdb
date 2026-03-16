@@ -1,12 +1,25 @@
 import { useState, useRef, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
+import { api } from "../../services/api"
+
+interface Category {
+  id: number
+  name: string
+  slug: string
+  parent_id: number | null
+  product_count: number
+}
 
 export default function PublicHeader() {
   const { user, logout, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [hoveredCat, setHoveredCat] = useState<number | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
   const menuRef = useRef<HTMLDivElement>(null)
+  const catNavRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -16,11 +29,27 @@ export default function PublicHeader() {
     return () => document.removeEventListener("mousedown", handleClick)
   }, [])
 
+  // Fetch categories once
+  useEffect(() => {
+    api.get("/categories/active").then((r) => setCategories(r.data)).catch(() => {})
+  }, [])
+
   const handleLogout = () => {
     logout()
     setMenuOpen(false)
     navigate("/login")
   }
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`)
+    }
+  }
+
+  // Build parent-child structure
+  const parentCategories = categories.filter((c) => !c.parent_id)
+  const getSubcategories = (parentId: number) => categories.filter((c) => c.parent_id === parentId)
 
   return (
     <>
@@ -51,15 +80,16 @@ export default function PublicHeader() {
             </div>
           </Link>
 
-          <div className="flex-1 max-w-2xl hidden md:block">
+          <form onSubmit={handleSearch} className="flex-1 max-w-2xl hidden md:block">
             <div className="relative">
               <input type="text" placeholder="Search for tiles, paints, hardware..."
+                value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
                 className="search-input w-full border-2 border-gray-200 rounded-lg py-2.5 pl-4 pr-12 text-sm focus:border-mk-red transition-colors" />
-              <button className="absolute right-0 top-0 h-full px-4 bg-mk-red text-white rounded-r-lg hover:bg-mk-red-600 transition-colors">
+              <button type="submit" className="absolute right-0 top-0 h-full px-4 bg-mk-red text-white rounded-r-lg hover:bg-mk-red-600 transition-colors">
                 <i className="fas fa-search"></i>
               </button>
             </div>
-          </div>
+          </form>
 
           <div className="flex items-center gap-5 flex-shrink-0">
             {user ? (
@@ -126,18 +156,63 @@ export default function PublicHeader() {
           </div>
         </div>
 
-        {/* Category Nav */}
-        <nav className="bg-mk-gray-900">
+        {/* Dynamic Category Nav */}
+        <nav className="bg-mk-gray-900 relative" ref={catNavRef}>
           <div className="max-w-7xl mx-auto px-4">
             <ul className="flex items-center gap-0 text-white text-sm overflow-x-auto">
-              <li><Link to="/categories" className="flex items-center gap-2 px-4 py-3 bg-mk-red font-semibold"><i className="fas fa-th"></i> All Categories</Link></li>
-              <li><Link to="/products" className="px-4 py-3 hover:bg-white/10 transition-colors">Tiles</Link></li>
-              <li><Link to="/products" className="px-4 py-3 hover:bg-white/10 transition-colors">Paints</Link></li>
-              <li><Link to="/products" className="px-4 py-3 hover:bg-white/10 transition-colors">Sanitaryware</Link></li>
-              <li><Link to="/products" className="px-4 py-3 hover:bg-white/10 transition-colors">Hardware</Link></li>
-              <li><Link to="/products" className="px-4 py-3 hover:bg-white/10 transition-colors">Electrical</Link></li>
-              <li><Link to="/products" className="px-4 py-3 hover:bg-white/10 transition-colors">Plumbing</Link></li>
-              <li><a href="#" className="px-4 py-3 text-mk-red font-semibold hover:bg-white/10 transition-colors"><i className="fas fa-bolt"></i> Deals</a></li>
+              <li>
+                <Link to="/categories" className="flex items-center gap-2 px-4 py-3 bg-mk-red font-semibold">
+                  <i className="fas fa-th"></i> All Categories
+                </Link>
+              </li>
+              {parentCategories.map((cat) => {
+                const subs = getSubcategories(cat.id)
+                return (
+                  <li
+                    key={cat.id}
+                    className="relative"
+                    onMouseEnter={() => setHoveredCat(cat.id)}
+                    onMouseLeave={() => setHoveredCat(null)}
+                  >
+                    <Link
+                      to={`/products?category=${cat.id}`}
+                      className={`px-4 py-3 hover:bg-white/10 transition-colors flex items-center gap-1 whitespace-nowrap ${hoveredCat === cat.id ? "bg-white/10" : ""}`}
+                    >
+                      {cat.name}
+                      {subs.length > 0 && <i className="fas fa-chevron-down text-[8px] ml-1 opacity-60"></i>}
+                    </Link>
+
+                    {/* Subcategory Dropdown */}
+                    {subs.length > 0 && hoveredCat === cat.id && (
+                      <div className="absolute top-full left-0 bg-white border border-gray-200 rounded-lg shadow-xl py-2 min-w-[220px] z-50">
+                        <Link
+                          to={`/products?category=${cat.id}`}
+                          className="flex items-center justify-between px-4 py-2 text-sm text-mk-gray-800 hover:bg-mk-red-50 hover:text-mk-red font-semibold"
+                        >
+                          All {cat.name}
+                          <span className="text-xs text-mk-gray-500 font-normal">{cat.product_count || 0}</span>
+                        </Link>
+                        <div className="border-t border-gray-100 my-1"></div>
+                        {subs.map((sub) => (
+                          <Link
+                            key={sub.id}
+                            to={`/products?category=${sub.id}`}
+                            className="flex items-center justify-between px-4 py-2 text-sm text-mk-gray-700 hover:bg-mk-red-50 hover:text-mk-red transition-colors"
+                          >
+                            {sub.name}
+                            <span className="text-xs text-mk-gray-400">{sub.product_count || 0}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                )
+              })}
+              <li>
+                <a href="#" className="px-4 py-3 text-mk-red font-semibold hover:bg-white/10 transition-colors flex items-center gap-1">
+                  <i className="fas fa-bolt"></i> Deals
+                </a>
+              </li>
             </ul>
           </div>
         </nav>
