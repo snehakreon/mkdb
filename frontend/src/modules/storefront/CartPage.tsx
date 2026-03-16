@@ -108,18 +108,19 @@ export default function CartPage() {
                         <div className="flex items-center gap-3">
                           <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
                             <button
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              className="w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-bold"
+                              onClick={() => updateQuantity(item.id, Math.max(item.min_order_qty, item.quantity - 1))}
+                              disabled={item.quantity <= item.min_order_qty}
+                              className="w-8 h-8 flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition-colors text-sm font-bold disabled:opacity-40 disabled:cursor-not-allowed"
                             >-</button>
                             <input
                               type="number"
                               value={item.quantity}
                               onChange={(e) => {
                                 const val = parseInt(e.target.value)
-                                if (!isNaN(val) && val >= 1) updateQuantity(item.id, val)
+                                if (!isNaN(val) && val >= item.min_order_qty) updateQuantity(item.id, val)
                               }}
                               className="w-16 h-8 text-center border-x border-gray-200 text-sm font-semibold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                              min={1}
+                              min={item.min_order_qty}
                               max={item.stock_qty}
                             />
                             <button
@@ -129,6 +130,7 @@ export default function CartPage() {
                             >+</button>
                           </div>
                           <span className="text-xs text-mk-gray-600">@ ₹{Number(item.price).toLocaleString("en-IN")}/{item.unit}</span>
+                          {item.min_order_qty > 1 && <span className="text-[10px] text-mk-gray-500">MOQ: {item.min_order_qty}</span>}
                         </div>
                         <div className="text-right">
                           <div className="text-lg font-bold text-mk-gray-900">₹{lineTotal.toLocaleString("en-IN")}</div>

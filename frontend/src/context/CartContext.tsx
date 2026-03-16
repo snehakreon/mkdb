@@ -159,10 +159,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const updateQuantity = async (productId: number, quantity: number) => {
-    if (quantity <= 0) {
-      await removeItem(productId)
-      return
-    }
+    const item = items.find((i) => i.id === productId)
+    const moq = item?.min_order_qty || 1
+    if (quantity < moq) return
     if (user) {
       try {
         await api.put(`/cart/${productId}`, { quantity })

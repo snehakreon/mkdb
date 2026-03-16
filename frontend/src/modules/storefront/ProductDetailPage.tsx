@@ -21,8 +21,10 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     setLoading(true)
-    api.get(`/products/${id}`).then((r) => setProduct(r.data))
-      .catch(() => {}).finally(() => setLoading(false))
+    api.get(`/products/${id}`).then((r) => {
+      setProduct(r.data)
+      setQty(r.data.min_order_qty || 1)
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [id])
 
   // Check wishlist state for logged-in user
@@ -166,7 +168,7 @@ export default function ProductDetailPage() {
                   <label className="text-sm font-semibold text-mk-gray-800">Quantity ({p.unit || "piece"}):</label>
                   <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
                     <button onClick={() => setQty((q) => Math.max(p.min_order_qty || 1, q - 1))} className="qty-btn w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-gray-100 font-bold text-lg transition-colors">-</button>
-                    <input type="number" value={qty} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 1) setQty(Math.min(v, p.stock_qty || 9999)) }}
+                    <input type="number" value={qty} min={p.min_order_qty || 1} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= (p.min_order_qty || 1)) setQty(Math.min(v, p.stock_qty || 9999)) }}
                       className="w-20 h-10 text-center border-x border-gray-200 text-sm font-semibold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                     <button onClick={() => setQty((q) => Math.min(q + 1, p.stock_qty || 9999))} className="qty-btn w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-gray-100 font-bold text-lg transition-colors">+</button>
                   </div>

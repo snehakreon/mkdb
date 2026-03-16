@@ -32,6 +32,17 @@ export const addItem = async (req: AuthRequest, res: Response, next: NextFunctio
 
     if (!product_id) return res.status(400).json({ message: "product_id is required" });
 
+    // Look up product MOQ
+    const productResult = await pool.query(
+      `SELECT min_order_qty FROM products WHERE id = $1`, [product_id]
+    );
+    if (productResult.rows.length === 0) return res.status(404).json({ message: "Product not found" });
+    const moq = productResult.rows[0].min_order_qty || 1;
+
+    if (quantity < moq) {
+      return res.status(400).json({ message: `Minimum order quantity is ${moq}` });
+    }
+
     const result = await pool.query(
       `INSERT INTO cart_items (user_id, product_id, quantity)
        VALUES ($1, $2, $3)
@@ -56,6 +67,17 @@ export const updateItem = async (req: AuthRequest, res: Response, next: NextFunc
 
     if (!quantity || quantity < 1) {
       return res.status(400).json({ message: "quantity must be at least 1" });
+    }
+
+    // Validate against product MOQ
+    const productResult = await pool.query(
+      `SELECT min_order_qty FROM products WHERE id = $1`, [productId]
+    );
+    if (productResult.rows.length > 0) {
+      const moq = productResult.rows[0].min_order_qty || 1;
+      if (quantity < moq) {
+        return res.status(400).json({ message: `Minimum order quantity is ${moq}` });
+      }
     }
 
     const result = await pool.query(
