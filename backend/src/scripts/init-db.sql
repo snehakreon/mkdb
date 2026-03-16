@@ -237,6 +237,27 @@ CREATE TABLE IF NOT EXISTS order_items (
 );
 
 -- ============================================================
+-- COUPONS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS coupons (
+  id            SERIAL PRIMARY KEY,
+  code          VARCHAR(50) UNIQUE NOT NULL,
+  description   TEXT,
+  discount_type VARCHAR(20) NOT NULL DEFAULT 'percentage'
+                CHECK (discount_type IN ('percentage','fixed')),
+  discount_value NUMERIC(12,2) NOT NULL,
+  min_order_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
+  max_discount   NUMERIC(14,2),
+  usage_limit    INT,
+  used_count     INT NOT NULL DEFAULT 0,
+  is_active      BOOLEAN NOT NULL DEFAULT true,
+  valid_from     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  valid_until    TIMESTAMPTZ,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
 -- BUYER ADDRESSES
 -- ============================================================
 CREATE TABLE IF NOT EXISTS buyer_addresses (
@@ -281,3 +302,4 @@ CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_buyer_addresses_user ON buyer_addresses(user_id);
 CREATE INDEX IF NOT EXISTS idx_wishlists_user ON wishlists(user_id);
 CREATE INDEX IF NOT EXISTS idx_wishlists_product ON wishlists(product_id);
+CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons(code);

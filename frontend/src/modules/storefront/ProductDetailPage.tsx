@@ -1,18 +1,22 @@
 import { useState, useEffect } from "react"
 import { Link, useParams, useNavigate } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
+import { useCart } from "../../context/CartContext"
 import { wishlistService } from "../../services/wishlist.service"
 import { api } from "../../services/api"
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
+  const { addItem } = useCart()
   const navigate = useNavigate()
   const [product, setProduct] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [wishlisted, setWishlisted] = useState(false)
   const [wishLoading, setWishLoading] = useState(false)
   const [activeTab, setActiveTab] = useState("description")
+  const [qty, setQty] = useState(1)
+  const [addedToCart, setAddedToCart] = useState(false)
   const productId = Number(id)
 
   useEffect(() => {
@@ -161,17 +165,61 @@ export default function ProductDetailPage() {
                 <div className="flex items-center gap-4 mb-4">
                   <label className="text-sm font-semibold text-mk-gray-800">Quantity ({p.unit || "piece"}):</label>
                   <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
-                    <button className="qty-btn w-10 h-10 flex items-center justify-center bg-gray-50 font-bold text-lg transition-colors">-</button>
-                    <input type="number" defaultValue={p.min_order_qty || 1} className="w-20 h-10 text-center border-x border-gray-200 text-sm font-semibold focus:outline-none" />
-                    <button className="qty-btn w-10 h-10 flex items-center justify-center bg-gray-50 font-bold text-lg transition-colors">+</button>
+                    <button onClick={() => setQty((q) => Math.max(p.min_order_qty || 1, q - 1))} className="qty-btn w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-gray-100 font-bold text-lg transition-colors">-</button>
+                    <input type="number" value={qty} onChange={(e) => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 1) setQty(Math.min(v, p.stock_qty || 9999)) }}
+                      className="w-20 h-10 text-center border-x border-gray-200 text-sm font-semibold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                    <button onClick={() => setQty((q) => Math.min(q + 1, p.stock_qty || 9999))} className="qty-btn w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-gray-100 font-bold text-lg transition-colors">+</button>
                   </div>
                   <span className="text-xs text-mk-gray-600">MOQ: {p.min_order_qty || 1} {p.unit || "piece"}</span>
                 </div>
                 <div className="flex gap-3">
-                  <Link to="/cart" className="flex-1 bg-mk-red hover:bg-mk-red-600 text-white text-center font-bold py-3 rounded-lg transition-colors shadow-lg hover:shadow-xl">
-                    <i className="fas fa-shopping-cart mr-2"></i>Add to Cart
-                  </Link>
-                  <button className="flex-1 bg-mk-gray-900 hover:bg-mk-gray-800 text-white font-bold py-3 rounded-lg transition-colors">
+                  <button
+                    onClick={() => {
+                      addItem({
+                        id: p.id,
+                        name: p.name,
+                        slug: p.slug,
+                        brand_name: p.brand_name,
+                        image_url: p.image_url,
+                        price: Number(p.price),
+                        mrp: p.mrp ? Number(p.mrp) : undefined,
+                        unit: p.unit || "piece",
+                        sku: p.sku,
+                        stock_qty: p.stock_qty || 9999,
+                        min_order_qty: p.min_order_qty || 1,
+                      }, qty)
+                      setAddedToCart(true)
+                      setTimeout(() => setAddedToCart(false), 2000)
+                    }}
+                    disabled={p.stock_qty === 0}
+                    className="flex-1 bg-mk-red hover:bg-mk-red-600 text-white text-center font-bold py-3 rounded-lg transition-colors shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {addedToCart ? (
+                      <><i className="fas fa-check mr-2"></i>Added to Cart!</>
+                    ) : (
+                      <><i className="fas fa-shopping-cart mr-2"></i>Add to Cart</>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => {
+                      addItem({
+                        id: p.id,
+                        name: p.name,
+                        slug: p.slug,
+                        brand_name: p.brand_name,
+                        image_url: p.image_url,
+                        price: Number(p.price),
+                        mrp: p.mrp ? Number(p.mrp) : undefined,
+                        unit: p.unit || "piece",
+                        sku: p.sku,
+                        stock_qty: p.stock_qty || 9999,
+                        min_order_qty: p.min_order_qty || 1,
+                      }, qty)
+                      navigate("/cart")
+                    }}
+                    disabled={p.stock_qty === 0}
+                    className="flex-1 bg-mk-gray-900 hover:bg-mk-gray-800 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
                     <i className="fas fa-bolt mr-2"></i>Buy Now
                   </button>
                 </div>

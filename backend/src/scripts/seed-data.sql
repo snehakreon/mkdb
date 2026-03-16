@@ -641,3 +641,13 @@ INSERT INTO products (name, slug, sku, category_id, brand_id, unit, price, mrp, 
 )
 
 ON CONFLICT (slug) DO NOTHING;
+
+-- ============================================================
+-- COUPONS (sample discount coupons)
+-- ============================================================
+INSERT INTO coupons (code, description, discount_type, discount_value, min_order_amount, max_discount, usage_limit, is_active) VALUES
+  ('WELCOME10', '10% off on your first order', 'percentage', 10, 1000, 2000, NULL, true),
+  ('FLAT500', 'Flat ₹500 off on orders above ₹5,000', 'fixed', 500, 5000, NULL, NULL, true),
+  ('BULK15', '15% off on bulk orders above ₹25,000', 'percentage', 15, 25000, 5000, NULL, true),
+  ('SAVE200', 'Flat ₹200 off on any order', 'fixed', 200, 500, NULL, 1000, true)
+ON CONFLICT (code) DO NOTHING;

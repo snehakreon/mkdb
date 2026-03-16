@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
+import { useCart } from "../../context/CartContext"
 import { api } from "../../services/api"
 
 interface Category {
@@ -13,6 +14,7 @@ interface Category {
 
 export default function PublicHeader() {
   const { user, logout, isAdmin } = useAuth()
+  const { totalItems } = useCart()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
@@ -151,7 +153,9 @@ export default function PublicHeader() {
             )}
             <Link to="/cart" className="flex items-center gap-2 text-sm hover:text-mk-red transition-colors relative">
               <i className="fas fa-shopping-cart text-lg"></i>
-              <span className="absolute -top-2 -right-2 bg-mk-red text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">0</span>
+              {totalItems > 0 && (
+                <span className="absolute -top-2 -right-2 bg-mk-red text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">{totalItems > 99 ? "99+" : totalItems}</span>
+              )}
             </Link>
           </div>
         </div>
