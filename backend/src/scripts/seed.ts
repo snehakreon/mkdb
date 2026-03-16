@@ -2,13 +2,14 @@ import bcrypt from "bcryptjs";
 import pool from "../config/db";
 
 async function seed() {
-  console.log("Seeding database...");
+  console.log("Seeding database...\n");
 
   try {
-    // Generate proper bcrypt hash for 'admin123'
+    // ========================================================================
+    // ADMIN USER
+    // ========================================================================
     const hashedPassword = await bcrypt.hash("admin123", 10);
 
-    // Check if admin user already exists
     const existing = await pool.query(
       "SELECT id FROM users WHERE email = $1",
       ["admin@platform.com"]
@@ -16,13 +17,11 @@ async function seed() {
 
     if (existing.rows.length > 0) {
       const userId = existing.rows[0].id;
-      // Always reset password, ensure active/verified, and ensure role exists
       await pool.query(
         `UPDATE users SET password_hash = $1, is_active = true, is_verified = true,
          failed_login_attempts = 0, locked_until = NULL WHERE id = $2`,
         [hashedPassword, userId]
       );
-      // Ensure role exists
       const roleCheck = await pool.query(
         `SELECT id FROM user_roles WHERE user_id = $1 AND role = 'super_admin'`,
         [userId]
@@ -35,885 +34,304 @@ async function seed() {
       }
       console.log("Admin user updated (password reset to admin123)");
     } else {
-      // Insert admin user
       const userResult = await pool.query(
         `INSERT INTO users (email, phone, password_hash, first_name, last_name, user_type, is_verified, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, true, true)
-         RETURNING id`,
+         VALUES ($1, $2, $3, $4, $5, $6, true, true) RETURNING id`,
+        ["admin@platform.com", "9999999999", hashedPassword, "Platform", "Admin", "admin"]
+      );
+      await pool.query(
+        `INSERT INTO user_roles (user_id, role, is_active) VALUES ($1, 'super_admin', true)`,
+        [userResult.rows[0].id]
+      );
+      console.log("Admin user created");
+    }
+    console.log("  Email: admin@platform.com | Password: admin123\n");
+
+    // ========================================================================
+    // BRANDS (20)
+    // ========================================================================
+    console.log("Seeding brands...");
+    const brandsData = [
+      { name: "Asian Paints", slug: "asian-paints" },
+      { name: "Berger Paints", slug: "berger-paints" },
+      { name: "Kajaria Ceramics", slug: "kajaria-ceramics" },
+      { name: "Somany Ceramics", slug: "somany-ceramics" },
+      { name: "Johnson Tiles", slug: "johnson-tiles" },
+      { name: "Hindware", slug: "hindware" },
+      { name: "Jaquar", slug: "jaquar" },
+      { name: "Parryware", slug: "parryware" },
+      { name: "Century Plyboards", slug: "century-plyboards" },
+      { name: "Greenply", slug: "greenply" },
+      { name: "Havells", slug: "havells" },
+      { name: "Anchor by Panasonic", slug: "anchor-panasonic" },
+      { name: "Astral Pipes", slug: "astral-pipes" },
+      { name: "Supreme Pipes", slug: "supreme-pipes" },
+      { name: "Hettich", slug: "hettich" },
+      { name: "Godrej Locks", slug: "godrej-locks" },
+      { name: "UltraTech Cement", slug: "ultratech-cement" },
+      { name: "ACC Cement", slug: "acc-cement" },
+      { name: "Philips Lighting", slug: "philips-lighting" },
+      { name: "Hafele", slug: "hafele" },
+    ];
+
+    const brandMap: Record<string, number> = {};
+    for (const b of brandsData) {
+      const exists = await pool.query("SELECT id FROM brands WHERE slug = $1", [b.slug]);
+      if (exists.rows.length > 0) {
+        brandMap[b.slug] = exists.rows[0].id;
+      } else {
+        const r = await pool.query(
+          "INSERT INTO brands (name, slug, is_active) VALUES ($1, $2, true) RETURNING id",
+          [b.name, b.slug]
+        );
+        brandMap[b.slug] = r.rows[0].id;
+      }
+    }
+    console.log(`  ${Object.keys(brandMap).length} brands ready`);
+
+    // ========================================================================
+    // CATEGORIES (10 parent + subcategories)
+    // ========================================================================
+    console.log("Seeding categories...");
+
+    const parentCategories = [
+      { name: "Tiles", slug: "tiles", sort: 1 },
+      { name: "Paints & Coatings", slug: "paints", sort: 2 },
+      { name: "Sanitaryware", slug: "sanitaryware", sort: 3 },
+      { name: "Hardware & Fittings", slug: "hardware", sort: 4 },
+      { name: "Plywood & Boards", slug: "boards", sort: 5 },
+      { name: "Electrical", slug: "electrical", sort: 6 },
+      { name: "Plumbing", slug: "plumbing", sort: 7 },
+      { name: "Kitchen & Bath", slug: "kitchen", sort: 8 },
+      { name: "Cement & Aggregates", slug: "cement", sort: 9 },
+      { name: "Lighting", slug: "lighting", sort: 10 },
+    ];
+
+    const catMap: Record<string, number> = {};
+    for (const c of parentCategories) {
+      const exists = await pool.query("SELECT id FROM categories WHERE slug = $1", [c.slug]);
+      if (exists.rows.length > 0) {
+        catMap[c.slug] = exists.rows[0].id;
+      } else {
+        const r = await pool.query(
+          "INSERT INTO categories (name, slug, is_active, sort_order) VALUES ($1, $2, true, $3) RETURNING id",
+          [c.name, c.slug, c.sort]
+        );
+        catMap[c.slug] = r.rows[0].id;
+      }
+    }
+
+    const subcategories = [
+      // Tiles
+      { name: "Floor Tiles", slug: "floor-tiles", parent: "tiles" },
+      { name: "Wall Tiles", slug: "wall-tiles", parent: "tiles" },
+      { name: "Vitrified Tiles", slug: "vitrified-tiles", parent: "tiles" },
+      { name: "Outdoor Tiles", slug: "outdoor-tiles", parent: "tiles" },
+      // Paints
+      { name: "Interior Paints", slug: "interior-paints", parent: "paints" },
+      { name: "Exterior Paints", slug: "exterior-paints", parent: "paints" },
+      { name: "Wood Finishes", slug: "wood-finishes", parent: "paints" },
+      { name: "Primers & Putty", slug: "primers-putty", parent: "paints" },
+      // Sanitaryware
+      { name: "Wash Basins", slug: "wash-basins", parent: "sanitaryware" },
+      { name: "Toilets & WC", slug: "toilets-wc", parent: "sanitaryware" },
+      { name: "Faucets & Taps", slug: "faucets-taps", parent: "sanitaryware" },
+      { name: "Shower Systems", slug: "shower-systems", parent: "sanitaryware" },
+      // Hardware
+      { name: "Door Handles", slug: "door-handles", parent: "hardware" },
+      { name: "Locks & Latches", slug: "locks-latches", parent: "hardware" },
+      { name: "Hinges", slug: "hinges", parent: "hardware" },
+      { name: "Drawer Slides", slug: "drawer-slides", parent: "hardware" },
+      // Plywood
+      { name: "BWP Plywood", slug: "bwp-plywood", parent: "boards" },
+      { name: "MR Grade Plywood", slug: "mr-plywood", parent: "boards" },
+      { name: "Block Board", slug: "block-board", parent: "boards" },
+      { name: "MDF Board", slug: "mdf-board", parent: "boards" },
+      // Electrical
+      { name: "Switches & Sockets", slug: "switches-sockets", parent: "electrical" },
+      { name: "MCBs & Distribution", slug: "mcbs-distribution", parent: "electrical" },
+      { name: "Wires & Cables", slug: "wires-cables", parent: "electrical" },
+      { name: "Fans", slug: "fans", parent: "electrical" },
+      // Plumbing
+      { name: "CPVC Pipes", slug: "cpvc-pipes", parent: "plumbing" },
+      { name: "PVC Pipes", slug: "pvc-pipes", parent: "plumbing" },
+      { name: "Pipe Fittings", slug: "pipe-fittings", parent: "plumbing" },
+      { name: "Water Tanks", slug: "water-tanks", parent: "plumbing" },
+      // Kitchen
+      { name: "Kitchen Sinks", slug: "kitchen-sinks", parent: "kitchen" },
+      { name: "Kitchen Faucets", slug: "kitchen-faucets", parent: "kitchen" },
+      { name: "Kitchen Accessories", slug: "kitchen-accessories", parent: "kitchen" },
+      { name: "Chimneys & Hobs", slug: "chimneys-hobs", parent: "kitchen" },
+      // Cement
+      { name: "OPC Cement", slug: "opc-cement", parent: "cement" },
+      { name: "PPC Cement", slug: "ppc-cement", parent: "cement" },
+      { name: "White Cement", slug: "white-cement", parent: "cement" },
+      { name: "Ready Mix Concrete", slug: "ready-mix", parent: "cement" },
+      // Lighting
+      { name: "LED Bulbs", slug: "led-bulbs", parent: "lighting" },
+      { name: "Panel Lights", slug: "panel-lights", parent: "lighting" },
+      { name: "Downlighters", slug: "downlighters", parent: "lighting" },
+      { name: "Outdoor Lights", slug: "outdoor-lights", parent: "lighting" },
+      { name: "Decorative Lights", slug: "decorative-lights", parent: "lighting" },
+    ];
+
+    for (const s of subcategories) {
+      const exists = await pool.query("SELECT id FROM categories WHERE slug = $1", [s.slug]);
+      if (exists.rows.length > 0) {
+        catMap[s.slug] = exists.rows[0].id;
+      } else {
+        const r = await pool.query(
+          "INSERT INTO categories (name, slug, parent_id, is_active, sort_order) VALUES ($1, $2, $3, true, 0) RETURNING id",
+          [s.name, s.slug, catMap[s.parent]]
+        );
+        catMap[s.slug] = r.rows[0].id;
+      }
+    }
+    console.log(`  ${parentCategories.length} parent + ${subcategories.length} subcategories ready`);
+
+    // ========================================================================
+    // PRODUCTS (50+)
+    // ========================================================================
+    console.log("Seeding products...");
+
+    const productsData = [
+      // TILES (10)
+      { name: "Kajaria 60x60 Glazed Vitrified Floor Tile - Beige", slug: "kajaria-60x60-gvt-beige", sku: "TIL-KAJ-001", category: "floor-tiles", brand: "kajaria-ceramics", price: 55, mrp: 72, unit: "sqft", stock: 5000, min_order: 100, description: "Premium glazed vitrified tile with anti-skid finish, perfect for living rooms and bedrooms.", grade: "A", material: "Vitrified" },
+      { name: "Kajaria 80x80 Polished Vitrified Tile - Marble White", slug: "kajaria-80x80-pvt-marble", sku: "TIL-KAJ-002", category: "vitrified-tiles", brand: "kajaria-ceramics", price: 85, mrp: 110, unit: "sqft", stock: 3000, min_order: 50, description: "Large format polished vitrified tile with marble effect finish.", grade: "A", material: "Vitrified" },
+      { name: "Somany 30x60 Ceramic Wall Tile - White Glossy", slug: "somany-30x60-wall-white", sku: "TIL-SOM-001", category: "wall-tiles", brand: "somany-ceramics", price: 32, mrp: 45, unit: "sqft", stock: 8000, min_order: 100, description: "Glossy white ceramic wall tile, ideal for kitchens and bathrooms.", grade: "A", material: "Ceramic" },
+      { name: "Somany 60x60 Matt Finish Floor Tile - Grey", slug: "somany-60x60-matt-grey", sku: "TIL-SOM-002", category: "floor-tiles", brand: "somany-ceramics", price: 48, mrp: 62, unit: "sqft", stock: 6000, min_order: 100, description: "Matt finish anti-skid floor tile, suitable for high traffic areas.", grade: "A", material: "Vitrified" },
+      { name: "Johnson 30x30 Heavy Duty Outdoor Tile", slug: "johnson-30x30-outdoor", sku: "TIL-JON-001", category: "outdoor-tiles", brand: "johnson-tiles", price: 38, mrp: 52, unit: "sqft", stock: 4000, min_order: 100, description: "Extra tough outdoor tile with high abrasion resistance, ideal for parking and driveways.", grade: "A", material: "Ceramic" },
+      { name: "Johnson 60x120 Slab Tile - Statuario", slug: "johnson-60x120-statuario", sku: "TIL-JON-002", category: "vitrified-tiles", brand: "johnson-tiles", price: 120, mrp: 155, unit: "sqft", stock: 2000, min_order: 50, description: "Large format slab tile with premium Statuario marble finish.", grade: "Premium", material: "Vitrified" },
+      { name: "Kajaria 30x45 Kitchen Wall Tile - Floral", slug: "kajaria-30x45-kitchen-floral", sku: "TIL-KAJ-003", category: "wall-tiles", brand: "kajaria-ceramics", price: 28, mrp: 38, unit: "sqft", stock: 7000, min_order: 100, description: "Decorative kitchen wall tile with floral pattern. Stain resistant glaze.", grade: "A", material: "Ceramic" },
+      { name: "Somany 40x40 Parking Tile - Terracotta", slug: "somany-40x40-parking", sku: "TIL-SOM-003", category: "outdoor-tiles", brand: "somany-ceramics", price: 35, mrp: 48, unit: "sqft", stock: 5000, min_order: 200, description: "Heavy duty parking tile with textured anti-skid surface.", grade: "A", material: "Ceramic" },
+      { name: "Johnson 60x60 Wood-Look Vitrified Tile", slug: "johnson-60x60-wood-look", sku: "TIL-JON-003", category: "floor-tiles", brand: "johnson-tiles", price: 72, mrp: 95, unit: "sqft", stock: 3500, min_order: 50, description: "Natural wood grain finish vitrified tile. Combines the beauty of wood with tile durability.", grade: "A", material: "Vitrified" },
+      { name: "Kajaria 20x120 Wooden Plank Tile", slug: "kajaria-20x120-plank", sku: "TIL-KAJ-004", category: "floor-tiles", brand: "kajaria-ceramics", price: 95, mrp: 125, unit: "sqft", stock: 2500, min_order: 50, description: "Long plank format tile with realistic wood grain pattern.", grade: "Premium", material: "Vitrified" },
+
+      // PAINTS (8)
+      { name: "Asian Paints Royale Luxury Emulsion - White 20L", slug: "ap-royale-luxury-white-20l", sku: "PNT-AP-001", category: "interior-paints", brand: "asian-paints", price: 5800, mrp: 6850, unit: "bucket", stock: 500, min_order: 1, description: "Ultra-premium interior emulsion with Teflon surface protector. Washable and stain-proof." },
+      { name: "Asian Paints Apex Ultima Exterior - White 20L", slug: "ap-apex-ultima-white-20l", sku: "PNT-AP-002", category: "exterior-paints", brand: "asian-paints", price: 4200, mrp: 5100, unit: "bucket", stock: 600, min_order: 1, description: "Weather-proof exterior emulsion with 7-year performance warranty." },
+      { name: "Berger Silk Glamor Interior Emulsion - White 20L", slug: "berger-silk-glamor-20l", sku: "PNT-BER-001", category: "interior-paints", brand: "berger-paints", price: 4800, mrp: 5600, unit: "bucket", stock: 400, min_order: 1, description: "Luxury interior emulsion with silk-like smooth finish and low VOC." },
+      { name: "Berger WeatherCoat All Guard Exterior - White 20L", slug: "berger-weathercoat-20l", sku: "PNT-BER-002", category: "exterior-paints", brand: "berger-paints", price: 3800, mrp: 4500, unit: "bucket", stock: 350, min_order: 1, description: "Advanced exterior paint with anti-algal and anti-fungal protection." },
+      { name: "Asian Paints Woodtech Melamyne - Clear 4L", slug: "ap-woodtech-melamyne-4l", sku: "PNT-AP-003", category: "wood-finishes", brand: "asian-paints", price: 1200, mrp: 1450, unit: "can", stock: 300, min_order: 2, description: "High-gloss melamine wood finish for interior furniture and doors." },
+      { name: "Asian Paints Trucare Wall Primer - 20L", slug: "ap-trucare-primer-20l", sku: "PNT-AP-004", category: "primers-putty", brand: "asian-paints", price: 1800, mrp: 2200, unit: "bucket", stock: 450, min_order: 1, description: "Water-based wall primer for interior and exterior surfaces." },
+      { name: "Berger Bison Wall Putty - 40kg", slug: "berger-bison-putty-40kg", sku: "PNT-BER-003", category: "primers-putty", brand: "berger-paints", price: 850, mrp: 980, unit: "bag", stock: 800, min_order: 5, description: "White cement-based wall putty for smooth and even surface preparation." },
+      { name: "Asian Paints Apcolite Enamel - White 4L", slug: "ap-apcolite-enamel-4l", sku: "PNT-AP-005", category: "wood-finishes", brand: "asian-paints", price: 950, mrp: 1150, unit: "can", stock: 350, min_order: 2, description: "Premium synthetic enamel for wood and metal surfaces with superior gloss." },
+
+      // SANITARYWARE (8)
+      { name: "Hindware Starlet Over Counter Wash Basin", slug: "hindware-starlet-basin", sku: "SAN-HIN-001", category: "wash-basins", brand: "hindware", price: 3200, mrp: 4100, unit: "piece", stock: 150, min_order: 1, description: "Premium ceramic over-counter wash basin with contemporary oval design." },
+      { name: "Hindware Essence Wall Hung WC with Seat", slug: "hindware-essence-wc", sku: "SAN-HIN-002", category: "toilets-wc", brand: "hindware", price: 8500, mrp: 10500, unit: "piece", stock: 80, min_order: 1, description: "Wall hung toilet with soft-close seat cover and rimless flushing technology." },
+      { name: "Jaquar Florentine Single Lever Basin Mixer", slug: "jaquar-florentine-mixer", sku: "SAN-JAQ-001", category: "faucets-taps", brand: "jaquar", price: 4800, mrp: 5900, unit: "piece", stock: 200, min_order: 1, description: "Chrome-plated single lever basin mixer with ceramic cartridge and 5-year warranty." },
+      { name: "Jaquar Overhead Rain Shower 200mm Chrome", slug: "jaquar-rain-shower-200", sku: "SAN-JAQ-002", category: "shower-systems", brand: "jaquar", price: 6500, mrp: 7800, unit: "piece", stock: 120, min_order: 1, description: "200mm round overhead rain shower with wall mount arm, chrome finish." },
+      { name: "Parryware Cascade NXT One Piece WC", slug: "parryware-cascade-nxt", sku: "SAN-PAR-001", category: "toilets-wc", brand: "parryware", price: 6200, mrp: 7800, unit: "piece", stock: 100, min_order: 1, description: "One piece floor mounted WC with S-trap and soft close seat. Water efficient 3/6L dual flush." },
+      { name: "Parryware Verve Pedestal Wash Basin", slug: "parryware-verve-basin", sku: "SAN-PAR-002", category: "wash-basins", brand: "parryware", price: 2800, mrp: 3500, unit: "piece", stock: 120, min_order: 1, description: "Full pedestal wash basin with contemporary design. Includes overflow hole." },
+      { name: "Jaquar Kubix Pillar Cock Chrome", slug: "jaquar-kubix-pillar", sku: "SAN-JAQ-003", category: "faucets-taps", brand: "jaquar", price: 2200, mrp: 2800, unit: "piece", stock: 300, min_order: 2, description: "Quarter turn pillar cock with chrome finish and brass body. 5-year warranty." },
+      { name: "Hindware Italian Collection Shower Panel", slug: "hindware-shower-panel", sku: "SAN-HIN-003", category: "shower-systems", brand: "hindware", price: 15000, mrp: 18500, unit: "piece", stock: 40, min_order: 1, description: "Multi-function shower panel with body jets, overhead shower, and hand shower." },
+
+      // HARDWARE (6)
+      { name: "Hettich Quadro V6 Drawer Slide 500mm Pair", slug: "hettich-quadro-v6-500", sku: "HDW-HET-001", category: "drawer-slides", brand: "hettich", price: 850, mrp: 1050, unit: "pair", stock: 500, min_order: 10, description: "Full extension soft-close drawer slides, 500mm length. 30kg load capacity." },
+      { name: "Hettich Sensys 110° Soft Close Hinge", slug: "hettich-sensys-110", sku: "HDW-HET-002", category: "hinges", brand: "hettich", price: 180, mrp: 220, unit: "piece", stock: 2000, min_order: 20, description: "110° opening angle concealed hinge with integrated soft close." },
+      { name: "Godrej Ultra XL+ Deadbolt Lock - Satin", slug: "godrej-ultra-xl-deadbolt", sku: "HDW-GOD-001", category: "locks-latches", brand: "godrej-locks", price: 2800, mrp: 3500, unit: "piece", stock: 150, min_order: 1, description: "High security 4-pin deadbolt with anti-pick and anti-drill features." },
+      { name: "Godrej Duralock Main Door Handle Set", slug: "godrej-duralock-handle", sku: "HDW-GOD-002", category: "door-handles", brand: "godrej-locks", price: 1500, mrp: 1850, unit: "set", stock: 200, min_order: 1, description: "Stainless steel main door handle set with lever lock. Suitable for 35-45mm door thickness." },
+      { name: "Hafele Straight Bar Pull Handle 300mm SS", slug: "hafele-bar-pull-300", sku: "HDW-HAF-001", category: "door-handles", brand: "hafele", price: 650, mrp: 820, unit: "piece", stock: 400, min_order: 5, description: "304 grade stainless steel pull handle, 300mm center-to-center. Satin finish." },
+      { name: "Hafele Slido Classic 80 Sliding Door Kit", slug: "hafele-slido-classic-80", sku: "HDW-HAF-002", category: "hardware", brand: "hafele", price: 4500, mrp: 5600, unit: "set", stock: 60, min_order: 1, description: "Sliding door fitting set for wooden doors up to 80kg. Includes track, rollers, and guide." },
+
+      // PLYWOOD & BOARDS (6)
+      { name: "Century 18mm BWP Marine Plywood 8x4", slug: "century-18mm-bwp-8x4", sku: "PLY-CEN-001", category: "bwp-plywood", brand: "century-plyboards", price: 3500, mrp: 4200, unit: "sheet", stock: 200, min_order: 5, description: "IS:710 grade boiling waterproof marine plywood. Termite and borer treated.", grade: "BWP" },
+      { name: "Century 19mm MR Grade Commercial Plywood 8x4", slug: "century-19mm-mr-8x4", sku: "PLY-CEN-002", category: "mr-plywood", brand: "century-plyboards", price: 2200, mrp: 2800, unit: "sheet", stock: 300, min_order: 5, description: "IS:303 grade moisture resistant commercial plywood for interior furniture.", grade: "MR" },
+      { name: "Greenply 18mm BWP Plywood 8x4", slug: "greenply-18mm-bwp-8x4", sku: "PLY-GRN-001", category: "bwp-plywood", brand: "greenply", price: 3200, mrp: 3900, unit: "sheet", stock: 250, min_order: 5, description: "Zero emission BWP grade plywood with lifetime warranty against borer and termite.", grade: "BWP" },
+      { name: "Greenply 19mm Block Board 8x4", slug: "greenply-19mm-blockboard", sku: "PLY-GRN-002", category: "block-board", brand: "greenply", price: 2600, mrp: 3200, unit: "sheet", stock: 150, min_order: 5, description: "High density pine core block board for shelves, partitions, and door shutters.", grade: "MR" },
+      { name: "Century 18mm MDF Board Plain 8x4", slug: "century-18mm-mdf-8x4", sku: "PLY-CEN-003", category: "mdf-board", brand: "century-plyboards", price: 1800, mrp: 2200, unit: "sheet", stock: 200, min_order: 5, description: "High density plain MDF board for CNC routing, lamination, and painting.", grade: "E1" },
+      { name: "Greenply 12mm MR Plywood 8x4", slug: "greenply-12mm-mr-8x4", sku: "PLY-GRN-003", category: "mr-plywood", brand: "greenply", price: 1600, mrp: 2000, unit: "sheet", stock: 350, min_order: 10, description: "12mm commercial grade MR plywood for light furniture and interior applications.", grade: "MR" },
+
+      // ELECTRICAL (6)
+      { name: "Havells 10A One Way Switch - White", slug: "havells-10a-switch-white", sku: "ELC-HAV-001", category: "switches-sockets", brand: "havells", price: 65, mrp: 85, unit: "piece", stock: 5000, min_order: 50, description: "Modular one way switch 10A with polycarbonate body and silver alloy contacts." },
+      { name: "Havells 32A SP MCB C Curve", slug: "havells-32a-mcb", sku: "ELC-HAV-002", category: "mcbs-distribution", brand: "havells", price: 280, mrp: 350, unit: "piece", stock: 1000, min_order: 10, description: "Single pole miniature circuit breaker 32A, C curve. 10kA breaking capacity." },
+      { name: "Anchor Roma 6A 2-Pin Socket - White", slug: "anchor-roma-6a-socket", sku: "ELC-ANC-001", category: "switches-sockets", brand: "anchor-panasonic", price: 48, mrp: 62, unit: "piece", stock: 5000, min_order: 50, description: "Modular 6A two-pin socket with child safety shutter. ISI certified." },
+      { name: "Havells Lifeline 1.5 sqmm Wire 90m - Red", slug: "havells-lifeline-1-5mm-90m", sku: "ELC-HAV-003", category: "wires-cables", brand: "havells", price: 1850, mrp: 2200, unit: "coil", stock: 400, min_order: 2, description: "FR-LSH PVC insulated copper wire, 1.5 sq mm. Heat resistant up to 85°C." },
+      { name: "Havells Pacer 1200mm Ceiling Fan - White", slug: "havells-pacer-1200-fan", sku: "ELC-HAV-004", category: "fans", brand: "havells", price: 1450, mrp: 1750, unit: "piece", stock: 250, min_order: 1, description: "1200mm sweep ceiling fan with aerodynamic blades for high air delivery." },
+      { name: "Anchor Woods 16A Socket with Switch", slug: "anchor-woods-16a-socket", sku: "ELC-ANC-002", category: "switches-sockets", brand: "anchor-panasonic", price: 195, mrp: 245, unit: "piece", stock: 2000, min_order: 20, description: "16A combined socket with switch, premium wood finish faceplate." },
+
+      // PLUMBING (5)
+      { name: "Astral CPVC Pro 3/4 inch Pipe - 3m", slug: "astral-cpvc-pro-3-4-3m", sku: "PLB-AST-001", category: "cpvc-pipes", brand: "astral-pipes", price: 320, mrp: 395, unit: "piece", stock: 2000, min_order: 20, description: "CPVC SDR-11 hot and cold water pipe. Max temperature: 93°C. ISI certified." },
+      { name: "Supreme PVC SWR 110mm Pipe - 3m", slug: "supreme-pvc-swr-110-3m", sku: "PLB-SUP-001", category: "pvc-pipes", brand: "supreme-pipes", price: 450, mrp: 550, unit: "piece", stock: 1500, min_order: 10, description: "PVC soil, waste and rainwater drainage pipe. Type A ring-fit joint." },
+      { name: "Astral CPVC Elbow 3/4 inch 90°", slug: "astral-cpvc-elbow-3-4", sku: "PLB-AST-002", category: "pipe-fittings", brand: "astral-pipes", price: 28, mrp: 38, unit: "piece", stock: 5000, min_order: 50, description: "CPVC 90 degree elbow fitting for hot and cold water plumbing systems." },
+      { name: "Supreme PVC Tee 110mm SWR", slug: "supreme-pvc-tee-110", sku: "PLB-SUP-002", category: "pipe-fittings", brand: "supreme-pipes", price: 85, mrp: 110, unit: "piece", stock: 3000, min_order: 20, description: "PVC equal tee fitting for SWR drainage systems. Ring-fit joint." },
+      { name: "Astral CPVC 1 inch Pipe - 3m", slug: "astral-cpvc-1inch-3m", sku: "PLB-AST-003", category: "cpvc-pipes", brand: "astral-pipes", price: 520, mrp: 640, unit: "piece", stock: 1500, min_order: 10, description: "1 inch CPVC pipe for mainline hot and cold water supply. 50-year life." },
+
+      // KITCHEN (4)
+      { name: "Hafele Single Bowl SS Kitchen Sink 24x18", slug: "hafele-single-bowl-24x18", sku: "KIT-HAF-001", category: "kitchen-sinks", brand: "hafele", price: 4500, mrp: 5500, unit: "piece", stock: 80, min_order: 1, description: "304 grade stainless steel single bowl kitchen sink with satin finish." },
+      { name: "Hafele Pull-Down Kitchen Faucet Chrome", slug: "hafele-pulldown-faucet", sku: "KIT-HAF-002", category: "kitchen-faucets", brand: "hafele", price: 6800, mrp: 8200, unit: "piece", stock: 60, min_order: 1, description: "Single lever pull-down spray kitchen faucet with dual function spray head." },
+      { name: "Hindware Nevio 60cm Auto Clean Chimney", slug: "hindware-nevio-60-chimney", sku: "KIT-HIN-001", category: "chimneys-hobs", brand: "hindware", price: 12000, mrp: 15000, unit: "piece", stock: 50, min_order: 1, description: "60cm auto-clean filterless chimney with 1200 m3/hr suction. Touch control." },
+      { name: "Hettich Cargo Basket 600mm Unit", slug: "hettich-cargo-basket-600", sku: "KIT-HET-001", category: "kitchen-accessories", brand: "hettich", price: 3200, mrp: 3900, unit: "piece", stock: 100, min_order: 1, description: "Stainless steel pull-out cargo basket for 600mm base unit with soft close." },
+
+      // CEMENT (4)
+      { name: "UltraTech OPC 53 Grade Cement - 50kg", slug: "ultratech-opc-53-50kg", sku: "CEM-ULT-001", category: "opc-cement", brand: "ultratech-cement", price: 380, mrp: 420, unit: "bag", stock: 5000, min_order: 50, description: "53 grade ordinary portland cement for high strength structural work.", grade: "53" },
+      { name: "ACC PPC Cement - 50kg", slug: "acc-ppc-50kg", sku: "CEM-ACC-001", category: "ppc-cement", brand: "acc-cement", price: 350, mrp: 390, unit: "bag", stock: 5000, min_order: 50, description: "Portland pozzolana cement for general construction, plastering, and masonry work.", grade: "PPC" },
+      { name: "UltraTech White Cement - 1kg", slug: "ultratech-white-1kg", sku: "CEM-ULT-002", category: "white-cement", brand: "ultratech-cement", price: 28, mrp: 32, unit: "kg", stock: 10000, min_order: 100, description: "Pure white cement for decorative work, tile joints, and wall putty mixing." },
+      { name: "ACC Gold PPC Cement - 50kg", slug: "acc-gold-ppc-50kg", sku: "CEM-ACC-002", category: "ppc-cement", brand: "acc-cement", price: 370, mrp: 410, unit: "bag", stock: 4000, min_order: 50, description: "Premium grade PPC cement with superior consistency for foundations and RCC work.", grade: "PPC" },
+
+      // LIGHTING (5)
+      { name: "Philips 9W LED Bulb B22 Cool Day Light", slug: "philips-9w-led-b22-cdl", sku: "LIT-PHI-001", category: "led-bulbs", brand: "philips-lighting", price: 85, mrp: 110, unit: "piece", stock: 5000, min_order: 20, description: "9W LED bulb with B22 base. 6500K cool daylight. 15,000 hours rated life." },
+      { name: "Philips 18W Round LED Panel Light", slug: "philips-18w-panel-round", sku: "LIT-PHI-002", category: "panel-lights", brand: "philips-lighting", price: 480, mrp: 600, unit: "piece", stock: 800, min_order: 5, description: "18W surface mount round LED panel light. Slim design, uniform light distribution." },
+      { name: "Havells 15W LED Downlighter 6 inch", slug: "havells-15w-downlight-6", sku: "LIT-HAV-001", category: "downlighters", brand: "havells", price: 550, mrp: 680, unit: "piece", stock: 600, min_order: 5, description: "15W recessed LED downlighter with 6 inch cutout. 3000K warm white." },
+      { name: "Philips 15W LED Bulb B22 Warm White", slug: "philips-15w-led-b22-ww", sku: "LIT-PHI-003", category: "led-bulbs", brand: "philips-lighting", price: 140, mrp: 180, unit: "piece", stock: 4000, min_order: 10, description: "15W LED bulb for bright illumination. 2700K warm white. Eye comfort technology." },
+      { name: "Havells 20W LED Flood Light IP65", slug: "havells-20w-flood-ip65", sku: "LIT-HAV-002", category: "outdoor-lights", brand: "havells", price: 750, mrp: 950, unit: "piece", stock: 400, min_order: 5, description: "20W LED outdoor flood light with IP65 water and dust protection." },
+    ];
+
+    let insertCount = 0;
+    for (const p of productsData) {
+      const exists = await pool.query("SELECT id FROM products WHERE slug = $1", [p.slug]);
+      if (exists.rows.length > 0) continue;
+
+      await pool.query(
+        `INSERT INTO products (name, slug, sku, category_id, brand_id, description, price, mrp, unit, stock_qty, min_order_qty, grade, is_active, country_of_origin, material)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, true, 'India', $13)`,
         [
-          "admin@platform.com",
-          "9999999999",
-          hashedPassword,
-          "Platform",
-          "Admin",
-          "admin",
+          p.name, p.slug, p.sku,
+          catMap[p.category] || null,
+          brandMap[p.brand] || null,
+          p.description,
+          p.price, p.mrp, p.unit,
+          p.stock, p.min_order,
+          p.grade || null,
+          p.material || null,
         ]
       );
-
-      const userId = userResult.rows[0].id;
-
-      // Assign super_admin role
-      await pool.query(
-        `INSERT INTO user_roles (user_id, role, is_active)
-         VALUES ($1, $2, true)`,
-        [userId, "super_admin"]
-      );
-
-      console.log("Admin user created successfully:");
+      insertCount++;
     }
-    console.log("  Email: admin@platform.com");
-    console.log("  Password: admin123");
-    console.log("  Role: super_admin");
-
-    // Run migrations to add missing columns/tables
-    console.log("\nRunning migrations...");
-
-    // -- Enable UUID extension --
-    await pool.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp";`);
-
-    // -- Ensure zones table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS zones (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        zone_name VARCHAR(100) UNIQUE NOT NULL,
-        zone_code VARCHAR(20) UNIQUE NOT NULL,
-        description TEXT,
-        is_active BOOLEAN DEFAULT TRUE,
-        created_by UUID REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    // Add description column if missing
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='zones' AND column_name='description') THEN
-          ALTER TABLE zones ADD COLUMN description TEXT;
-        END IF;
-      END $$;
-    `);
-    console.log("  zones table OK");
-
-    // -- Ensure zone_pincodes table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS zone_pincodes (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        zone_id UUID NOT NULL REFERENCES zones(id) ON DELETE CASCADE,
-        pincode VARCHAR(10) NOT NULL UNIQUE,
-        city VARCHAR(100),
-        state VARCHAR(100),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log("  zone_pincodes table OK");
-
-    // -- Ensure vendors table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS vendors (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-        vendor_code VARCHAR(20) UNIQUE NOT NULL,
-        company_name VARCHAR(255) NOT NULL,
-        trading_name VARCHAR(255),
-        gstin VARCHAR(15) UNIQUE NOT NULL,
-        pan VARCHAR(10),
-        business_type VARCHAR(50),
-        bank_account_number VARCHAR(50),
-        bank_ifsc VARCHAR(11),
-        bank_name VARCHAR(100),
-        bank_branch VARCHAR(100),
-        registered_office_address TEXT,
-        warehouse_address TEXT,
-        warehouse_pincode VARCHAR(10),
-        warehouse_city VARCHAR(100),
-        warehouse_state VARCHAR(100),
-        contact_person_name VARCHAR(100),
-        contact_phone VARCHAR(15),
-        contact_email VARCHAR(255),
-        verification_status VARCHAR(20) DEFAULT 'pending',
-        verification_notes TEXT,
-        is_active BOOLEAN DEFAULT TRUE,
-        verified_by UUID REFERENCES users(id),
-        verified_at TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log("  vendors table OK");
-
-    // -- Ensure categories table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS categories (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        category_name VARCHAR(100) UNIQUE NOT NULL,
-        category_code VARCHAR(20),
-        slug VARCHAR(100),
-        parent_category_id UUID REFERENCES categories(id),
-        description TEXT,
-        is_active BOOLEAN DEFAULT TRUE,
-        sort_order INT DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log("  categories table OK");
-
-    // -- Ensure brands table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS brands (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        brand_name VARCHAR(100) UNIQUE NOT NULL,
-        brand_code VARCHAR(20),
-        slug VARCHAR(100),
-        logo_url VARCHAR(500),
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log("  brands table OK");
-
-    // -- Ensure products table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS products (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        sku_code VARCHAR(50) UNIQUE NOT NULL,
-        product_name VARCHAR(255) NOT NULL,
-        category_id UUID NOT NULL REFERENCES categories(id),
-        brand_id UUID REFERENCES brands(id),
-        description TEXT,
-        specifications JSONB DEFAULT '{}',
-        hsn_code VARCHAR(10),
-        weight_kg DECIMAL(10, 2),
-        length_ft DECIMAL(10, 2),
-        width_ft DECIMAL(10, 2),
-        height_ft DECIMAL(10, 3),
-        cbm_per_unit DECIMAL(10, 5),
-        tech_sheet_url VARCHAR(500),
-        is_active BOOLEAN DEFAULT TRUE,
-        created_by UUID REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log("  products table OK");
-
-    // -- users table: columns needed by auth controller --
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='failed_login_attempts') THEN
-          ALTER TABLE users ADD COLUMN failed_login_attempts INT DEFAULT 0;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='locked_until') THEN
-          ALTER TABLE users ADD COLUMN locked_until TIMESTAMP;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='last_login_at') THEN
-          ALTER TABLE users ADD COLUMN last_login_at TIMESTAMP;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_verified') THEN
-          ALTER TABLE users ADD COLUMN is_verified BOOLEAN DEFAULT FALSE;
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_active') THEN
-          ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
-        END IF;
-      END $$;
-    `);
-    console.log("  users table columns OK");
-
-    // -- user_sessions table: ensure it exists with correct columns --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_sessions (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        refresh_token VARCHAR(500) NOT NULL,
-        ip_address VARCHAR(45),
-        user_agent TEXT,
-        device_info JSONB,
-        expires_at TIMESTAMP NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='user_sessions' AND column_name='refresh_token') THEN
-          ALTER TABLE user_sessions ADD COLUMN refresh_token VARCHAR(500);
-        END IF;
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='user_sessions' AND column_name='expires_at') THEN
-          ALTER TABLE user_sessions ADD COLUMN expires_at TIMESTAMP;
-        END IF;
-      END $$;
-    `);
-    console.log("  user_sessions table OK");
-
-    // -- user_roles table: ensure it exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_roles (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        role VARCHAR(50) NOT NULL,
-        permissions JSONB DEFAULT '{}',
-        is_active BOOLEAN DEFAULT TRUE,
-        assigned_by UUID REFERENCES users(id),
-        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log("  user_roles table OK");
-
-    // -- brands: make slug nullable and backfill --
-    await pool.query(`
-      DO $$
-      BEGIN
-        ALTER TABLE brands ALTER COLUMN slug DROP NOT NULL;
-      EXCEPTION WHEN others THEN NULL;
-      END $$;
-    `);
-    await pool.query(
-      `UPDATE brands SET slug = LOWER(REGEXP_REPLACE(brand_name, '[^a-zA-Z0-9]+', '-', 'g')) WHERE slug IS NULL`
-    );
-
-    // -- categories: make slug nullable and backfill --
-    await pool.query(`
-      DO $$
-      BEGIN
-        ALTER TABLE categories ALTER COLUMN slug DROP NOT NULL;
-      EXCEPTION WHEN others THEN NULL;
-      END $$;
-    `);
-    await pool.query(
-      `UPDATE categories SET slug = LOWER(REGEXP_REPLACE(category_name, '[^a-zA-Z0-9]+', '-', 'g')) WHERE slug IS NULL`
-    );
-    console.log("  slug columns fixed");
-
-    // -- categories: add category_code if missing --
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='categories' AND column_name='category_code') THEN
-          ALTER TABLE categories ADD COLUMN category_code VARCHAR(20);
-        END IF;
-      END $$;
-    `);
-    await pool.query(
-      `UPDATE categories SET category_code = 'CAT-' || UPPER(LEFT(REPLACE(category_name, ' ', ''), 3)) WHERE category_code IS NULL`
-    );
-
-    // -- brands: add brand_code if missing --
-    await pool.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='brands' AND column_name='brand_code') THEN
-          ALTER TABLE brands ADD COLUMN brand_code VARCHAR(20);
-        END IF;
-      END $$;
-    `);
-    await pool.query(
-      `UPDATE brands SET brand_code = 'BRD-' || UPPER(LEFT(REPLACE(brand_name, ' ', ''), 3)) WHERE brand_code IS NULL`
-    );
-
-    // -- zone_pincodes: city and state are optional per schema --
-    await pool.query(`
-      DO $$
-      BEGIN
-        ALTER TABLE zone_pincodes ALTER COLUMN city DROP NOT NULL;
-      EXCEPTION WHEN others THEN NULL;
-      END $$;
-    `);
-    await pool.query(`
-      DO $$
-      BEGIN
-        ALTER TABLE zone_pincodes ALTER COLUMN state DROP NOT NULL;
-      EXCEPTION WHEN others THEN NULL;
-      END $$;
-    `);
-
-    // -- Ensure buyers table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS buyers (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        company_name VARCHAR(255) NOT NULL,
-        gstin VARCHAR(15),
-        pan VARCHAR(10),
-        company_address TEXT,
-        billing_address TEXT,
-        company_type VARCHAR(50),
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log("  buyers table OK");
-
-    // Add state columns to buyers if missing
-    await pool.query(`
-      DO $$ BEGIN
-        ALTER TABLE buyers ADD COLUMN company_state VARCHAR(10);
-      EXCEPTION WHEN duplicate_column THEN NULL;
-      END $$;
-    `);
-    await pool.query(`
-      DO $$ BEGIN
-        ALTER TABLE buyers ADD COLUMN billing_state VARCHAR(10);
-      EXCEPTION WHEN duplicate_column THEN NULL;
-      END $$;
-    `);
-
-    // -- Ensure buyer_addresses table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS buyer_addresses (
-        id SERIAL PRIMARY KEY,
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        label VARCHAR(20) NOT NULL DEFAULT 'Home',
-        full_name VARCHAR(200) NOT NULL,
-        phone VARCHAR(20) NOT NULL,
-        address_line1 TEXT NOT NULL,
-        address_line2 TEXT,
-        city VARCHAR(100) NOT NULL,
-        state VARCHAR(10) NOT NULL,
-        pincode VARCHAR(10) NOT NULL,
-        is_default BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-    `);
-    console.log("  buyer_addresses table OK");
-
-    // -- Ensure wishlists table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS wishlists (
-        id SERIAL PRIMARY KEY,
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        UNIQUE(user_id, product_id)
-      );
-    `);
-    console.log("  wishlists table OK");
-
-    // -- Ensure projects table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS projects (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        buyer_id UUID NOT NULL REFERENCES buyers(id) ON DELETE CASCADE,
-        project_name VARCHAR(255) NOT NULL,
-        project_code VARCHAR(50) UNIQUE NOT NULL,
-        project_type VARCHAR(50),
-        delivery_address TEXT NOT NULL,
-        delivery_pincode VARCHAR(10) NOT NULL,
-        delivery_city VARCHAR(100),
-        delivery_state VARCHAR(100),
-        delivery_landmark TEXT,
-        delivery_zone_id UUID REFERENCES zones(id),
-        site_manager_name VARCHAR(100),
-        site_manager_phone VARCHAR(15),
-        estimated_budget DECIMAL(15, 2),
-        start_date DATE,
-        expected_completion_date DATE,
-        is_active BOOLEAN DEFAULT TRUE,
-        created_by UUID REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log("  projects table OK");
-
-    // -- Ensure dealers table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS dealers (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        dealer_code VARCHAR(20) UNIQUE NOT NULL,
-        company_name VARCHAR(255) NOT NULL,
-        gstin VARCHAR(15) UNIQUE NOT NULL,
-        pan VARCHAR(10) NOT NULL,
-        bank_account_number VARCHAR(50),
-        bank_ifsc VARCHAR(11),
-        bank_name VARCHAR(100),
-        bank_branch VARCHAR(100),
-        credit_limit DECIMAL(15, 2) DEFAULT 0,
-        available_credit DECIMAL(15, 2) DEFAULT 0,
-        credit_payment_terms_days INT DEFAULT 0,
-        approval_status VARCHAR(20) DEFAULT 'pending',
-        approved_by UUID REFERENCES users(id),
-        approved_at TIMESTAMP,
-        business_address TEXT,
-        contact_phone VARCHAR(15),
-        contact_email VARCHAR(255),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log("  dealers table OK");
-
-    // Add state column to dealers if missing
-    await pool.query(`
-      DO $$ BEGIN
-        ALTER TABLE dealers ADD COLUMN business_state VARCHAR(10);
-      EXCEPTION WHEN duplicate_column THEN NULL;
-      END $$;
-    `);
-
-    // -- Ensure orders table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS orders (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        order_number VARCHAR(50) UNIQUE NOT NULL,
-        buyer_id UUID NOT NULL REFERENCES buyers(id),
-        project_id UUID NOT NULL REFERENCES projects(id),
-        dealer_id UUID REFERENCES dealers(id),
-        zone_id UUID NOT NULL REFERENCES zones(id),
-        assigned_vendor_id UUID REFERENCES vendors(id),
-        order_type VARCHAR(20) NOT NULL,
-        order_status VARCHAR(30) NOT NULL DEFAULT 'pending',
-        subtotal DECIMAL(15, 2) NOT NULL,
-        shipping_cost DECIMAL(10, 2) DEFAULT 0,
-        tax_amount DECIMAL(10, 2) DEFAULT 0,
-        discount_amount DECIMAL(10, 2) DEFAULT 0,
-        total_amount DECIMAL(15, 2) NOT NULL,
-        payment_status VARCHAR(20) DEFAULT 'pending',
-        payment_mode VARCHAR(30),
-        payment_reference VARCHAR(100),
-        delivery_address TEXT NOT NULL,
-        delivery_pincode VARCHAR(10) NOT NULL,
-        delivery_contact_name VARCHAR(100),
-        delivery_contact_phone VARCHAR(15),
-        delivery_otp VARCHAR(6),
-        expected_delivery_date DATE,
-        actual_delivery_date DATE,
-        buyer_notes TEXT,
-        admin_notes TEXT,
-        cancellation_reason TEXT,
-        created_by UUID REFERENCES users(id),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log("  orders table OK");
-
-    // -- Ensure order_items table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS order_items (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-        product_id UUID NOT NULL REFERENCES products(id),
-        quantity INT NOT NULL,
-        unit_price DECIMAL(10, 2) NOT NULL,
-        tier_applied INT,
-        discount_per_unit DECIMAL(10, 2) DEFAULT 0,
-        line_total DECIMAL(15, 2) NOT NULL,
-        cbm_per_unit DECIMAL(10, 5),
-        total_cbm DECIMAL(10, 3),
-        shipping_cost DECIMAL(10, 2) DEFAULT 0,
-        fulfillment_status VARCHAR(20) DEFAULT 'pending',
-        quantity_dispatched INT DEFAULT 0,
-        quantity_delivered INT DEFAULT 0,
-        quantity_back_order INT DEFAULT 0,
-        product_name_snapshot VARCHAR(255),
-        sku_code_snapshot VARCHAR(50),
-        hsn_code_snapshot VARCHAR(10),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      );
-    `);
-    console.log("  order_items table OK");
-
-    // -- Ensure zone_vendor_assignments table exists --
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS zone_vendor_assignments (
-        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-        zone_id UUID NOT NULL REFERENCES zones(id) ON DELETE CASCADE,
-        vendor_id UUID NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
-        is_active BOOLEAN DEFAULT TRUE,
-        priority INT DEFAULT 1,
-        assigned_by UUID REFERENCES users(id),
-        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        deactivated_at TIMESTAMP,
-        UNIQUE(zone_id)
-      );
-    `);
-    console.log("  zone_vendor_assignments table OK");
+    console.log(`  ${insertCount} products inserted (${productsData.length - insertCount} already existed)`);
 
     // ========================================================================
-    // ENSURE ALL COLUMNS EXIST (patch tables created from older schemas)
+    // DEMO BUYER USER
     // ========================================================================
-    const addColIfMissing = async (table: string, col: string, type: string) => {
-      await pool.query(`
-        DO $$ BEGIN
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='${table}' AND column_name='${col}') THEN
-            ALTER TABLE ${table} ADD COLUMN ${col} ${type};
-          END IF;
-        END $$;
-      `);
-    };
-
-    // zones
-    await addColIfMissing('zones', 'zone_code', 'VARCHAR(20)');
-    await addColIfMissing('zones', 'description', 'TEXT');
-    // categories
-    await addColIfMissing('categories', 'category_code', 'VARCHAR(20)');
-    // brands
-    await addColIfMissing('brands', 'brand_code', 'VARCHAR(20)');
-    // products — handle "sku" vs "sku_code" naming mismatch
-    // Case 1: only "sku" exists → rename it
-    // Case 2: both "sku" and "sku_code" exist → drop old "sku" column
-    // Case 3: only "sku_code" exists → nothing to do
-    await pool.query(`
-      DO $$ BEGIN
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='sku') THEN
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='sku_code') THEN
-            ALTER TABLE products RENAME COLUMN sku TO sku_code;
-          ELSE
-            ALTER TABLE products ALTER COLUMN sku DROP NOT NULL;
-            ALTER TABLE products ALTER COLUMN sku SET DEFAULT NULL;
-          END IF;
-        END IF;
-      END $$;
-    `);
-    await addColIfMissing('products', 'sku_code', 'VARCHAR(50)');
-    // handle "name" vs "product_name" mismatch (same pattern)
-    await pool.query(`
-      DO $$ BEGIN
-        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='name') THEN
-          IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='product_name') THEN
-            ALTER TABLE products RENAME COLUMN name TO product_name;
-          ELSE
-            ALTER TABLE products ALTER COLUMN name DROP NOT NULL;
-            ALTER TABLE products ALTER COLUMN name SET DEFAULT NULL;
-          END IF;
-        END IF;
-      END $$;
-    `);
-    await addColIfMissing('products', 'product_name', 'VARCHAR(255)');
-    await addColIfMissing('products', 'category_id', 'UUID');
-    await addColIfMissing('products', 'brand_id', 'UUID');
-    await addColIfMissing('products', 'description', 'TEXT');
-    await addColIfMissing('products', 'hsn_code', 'VARCHAR(10)');
-    await addColIfMissing('products', 'weight_kg', 'DECIMAL(10,2)');
-    await addColIfMissing('products', 'length_ft', 'DECIMAL(10,2)');
-    await addColIfMissing('products', 'width_ft', 'DECIMAL(10,2)');
-    await addColIfMissing('products', 'height_ft', 'DECIMAL(10,3)');
-    await addColIfMissing('products', 'specifications', "JSONB DEFAULT '{}'");
-    await addColIfMissing('products', 'cbm_per_unit', 'DECIMAL(10,5)');
-    await addColIfMissing('products', 'tech_sheet_url', 'VARCHAR(500)');
-    await addColIfMissing('products', 'is_active', 'BOOLEAN DEFAULT TRUE');
-    await addColIfMissing('products', 'created_by', 'UUID');
-    await addColIfMissing('products', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
-    await addColIfMissing('products', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
-    // vendors
-    await addColIfMissing('vendors', 'pan', 'VARCHAR(10)');
-    await addColIfMissing('vendors', 'contact_person_name', 'VARCHAR(100)');
-    // dealers
-    await addColIfMissing('dealers', 'user_id', 'UUID REFERENCES users(id)');
-    await addColIfMissing('dealers', 'dealer_code', 'VARCHAR(20)');
-    await addColIfMissing('dealers', 'company_name', 'VARCHAR(255)');
-    await addColIfMissing('dealers', 'gstin', 'VARCHAR(15)');
-    await addColIfMissing('dealers', 'pan', 'VARCHAR(10)');
-    await addColIfMissing('dealers', 'credit_limit', 'DECIMAL(15,2) DEFAULT 0');
-    await addColIfMissing('dealers', 'available_credit', 'DECIMAL(15,2) DEFAULT 0');
-    await addColIfMissing('dealers', 'credit_payment_terms_days', 'INT DEFAULT 0');
-    await addColIfMissing('dealers', 'approval_status', "VARCHAR(20) DEFAULT 'pending'");
-    await addColIfMissing('dealers', 'bank_account_number', 'VARCHAR(50)');
-    await addColIfMissing('dealers', 'bank_ifsc', 'VARCHAR(11)');
-    await addColIfMissing('dealers', 'bank_name', 'VARCHAR(100)');
-    await addColIfMissing('dealers', 'bank_branch', 'VARCHAR(100)');
-    await addColIfMissing('dealers', 'business_address', 'TEXT');
-    await addColIfMissing('dealers', 'contact_phone', 'VARCHAR(15)');
-    await addColIfMissing('dealers', 'contact_email', 'VARCHAR(255)');
-    await addColIfMissing('dealers', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
-    // buyers
-    await addColIfMissing('buyers', 'user_id', 'UUID REFERENCES users(id)');
-    await addColIfMissing('buyers', 'company_name', 'VARCHAR(255)');
-    await addColIfMissing('buyers', 'gstin', 'VARCHAR(15)');
-    await addColIfMissing('buyers', 'pan', 'VARCHAR(10)');
-    await addColIfMissing('buyers', 'company_type', 'VARCHAR(50)');
-    await addColIfMissing('buyers', 'company_address', 'TEXT');
-    await addColIfMissing('buyers', 'billing_address', 'TEXT');
-    await addColIfMissing('buyers', 'is_active', 'BOOLEAN DEFAULT TRUE');
-    await addColIfMissing('buyers', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
-    await addColIfMissing('buyers', 'updated_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
-    // orders — all columns referenced by order.controller.ts
-    await addColIfMissing('orders', 'order_number', 'VARCHAR(30)');
-    await addColIfMissing('orders', 'buyer_id', 'UUID');
-    await addColIfMissing('orders', 'project_id', 'UUID');
-    await addColIfMissing('orders', 'dealer_id', 'UUID');
-    await addColIfMissing('orders', 'zone_id', 'UUID');
-    await addColIfMissing('orders', 'assigned_vendor_id', 'UUID');
-    await addColIfMissing('orders', 'order_type', "VARCHAR(20) DEFAULT 'direct'");
-    await addColIfMissing('orders', 'order_status', "VARCHAR(30) DEFAULT 'pending'");
-    await addColIfMissing('orders', 'payment_status', "VARCHAR(20) DEFAULT 'pending'");
-    await addColIfMissing('orders', 'subtotal', 'DECIMAL(15,2) DEFAULT 0');
-    await addColIfMissing('orders', 'shipping_cost', 'DECIMAL(10,2) DEFAULT 0');
-    await addColIfMissing('orders', 'tax_amount', 'DECIMAL(15,2) DEFAULT 0');
-    await addColIfMissing('orders', 'discount_amount', 'DECIMAL(15,2) DEFAULT 0');
-    await addColIfMissing('orders', 'total_amount', 'DECIMAL(15,2) DEFAULT 0');
-    await addColIfMissing('orders', 'delivery_address', 'TEXT');
-    await addColIfMissing('orders', 'delivery_pincode', 'VARCHAR(10)');
-    await addColIfMissing('orders', 'delivery_contact_name', 'VARCHAR(100)');
-    await addColIfMissing('orders', 'delivery_contact_phone', 'VARCHAR(15)');
-    await addColIfMissing('orders', 'expected_delivery_date', 'DATE');
-    await addColIfMissing('orders', 'actual_delivery_date', 'DATE');
-    await addColIfMissing('orders', 'buyer_notes', 'TEXT');
-    await addColIfMissing('orders', 'admin_notes', 'TEXT');
-    await addColIfMissing('orders', 'cancellation_reason', 'TEXT');
-    await addColIfMissing('orders', 'created_at', 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
-    // order_items
-    await addColIfMissing('order_items', 'order_id', 'UUID');
-    await addColIfMissing('order_items', 'product_id', 'UUID');
-    await addColIfMissing('order_items', 'quantity', 'INT DEFAULT 1');
-    await addColIfMissing('order_items', 'unit_price', 'DECIMAL(10,2) DEFAULT 0');
-    await addColIfMissing('order_items', 'line_total', 'DECIMAL(15,2) DEFAULT 0');
-    await addColIfMissing('order_items', 'product_name_snapshot', 'VARCHAR(255)');
-    await addColIfMissing('order_items', 'sku_code_snapshot', 'VARCHAR(50)');
-    console.log("  all column migrations applied");
-
-    // ========================================================================
-    // DEMO DATA
-    // ========================================================================
-    console.log("\nSeeding demo data...");
-
-    // -- Demo Zones --
-    const zoneRows = await pool.query(`SELECT id FROM zones WHERE zone_code = 'ZONE-MUM'`);
-    let zoneMumId: string, zoneDelId: string, zoneBanId: string;
-    if (zoneRows.rows.length === 0) {
-      const z1 = await pool.query(
-        `INSERT INTO zones (zone_name, zone_code, is_active) VALUES ('Mumbai Metro', 'ZONE-MUM', true) RETURNING id`
-      );
-      const z2 = await pool.query(
-        `INSERT INTO zones (zone_name, zone_code, is_active) VALUES ('Delhi NCR', 'ZONE-DEL', true) RETURNING id`
-      );
-      const z3 = await pool.query(
-        `INSERT INTO zones (zone_name, zone_code, is_active) VALUES ('Bangalore Urban', 'ZONE-BAN', true) RETURNING id`
-      );
-      zoneMumId = z1.rows[0].id;
-      zoneDelId = z2.rows[0].id;
-      zoneBanId = z3.rows[0].id;
-
-      // Add pincodes
-      await pool.query(`INSERT INTO zone_pincodes (zone_id, pincode, city, state) VALUES ($1, '400001', 'Mumbai', 'Maharashtra') ON CONFLICT DO NOTHING`, [zoneMumId]);
-      await pool.query(`INSERT INTO zone_pincodes (zone_id, pincode, city, state) VALUES ($1, '400002', 'Mumbai', 'Maharashtra') ON CONFLICT DO NOTHING`, [zoneMumId]);
-      await pool.query(`INSERT INTO zone_pincodes (zone_id, pincode, city, state) VALUES ($1, '110001', 'New Delhi', 'Delhi') ON CONFLICT DO NOTHING`, [zoneDelId]);
-      await pool.query(`INSERT INTO zone_pincodes (zone_id, pincode, city, state) VALUES ($1, '560001', 'Bangalore', 'Karnataka') ON CONFLICT DO NOTHING`, [zoneBanId]);
-      console.log("  3 demo zones + pincodes added");
-    } else {
-      zoneMumId = zoneRows.rows[0].id;
-      const z2 = await pool.query(`SELECT id FROM zones WHERE zone_code = 'ZONE-DEL'`);
-      const z3 = await pool.query(`SELECT id FROM zones WHERE zone_code = 'ZONE-BAN'`);
-      zoneDelId = z2.rows[0]?.id || zoneMumId;
-      zoneBanId = z3.rows[0]?.id || zoneMumId;
-      console.log("  demo zones already exist, skipping");
-    }
-
-    // -- Demo Categories --
-    const catCheck = await pool.query(`SELECT id FROM categories WHERE category_code = 'CAT-PLY'`);
-    let catPlyId: string, catCemId: string, catTilId: string;
-    if (catCheck.rows.length === 0) {
-      const c1 = await pool.query(`INSERT INTO categories (category_name, category_code, is_active) VALUES ('Plywood', 'CAT-PLY', true) RETURNING id`);
-      const c2 = await pool.query(`INSERT INTO categories (category_name, category_code, is_active) VALUES ('Cement', 'CAT-CEM', true) RETURNING id`);
-      const c3 = await pool.query(`INSERT INTO categories (category_name, category_code, is_active) VALUES ('Tiles', 'CAT-TIL', true) RETURNING id`);
-      catPlyId = c1.rows[0].id; catCemId = c2.rows[0].id; catTilId = c3.rows[0].id;
-      console.log("  3 demo categories added");
-    } else {
-      catPlyId = catCheck.rows[0].id;
-      const c2 = await pool.query(`SELECT id FROM categories WHERE category_code = 'CAT-CEM'`);
-      const c3 = await pool.query(`SELECT id FROM categories WHERE category_code = 'CAT-TIL'`);
-      catCemId = c2.rows[0]?.id || catPlyId;
-      catTilId = c3.rows[0]?.id || catPlyId;
-      console.log("  demo categories already exist, skipping");
-    }
-
-    // -- Demo Brands --
-    const brdCheck = await pool.query(`SELECT id FROM brands WHERE brand_code = 'BRD-CEN'`);
-    let brdCenId: string, brdAccId: string, brdKajId: string;
-    if (brdCheck.rows.length === 0) {
-      const b1 = await pool.query(`INSERT INTO brands (brand_name, brand_code, is_active) VALUES ('Century Plyboards', 'BRD-CEN', true) RETURNING id`);
-      const b2 = await pool.query(`INSERT INTO brands (brand_name, brand_code, is_active) VALUES ('ACC Cement', 'BRD-ACC', true) RETURNING id`);
-      const b3 = await pool.query(`INSERT INTO brands (brand_name, brand_code, is_active) VALUES ('Kajaria Tiles', 'BRD-KAJ', true) RETURNING id`);
-      brdCenId = b1.rows[0].id; brdAccId = b2.rows[0].id; brdKajId = b3.rows[0].id;
-      console.log("  3 demo brands added");
-    } else {
-      brdCenId = brdCheck.rows[0].id;
-      const b2 = await pool.query(`SELECT id FROM brands WHERE brand_code = 'BRD-ACC'`);
-      const b3 = await pool.query(`SELECT id FROM brands WHERE brand_code = 'BRD-KAJ'`);
-      brdAccId = b2.rows[0]?.id || brdCenId;
-      brdKajId = b3.rows[0]?.id || brdCenId;
-      console.log("  demo brands already exist, skipping");
-    }
-
-    // -- Demo Vendors --
-    const venCheck = await pool.query(`SELECT id FROM vendors WHERE vendor_code = 'VND-001'`);
-    let vendorId: string;
-    if (venCheck.rows.length === 0) {
-      const v1 = await pool.query(
-        `INSERT INTO vendors (vendor_code, company_name, gstin, pan, contact_person_name, contact_phone, contact_email, verification_status, is_active)
-         VALUES ('VND-001', 'Sharma Building Supplies', '27AAPCS1234F1ZV', 'AAPCS1234F', 'Rajesh Sharma', '9876543210', 'rajesh@sharmasupplies.com', 'verified', true) RETURNING id`
-      );
-      vendorId = v1.rows[0].id;
-      await pool.query(
-        `INSERT INTO vendors (vendor_code, company_name, gstin, pan, contact_person_name, contact_phone, contact_email, verification_status, is_active)
-         VALUES ('VND-002', 'Metro Hardware Distributors', '07BBPPM5678G2ZQ', 'BBPPM5678G', 'Amit Patel', '9876543211', 'amit@metrohardware.com', 'verified', true)`
-      );
-      console.log("  2 demo vendors added");
-    } else {
-      vendorId = venCheck.rows[0].id;
-      console.log("  demo vendors already exist, skipping");
-    }
-
-    // -- Demo Products --
-    const prodCheck = await pool.query(`SELECT id FROM products WHERE sku_code = 'PLY-CEN-18MM-BWP'`);
-    let prod1Id: string, prod2Id: string, prod3Id: string;
-    if (prodCheck.rows.length === 0) {
-      const p1 = await pool.query(
-        `INSERT INTO products (sku_code, product_name, category_id, brand_id, description, hsn_code, weight_kg, length_ft, width_ft, height_ft, specifications, is_active)
-         VALUES ('PLY-CEN-18MM-BWP', 'Century 18mm BWP Plywood', $1, $2, 'Premium boiling water proof plywood, IS:710 grade', '4412', 28.5, 8, 4, 0.059, '{"thickness":"18mm","grade":"BWP","standard":"IS:710"}', true) RETURNING id`,
-        [catPlyId, brdCenId]
-      );
-      const p2 = await pool.query(
-        `INSERT INTO products (sku_code, product_name, category_id, brand_id, description, hsn_code, weight_kg, length_ft, width_ft, height_ft, specifications, is_active)
-         VALUES ('CEM-ACC-53GRD', 'ACC 53 Grade OPC Cement', $1, $2, 'High strength ordinary portland cement, 53 grade', '2523', 50, 0, 0, 0, '{"grade":"53","type":"OPC","bag_size":"50kg"}', true) RETURNING id`,
-        [catCemId, brdAccId]
-      );
-      const p3 = await pool.query(
-        `INSERT INTO products (sku_code, product_name, category_id, brand_id, description, hsn_code, weight_kg, length_ft, width_ft, height_ft, specifications, is_active)
-         VALUES ('TIL-KAJ-60X60-GL', 'Kajaria 60x60 Glazed Floor Tile', $1, $2, 'Premium glazed vitrified tile, anti-skid', '6907', 18, 2, 2, 0.033, '{"size":"60x60cm","finish":"glazed","type":"vitrified"}', true) RETURNING id`,
-        [catTilId, brdKajId]
-      );
-      prod1Id = p1.rows[0].id; prod2Id = p2.rows[0].id; prod3Id = p3.rows[0].id;
-      console.log("  3 demo products added");
-    } else {
-      prod1Id = prodCheck.rows[0].id;
-      const p2 = await pool.query(`SELECT id FROM products WHERE sku_code = 'CEM-ACC-53GRD'`);
-      const p3 = await pool.query(`SELECT id FROM products WHERE sku_code = 'TIL-KAJ-60X60-GL'`);
-      prod2Id = p2.rows[0]?.id || prod1Id;
-      prod3Id = p3.rows[0]?.id || prod1Id;
-      console.log("  demo products already exist, skipping");
-    }
-
-    // -- Demo Dealers --
-    const dlrCheck = await pool.query(`SELECT id FROM dealers WHERE dealer_code = 'DLR-001'`);
-    let dealer1Id: string;
-    if (dlrCheck.rows.length === 0) {
-      // Create dealer user accounts
-      const dlrHash = await bcrypt.hash("dealer123", 10);
-      const du1 = await pool.query(
+    console.log("Seeding demo buyer...");
+    const buyerExists = await pool.query("SELECT id FROM users WHERE email = 'buyer@example.com'");
+    if (buyerExists.rows.length === 0) {
+      const buyerHash = await bcrypt.hash("buyer123", 10);
+      const bu = await pool.query(
         `INSERT INTO users (email, phone, password_hash, first_name, last_name, user_type, is_verified, is_active)
-         VALUES ('dealer1@materialking.com', '9800000001', $1, 'Suresh', 'Gupta', 'dealer', true, true) RETURNING id`, [dlrHash]
-      );
-      const du2 = await pool.query(
-        `INSERT INTO users (email, phone, password_hash, first_name, last_name, user_type, is_verified, is_active)
-         VALUES ('dealer2@materialking.com', '9800000002', $1, 'Priya', 'Mehta', 'dealer', true, true) RETURNING id`, [dlrHash]
-      );
-
-      const d1 = await pool.query(
-        `INSERT INTO dealers (user_id, dealer_code, company_name, gstin, pan, credit_limit, available_credit, credit_payment_terms_days, approval_status, business_address, contact_phone, contact_email)
-         VALUES ($1, 'DLR-001', 'Gupta Building Materials', '27AADCG1234H1ZV', 'AADCG1234H', 1500000, 1200000, 30, 'approved', '45 Commercial St, Andheri West, Mumbai 400058', '9800000001', 'dealer1@materialking.com') RETURNING id`,
-        [du1.rows[0].id]
+         VALUES ('buyer@example.com', '9700000001', $1, 'Vikram', 'Singh', 'buyer', true, true) RETURNING id`,
+        [buyerHash]
       );
       await pool.query(
-        `INSERT INTO dealers (user_id, dealer_code, company_name, gstin, pan, credit_limit, available_credit, credit_payment_terms_days, approval_status, business_address, contact_phone, contact_email)
-         VALUES ($1, 'DLR-002', 'Mehta Trading Co.', '07BBPPM9876G1ZQ', 'BBPPM9876G', 2000000, 1800000, 45, 'approved', '12 Industrial Area, Phase 2, Gurgaon 122001', '9800000002', 'dealer2@materialking.com')`,
-        [du2.rows[0].id]
+        `INSERT INTO user_roles (user_id, role, is_active) VALUES ($1, 'buyer_admin', true)`,
+        [bu.rows[0].id]
       );
-      dealer1Id = d1.rows[0].id;
-      console.log("  2 demo dealers added");
+      await pool.query(
+        `INSERT INTO buyers (user_id, company_name) VALUES ($1, 'Singh Constructions Pvt Ltd')`,
+        [bu.rows[0].id]
+      );
+      console.log("  Buyer: buyer@example.com / buyer123");
     } else {
-      dealer1Id = dlrCheck.rows[0].id;
-      console.log("  demo dealers already exist, skipping");
+      console.log("  Demo buyer already exists");
     }
 
-    // -- Demo Buyers --
-    const buyCheck = await pool.query(`SELECT id FROM buyers LIMIT 1`);
-    let buyer1Id: string, project1Id: string;
-    if (buyCheck.rows.length === 0) {
-      const buyHash = await bcrypt.hash("buyer123", 10);
-      const bu1 = await pool.query(
-        `INSERT INTO users (email, phone, password_hash, first_name, last_name, user_type, is_verified, is_active)
-         VALUES ('buyer1@example.com', '9700000001', $1, 'Vikram', 'Singh', 'buyer', true, true) RETURNING id`, [buyHash]
-      );
-      const bu2 = await pool.query(
-        `INSERT INTO users (email, phone, password_hash, first_name, last_name, user_type, is_verified, is_active)
-         VALUES ('buyer2@example.com', '9700000002', $1, 'Anita', 'Desai', 'buyer', true, true) RETURNING id`, [buyHash]
-      );
+    console.log("\nSeed complete! Database is ready.");
+    console.log("  20 brands, 10 parent categories, 41 subcategories, 62 products");
 
-      const by1 = await pool.query(
-        `INSERT INTO buyers (user_id, company_name, gstin, company_type, is_active)
-         VALUES ($1, 'Singh Constructions Pvt Ltd', '27AABCS5678F1ZV', 'private_limited', true) RETURNING id`,
-        [bu1.rows[0].id]
-      );
-      await pool.query(
-        `INSERT INTO buyers (user_id, company_name, gstin, company_type, is_active)
-         VALUES ($1, 'Desai Builders & Developers', '29AABCD1234G1ZQ', 'partnership', true) RETURNING id`,
-        [bu2.rows[0].id]
-      );
-      buyer1Id = by1.rows[0].id;
-
-      // Add projects for buyer1
-      const pj1 = await pool.query(
-        `INSERT INTO projects (buyer_id, project_name, project_code, delivery_address, delivery_pincode, delivery_city, delivery_state, site_manager_name, site_manager_phone, is_active)
-         VALUES ($1, 'Greenfield Residency Tower A', 'PROJ-GRT-001', '101 Greenfield Complex, Powai, Mumbai', '400001', 'Mumbai', 'Maharashtra', 'Rakesh Kumar', '9600000001', true) RETURNING id`,
-        [buyer1Id]
-      );
-      await pool.query(
-        `INSERT INTO projects (buyer_id, project_name, project_code, delivery_address, delivery_pincode, delivery_city, delivery_state, site_manager_name, site_manager_phone, is_active)
-         VALUES ($1, 'Marina Bay Commercial Hub', 'PROJ-MBC-002', '55 Business Park, Bandra Kurla Complex, Mumbai', '400002', 'Mumbai', 'Maharashtra', 'Deepak Joshi', '9600000002', true)`,
-        [buyer1Id]
-      );
-      project1Id = pj1.rows[0].id;
-      console.log("  2 demo buyers + 2 projects added");
-    } else {
-      buyer1Id = buyCheck.rows[0].id;
-      const pjCheck = await pool.query(`SELECT id FROM projects WHERE buyer_id = $1 LIMIT 1`, [buyer1Id]);
-      project1Id = pjCheck.rows[0]?.id;
-      console.log("  demo buyers already exist, skipping");
-    }
-
-    // -- Demo Orders --
-    const ordCheck = await pool.query(`SELECT id FROM orders WHERE order_number = 'ORD-2026-0001'`);
-    if (ordCheck.rows.length === 0 && project1Id) {
-      const o1 = await pool.query(
-        `INSERT INTO orders (order_number, buyer_id, project_id, zone_id, order_type, order_status, payment_status, subtotal, shipping_cost, tax_amount, discount_amount, total_amount, delivery_address, delivery_pincode, delivery_contact_name, delivery_contact_phone, expected_delivery_date, buyer_notes)
-         VALUES ('ORD-2026-0001', $1, $2, $3, 'direct', 'confirmed', 'pending', 85000, 2500, 15300, 0, 102800, '101 Greenfield Complex, Powai, Mumbai', '400001', 'Rakesh Kumar', '9600000001', NOW() + INTERVAL '7 days', 'Please deliver before 10 AM') RETURNING id`,
-        [buyer1Id, project1Id, zoneMumId]
-      );
-      // Add order items
-      await pool.query(
-        `INSERT INTO order_items (order_id, product_id, quantity, unit_price, line_total, product_name_snapshot, sku_code_snapshot)
-         VALUES ($1, $2, 20, 3500, 70000, 'Century 18mm BWP Plywood', 'PLY-CEN-18MM-BWP')`,
-        [o1.rows[0].id, prod1Id]
-      );
-      await pool.query(
-        `INSERT INTO order_items (order_id, product_id, quantity, unit_price, line_total, product_name_snapshot, sku_code_snapshot)
-         VALUES ($1, $2, 30, 500, 15000, 'ACC 53 Grade OPC Cement', 'CEM-ACC-53GRD')`,
-        [o1.rows[0].id, prod2Id]
-      );
-
-      // Order 2 - dealer order
-      const o2 = await pool.query(
-        `INSERT INTO orders (order_number, buyer_id, project_id, dealer_id, zone_id, order_type, order_status, payment_status, subtotal, shipping_cost, tax_amount, discount_amount, total_amount, delivery_address, delivery_pincode, delivery_contact_name, delivery_contact_phone, expected_delivery_date)
-         VALUES ('ORD-2026-0002', $1, $2, $3, $4, 'dealer', 'pending', 'pending', 144000, 3500, 25920, 5000, 168420, '101 Greenfield Complex, Powai, Mumbai', '400001', 'Rakesh Kumar', '9600000001', NOW() + INTERVAL '14 days') RETURNING id`,
-        [buyer1Id, project1Id, dealer1Id, zoneMumId]
-      );
-      await pool.query(
-        `INSERT INTO order_items (order_id, product_id, quantity, unit_price, line_total, product_name_snapshot, sku_code_snapshot)
-         VALUES ($1, $2, 100, 1200, 120000, 'Kajaria 60x60 Glazed Floor Tile', 'TIL-KAJ-60X60-GL')`,
-        [o2.rows[0].id, prod3Id]
-      );
-      await pool.query(
-        `INSERT INTO order_items (order_id, product_id, quantity, unit_price, line_total, product_name_snapshot, sku_code_snapshot)
-         VALUES ($1, $2, 48, 500, 24000, 'ACC 53 Grade OPC Cement', 'CEM-ACC-53GRD')`,
-        [o2.rows[0].id, prod2Id]
-      );
-      console.log("  2 demo orders + 4 order items added");
-    } else {
-      console.log("  demo orders already exist, skipping");
-    }
-
-    console.log("\nDemo data seeding complete.");
-    console.log("Migrations complete.");
   } catch (error: any) {
     console.error("Seed error:", error.message);
+    console.error(error.stack);
   } finally {
     await pool.end();
     process.exit(0);
