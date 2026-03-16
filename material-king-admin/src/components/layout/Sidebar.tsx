@@ -1,4 +1,4 @@
-import { Home, MapPin, Building2, Boxes, Tag, Package, Users, ShoppingCart } from 'lucide-react';
+import { Home, MapPin, Building2, Boxes, Tag, Package, Users, CreditCard, ShoppingCart } from 'lucide-react';
 
 interface Props {
   currentModule: string;
@@ -15,6 +15,7 @@ export default function Sidebar({ currentModule, setCurrentModule, isOpen }: Pro
     { id: 'brands', label: 'Brands', icon: Tag },
     { id: 'products', label: 'Products', icon: Package },
     { id: 'dealers', label: 'Dealers', icon: Users },
+    { id: 'buyers', label: 'Buyers', icon: CreditCard },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
   ];
 
@@ -27,11 +28,11 @@ export default function Sidebar({ currentModule, setCurrentModule, isOpen }: Pro
           <button
             key={item.id}
             onClick={() => setCurrentModule(item.id)}
-            className={\`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition \${
-              currentModule === item.id 
-                ? 'bg-mk-red text-white font-bold' 
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition ${
+              currentModule === item.id
+                ? 'bg-mk-red text-white font-bold'
                 : 'text-gray-700 hover:bg-gray-100'
-            }\`}
+            }`}
           >
             <item.icon className="w-5 h-5" />
             <span className="text-sm">{item.label}</span>

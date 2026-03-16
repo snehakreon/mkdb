@@ -4,15 +4,22 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const pool = new Pool({
-  user: "postgres",
+  host: process.env.DB_HOST || "localhost",
+  port: parseInt(process.env.DB_PORT || "5432"),
+  user: process.env.DB_USER || "postgres",
   password: process.env.DB_PASSWORD,
-  host: "localhost",
-  port: 5432,
-  database: "material_king",
+  database: process.env.DB_NAME || "material_king",
+  connectionTimeoutMillis: 5000,
+  query_timeout: 10000,
+  statement_timeout: 10000,
 });
 
 pool.on("connect", () => {
-  console.log("PostgreSQL Connected");
+  console.log("PostgreSQL connected");
+});
+
+pool.on("error", (err) => {
+  console.error("PostgreSQL pool error:", err.message);
 });
 
 export default pool;

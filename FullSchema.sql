@@ -1518,9 +1518,11 @@ GROUP BY p.id, p.sku_code, p.product_name, pr.id, v.vendor_code, z.zone_code, pr
 -- ============================================================================
 
 -- Insert Super Admin User
+-- NOTE: The hash below is for password 'admin123'. Generated via: bcrypt.hash('admin123', 10)
+-- Alternatively, run the seed script: npx ts-node src/scripts/seed.ts
 INSERT INTO users (email, phone, password_hash, first_name, last_name, user_type, is_verified, email_verified_at)
-VALUES 
-('admin@platform.com', '9999999999', '$2b$10$abcdefghijklmnopqrstuvwxyz', 'Platform', 'Admin', 'admin', TRUE, CURRENT_TIMESTAMP);
+VALUES
+('admin@platform.com', '9999999999', '$2a$10$8lBb3N5EOg/rLcbAmmr0ueUZVP4jfyO1xxoJRxjc.F/bTAiLTOtw6', 'Platform', 'Admin', 'admin', TRUE, CURRENT_TIMESTAMP);
 
 INSERT INTO user_roles (user_id, role, is_active)
 SELECT id, 'super_admin', TRUE FROM users WHERE email = 'admin@platform.com';

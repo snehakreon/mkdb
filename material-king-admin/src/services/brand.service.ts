@@ -3,10 +3,10 @@ import { Brand } from '../types';
 import { API_CONFIG } from '../config/api.config';
 
 const MOCK_BRANDS: Brand[] = [
-  { id: '1', brand_name: 'Century', slug: 'century', is_active: true },
-  { id: '2', brand_name: 'Greenply', slug: 'greenply', is_active: true },
-  { id: '3', brand_name: 'ACC', slug: 'acc', is_active: true },
-  { id: '4', brand_name: 'UltraTech', slug: 'ultratech', is_active: true },
+  { id: '1', name: 'Century', slug: 'century', is_active: true },
+  { id: '2', name: 'Greenply', slug: 'greenply', is_active: true },
+  { id: '3', name: 'ACC', slug: 'acc', is_active: true },
+  { id: '4', name: 'UltraTech', slug: 'ultratech', is_active: true },
 ];
 
 export const brandService = {

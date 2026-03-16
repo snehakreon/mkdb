@@ -1,16 +1,16 @@
 import app from "./app";
 import pool from "./config/db";
 
-const PORT = 5000;
+const PORT = parseInt(process.env.PORT || "5000");
 
-pool.query("SELECT NOW()", (err, res) => {
-  if (err) {
-    console.error("DB Connection Error:", err);
-  } else {
-    console.log("DB Connected:", res.rows[0]);
-  }
-});
+pool.query("SELECT NOW()")
+  .then((res) => {
+    console.log("DB connected:", res.rows[0].now);
+  })
+  .catch((err) => {
+    console.error("DB connection error:", err.message);
+  });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Material King API running on port ${PORT}`);
 });

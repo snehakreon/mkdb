@@ -3,9 +3,9 @@ import { Zone } from '../types';
 import { API_CONFIG } from '../config/api.config';
 
 const MOCK_ZONES: Zone[] = [
-  { id: '1', zone_code: 'ZONE-MUM-N', zone_name: 'Mumbai North', is_active: true, pincodes: ['400001', '400002', '400003'] },
-  { id: '2', zone_code: 'ZONE-MUM-S', zone_name: 'Mumbai South', is_active: true, pincodes: ['400051', '400052'] },
-  { id: '3', zone_code: 'ZONE-DEL-E', zone_name: 'Delhi NCR East', is_active: true, pincodes: ['110001', '110002'] },
+  { id: '1', code: 'ZONE-MUM-N', name: 'Mumbai North', is_active: true },
+  { id: '2', code: 'ZONE-MUM-S', name: 'Mumbai South', is_active: true },
+  { id: '3', code: 'ZONE-DEL-E', name: 'Delhi NCR East', is_active: true },
 ];
 
 export const zoneService = {

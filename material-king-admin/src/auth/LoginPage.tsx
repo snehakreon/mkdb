@@ -1,8 +1,16 @@
 import { useState } from 'react';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
+import { API_CONFIG } from '../config/api.config';
+
+interface AuthUser {
+  email: string;
+  firstName: string;
+  lastName: string;
+  roles: string[];
+}
 
 interface Props {
-  onLogin: (email: string, password: string) => void;
+  onLogin: (token: string, userData: AuthUser) => void;
 }
 
 export default function LoginPage({ onLogin }: Props) {
@@ -17,16 +25,40 @@ export default function LoginPage({ onLogin }: Props) {
     setError('');
     setLoading(true);
 
-    // Simulate API call delay
-    setTimeout(() => {
-      // Default credentials (from database seed data)
-      if (email === 'admin@platform.com' && password === 'admin123') {
-        onLogin(email, password);
-      } else {
-        setError('Invalid email or password. Use default credentials below.');
-        setLoading(false);
+    try {
+      const response = await fetch(`${API_CONFIG.API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || 'Invalid email or password.');
+        return;
       }
-    }, 800);
+
+      if (!data.accessToken || !data.user) {
+        setError('Unexpected server response. Please try again.');
+        return;
+      }
+
+      // Extract token and user data from response
+      const userData: AuthUser = {
+        email: data.user.email,
+        firstName: data.user.firstName || data.user.first_name || '',
+        lastName: data.user.lastName || data.user.last_name || '',
+        roles: data.user.roles || [],
+      };
+
+      onLogin(data.accessToken, userData);
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(err?.message || 'Unable to connect to server. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -46,7 +78,7 @@ export default function LoginPage({ onLogin }: Props) {
         {/* Login Form */}
         <div className="p-8">
           <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Sign In to Continue</h2>
-          
+
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email Field */}
             <div>
@@ -100,13 +132,13 @@ export default function LoginPage({ onLogin }: Props) {
 
             {/* Default Credentials Info Box */}
             <div className="bg-blue-50 border-l-4 border-blue-500 rounded p-3 text-sm">
-              <p className="font-bold text-blue-900 mb-2">📋 Default Credentials:</p>
+              <p className="font-bold text-blue-900 mb-2">Default Credentials:</p>
               <div className="space-y-1 text-blue-800">
                 <p><span className="font-semibold">Email:</span> admin@platform.com</p>
                 <p><span className="font-semibold">Password:</span> admin123</p>
               </div>
               <p className="text-xs text-blue-600 mt-2 italic">
-                ⚠️ Change password after first login!
+                Register an admin user first via the API if not done yet.
               </p>
             </div>
 
@@ -136,7 +168,7 @@ export default function LoginPage({ onLogin }: Props) {
               Material King B2B Platform v1.0
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              © 2026 All rights reserved
+              &copy; 2026 All rights reserved
             </p>
           </div>
         </div>

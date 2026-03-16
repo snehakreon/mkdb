@@ -1,133 +1,89 @@
 import React, { useState, useEffect } from 'react';
-import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, CreditCard, ShoppingCart, AlertCircle, Truck, AlertTriangle, Receipt, FileText, Bell, Eye, Edit2, Trash2, Plus, Search, X, Check, Save } from 'lucide-react';
+import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, CreditCard, ShoppingCart, AlertCircle, Bell, Edit2, Trash2, Plus, X, LogOut } from 'lucide-react';
+import LoginPage from './auth/LoginPage';
+import { zoneService } from './services/zone.service';
+import { vendorService } from './services/vendor.service';
+import { categoryService } from './services/category.service';
+import { brandService } from './services/brand.service';
+import { productService } from './services/product.service';
+import { dealerService } from './services/dealer.service';
+import { orderService } from './services/order.service';
+import { buyerService } from './services/buyer.service';
+import { Zone, Vendor, Category, Brand, Product, Order, Dealer, Buyer } from './types';
+// API_CONFIG imported via services
 
 // ============================================================================
-// CONFIGURATION
+// TYPES (extra interfaces not in types/index.ts)
 // ============================================================================
-const USE_REAL_API = true;
-const API_BASE_URL = 'http://localhost:3000/api';
 
-// ============================================================================
-// TYPES
-// ============================================================================
-interface Zone {
-  id: string;
-  zone_code: string;
-  zone_name: string;
-  is_active: boolean;
-  pincodes?: string[];
-}
-
-interface Vendor {
-  id: string;
-  vendor_code: string;
-  company_name: string;
-  gstin: string;
-  contact_person_name: string;
-  contact_phone: string;
-  contact_email: string;
-  verification_status: 'pending' | 'verified' | 'rejected';
-  is_active: boolean;
-}
-
-interface Product {
-  id: string;
-  sku: string;
-  product_name: string;
-  category_id: string;
-  category_name?: string;
-  brand_id?: string;
-  brand_name?: string;
-  hsn_code?: string;
-  is_active: boolean;
-}
-
-interface Order {
-  id: string;
-  order_number: string;
-  buyer_name: string;
-  order_type: 'direct' | 'dealer';
-  order_status: string;
-  total_amount: number;
-  created_at: string;
-}
-
-interface Dealer {
-  id: string;
-  dealer_code: string;
-  company_name: string;
-  contact_person_name: string;
-  contact_phone: string;
-  credit_limit: number;
-  available_credit: number;
-  approval_status: 'pending' | 'approved' | 'rejected';
-}
-
-interface Category {
-  id: string;
-  category_name: string;
-  slug: string;
-  is_active: boolean;
-}
-
-interface Brand {
-  id: string;
-  brand_name: string;
-  slug: string;
-  is_active: boolean;
+interface AuthUser {
+  email: string;
+  firstName: string;
+  lastName: string;
+  roles: string[];
 }
 
 // ============================================================================
-// MOCK DATA
-// ============================================================================
-const generateMockData = () => ({
-  zones: [
-    { id: '1', zone_code: 'ZONE-MUM-N', zone_name: 'Mumbai North', is_active: true, pincodes: ['400001', '400002', '400003'] },
-    { id: '2', zone_code: 'ZONE-MUM-S', zone_name: 'Mumbai South', is_active: true, pincodes: ['400051', '400052'] },
-    { id: '3', zone_code: 'ZONE-DEL-E', zone_name: 'Delhi NCR East', is_active: true, pincodes: ['110001', '110002'] },
-  ] as Zone[],
-  
-  vendors: [
-    { id: '1', vendor_code: 'VND-001', company_name: 'ABC Distributors', gstin: '27AAACR5678C1Z9', contact_person_name: 'John Doe', contact_phone: '9876543210', contact_email: 'john@abc.com', verification_status: 'verified', is_active: true },
-    { id: '2', vendor_code: 'VND-002', company_name: 'XYZ Suppliers', gstin: '27AAAXS1234D1Z5', contact_person_name: 'Jane Smith', contact_phone: '9876543211', contact_email: 'jane@xyz.com', verification_status: 'pending', is_active: true },
-  ] as Vendor[],
-  
-  products: [
-    { id: '1', sku: 'PLY-CEN-18MM', product_name: 'Century Plywood 18mm', category_id: '1', category_name: 'Plywood', brand_id: '1', brand_name: 'Century', hsn_code: '4412', is_active: true },
-    { id: '2', sku: 'CEM-ACC-53', product_name: 'ACC Cement 53 Grade', category_id: '2', category_name: 'Cement', brand_id: '3', brand_name: 'ACC', hsn_code: '2523', is_active: true },
-  ] as Product[],
-  
-  orders: [
-    { id: '1', order_number: 'ORD-2601001', buyer_name: 'ABC Constructions', order_type: 'direct', order_status: 'confirmed', total_amount: 467988, created_at: '2026-02-15' },
-    { id: '2', order_number: 'ORD-2601002', buyer_name: 'XYZ Builders', order_type: 'dealer', order_status: 'pending', total_amount: 823450, created_at: '2026-02-15' },
-  ] as Order[],
-  
-  dealers: [
-    { id: '1', dealer_code: 'DLR-001', company_name: 'Metro Dealers', contact_person_name: 'Robert Brown', contact_phone: '9876543220', credit_limit: 1000000, available_credit: 650000, approval_status: 'approved' },
-    { id: '2', dealer_code: 'DLR-002', company_name: 'Elite Trading', contact_person_name: 'Sarah Wilson', contact_phone: '9876543221', credit_limit: 1500000, available_credit: 1200000, approval_status: 'approved' },
-  ] as Dealer[],
-  
-  categories: [
-    { id: '1', category_name: 'Plywood', slug: 'plywood', is_active: true },
-    { id: '2', category_name: 'Cement', slug: 'cement', is_active: true },
-    { id: '3', category_name: 'Tiles', slug: 'tiles', is_active: true },
-  ] as Category[],
-  
-  brands: [
-    { id: '1', brand_name: 'Century', slug: 'century', is_active: true },
-    { id: '2', brand_name: 'Greenply', slug: 'greenply', is_active: true },
-    { id: '3', brand_name: 'ACC', slug: 'acc', is_active: true },
-    { id: '4', brand_name: 'UltraTech', slug: 'ultratech', is_active: true },
-  ] as Brand[],
-});
-
-// ============================================================================
-// MAIN APP
+// MAIN APP WITH AUTH GATING
 // ============================================================================
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [currentModule, setCurrentModule] = useState('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen] = useState(true);
 
+  // Check for existing auth on mount
+  useEffect(() => {
+    const token = localStorage.getItem('mk_auth_token');
+    const userJson = localStorage.getItem('mk_user');
+
+    if (token && userJson) {
+      try {
+        const userData = JSON.parse(userJson);
+        setUser(userData);
+        setIsAuthenticated(true);
+      } catch {
+        localStorage.removeItem('mk_auth_token');
+        localStorage.removeItem('mk_user');
+      }
+    }
+    setIsLoading(false);
+  }, []);
+
+  const handleLogin = (token: string, userData: AuthUser) => {
+    localStorage.setItem('mk_auth_token', token);
+    localStorage.setItem('mk_user', JSON.stringify(userData));
+    setUser(userData);
+    setIsAuthenticated(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('mk_auth_token');
+    localStorage.removeItem('mk_user');
+    setUser(null);
+    setIsAuthenticated(false);
+    setCurrentModule('dashboard');
+  };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-mk-red border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-semibold">Loading Material King...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  // Authenticated — show admin panel
   return (
     <div className="min-h-screen bg-gray-50">
       <style>{`
@@ -135,15 +91,15 @@ export default function App() {
         * { font-family: 'Montserrat', sans-serif; }
       `}</style>
 
-      <Header />
-      
+      <Header user={user} onLogout={handleLogout} />
+
       <div className="flex pt-16">
-        <Sidebar 
-          currentModule={currentModule} 
+        <Sidebar
+          currentModule={currentModule}
           setCurrentModule={setCurrentModule}
           isOpen={sidebarOpen}
         />
-        
+
         <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
           <div className="p-6">
             <ModuleRenderer module={currentModule} />
@@ -155,9 +111,9 @@ export default function App() {
 }
 
 // ============================================================================
-// HEADER
+// HEADER (with user info + logout)
 // ============================================================================
-function Header() {
+function Header({ user, onLogout }: { user: AuthUser | null; onLogout: () => void }) {
   return (
     <header className="fixed top-0 left-0 right-0 h-16 bg-white border-b-4 border-mk-red flex items-center justify-between px-6 z-50 shadow-sm">
       <div className="flex items-center gap-4">
@@ -170,13 +126,24 @@ function Header() {
           <p className="text-xs text-gray-500">Admin Portal</p>
         </div>
       </div>
-      
+
       <div className="flex items-center gap-4">
-        <div className="text-xs px-3 py-1 rounded-full bg-gray-100">
-          <span className="text-gray-600 font-semibold">{USE_REAL_API ? 'Live API' : 'Mock Data'}</span>
+        <div className="text-xs px-3 py-1 rounded-full bg-green-100 text-green-700">
+          <span className="font-semibold">Live API</span>
         </div>
         <button className="relative p-2 hover:bg-gray-100 rounded-lg">
           <Bell className="w-5 h-5 text-gray-600" />
+        </button>
+        <div className="text-sm text-right">
+          <p className="font-semibold text-gray-700">{user?.firstName} {user?.lastName}</p>
+          <p className="text-xs text-gray-500">{user?.email}</p>
+        </div>
+        <button
+          onClick={onLogout}
+          className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold text-sm"
+        >
+          <LogOut className="w-4 h-4" />
+          Logout
         </button>
       </div>
     </header>
@@ -195,6 +162,7 @@ function Sidebar({ currentModule, setCurrentModule, isOpen }: any) {
     { id: 'brands', label: 'Brands', icon: Tag },
     { id: 'products', label: 'Products', icon: Package },
     { id: 'dealers', label: 'Dealers', icon: Users },
+    { id: 'buyers', label: 'Buyers', icon: CreditCard },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
   ];
 
@@ -206,8 +174,8 @@ function Sidebar({ currentModule, setCurrentModule, isOpen }: any) {
             key={item.id}
             onClick={() => setCurrentModule(item.id)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1 transition ${
-              currentModule === item.id 
-                ? 'bg-mk-red text-white font-bold' 
+              currentModule === item.id
+                ? 'bg-mk-red text-white font-bold'
                 : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
@@ -232,6 +200,7 @@ function ModuleRenderer({ module }: { module: string }) {
     brands: <BrandsModule />,
     products: <ProductsModule />,
     dealers: <DealersModule />,
+    buyers: <BuyersModule />,
     orders: <OrdersModule />,
   };
 
@@ -252,7 +221,6 @@ function DashboardModule() {
   return (
     <div>
       <h1 className="text-3xl font-bold text-mk-gray mb-6">Dashboard</h1>
-      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
           <div key={idx} className="bg-white rounded-xl p-6 shadow-md border-l-4 border-mk-red">
@@ -271,148 +239,98 @@ function DashboardModule() {
 }
 
 // ============================================================================
-// ZONES MODULE - COMPLETE CRUD
+// LOADING SPINNER
+// ============================================================================
+function LoadingSpinner() {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-10 h-10 border-4 border-mk-red border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
+}
+
+// ============================================================================
+// ZONES MODULE - API-BACKED CRUD
 // ============================================================================
 function ZonesModule() {
-  const [zones, setZones] = useState<Zone[]>(generateMockData().zones);
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingZone, setEditingZone] = useState<Zone | null>(null);
-  const [formData, setFormData] = useState({ zone_code: '', zone_name: '', pincodes: '' });
+  const [formData, setFormData] = useState({ code: '', name: '', description: '' });
+  const [saving, setSaving] = useState(false);
 
-  const handleAdd = () => {
-    setEditingZone(null);
-    setFormData({ zone_code: '', zone_name: '', pincodes: '' });
-    setShowModal(true);
+  const loadData = async () => {
+    try { const data = await zoneService.getAll(); setZones(data); }
+    catch (err) { console.error('Failed to load zones:', err); }
+    finally { setLoading(false); }
   };
 
-  const handleEdit = (zone: Zone) => {
-    setEditingZone(zone);
-    setFormData({
-      zone_code: zone.zone_code,
-      zone_name: zone.zone_name,
-      pincodes: zone.pincodes?.join(', ') || ''
-    });
-    setShowModal(true);
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdd = () => { setEditingZone(null); setFormData({ code: '', name: '', description: '' }); setShowModal(true); };
+  const handleEdit = (zone: Zone) => { setEditingZone(zone); setFormData({ code: zone.code, name: zone.name, description: zone.description || '' }); setShowModal(true); };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (editingZone) { await zoneService.update(editingZone.id, formData); }
+      else { await zoneService.create(formData); }
+      await loadData(); setShowModal(false);
+    } catch (err) { console.error('Save zone error:', err); alert('Failed to save zone.'); }
+    finally { setSaving(false); }
   };
 
-  const handleSave = () => {
-    if (editingZone) {
-      // Update
-      setZones(zones.map(z => z.id === editingZone.id ? {
-        ...z,
-        zone_code: formData.zone_code,
-        zone_name: formData.zone_name,
-        pincodes: formData.pincodes.split(',').map(p => p.trim())
-      } : z));
-    } else {
-      // Add
-      const newZone: Zone = {
-        id: String(Date.now()),
-        zone_code: formData.zone_code,
-        zone_name: formData.zone_name,
-        is_active: true,
-        pincodes: formData.pincodes.split(',').map(p => p.trim())
-      };
-      setZones([...zones, newZone]);
-    }
-    setShowModal(false);
-  };
-
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this zone?')) {
-      setZones(zones.filter(z => z.id !== id));
+  const handleDelete = async (id: string) => {
+    if (confirm('Delete this zone?')) {
+      try { await zoneService.delete(id); await loadData(); }
+      catch (err) { console.error('Delete zone error:', err); alert('Failed to delete zone.'); }
     }
   };
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold text-mk-gray">Zones & Pincodes</h1>
-        <button onClick={handleAdd} className="btn-primary flex items-center gap-2">
-          <Plus className="w-5 h-5" />
-          Add Zone
-        </button>
+        <h1 className="text-3xl font-bold text-mk-gray">Zones</h1>
+        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Zone</button>
       </div>
-
       <div className="bg-white rounded-xl shadow-md p-6">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Zone Code</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Zone Name</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Pincodes</th>
+        {zones.length === 0 ? <p className="text-gray-500 text-center py-8">No zones found. Add your first zone.</p> : (
+          <table className="w-full">
+            <thead className="bg-gray-50"><tr>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Code</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Description</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {zones.map(zone => (
+            </tr></thead>
+            <tbody>{zones.map(zone => (
               <tr key={zone.id} className="border-t hover:bg-gray-50">
-                <td className="px-6 py-4 font-bold">{zone.zone_code}</td>
-                <td className="px-6 py-4">{zone.zone_name}</td>
-                <td className="px-6 py-4 text-sm">{zone.pincodes?.length || 0} pincodes</td>
-                <td className="px-6 py-4">
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
-                    {zone.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex gap-2">
-                    <button onClick={() => handleEdit(zone)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDelete(zone.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
+                <td className="px-6 py-4 font-bold">{zone.code}</td>
+                <td className="px-6 py-4">{zone.name}</td>
+                <td className="px-6 py-4 text-sm text-gray-500">{zone.description || '-'}</td>
+                <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${zone.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{zone.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td className="px-6 py-4"><div className="flex gap-2">
+                  <button onClick={() => handleEdit(zone)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(zone.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                </div></td>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            ))}</tbody>
+          </table>
+        )}
       </div>
-
       {showModal && (
         <Modal title={editingZone ? 'Edit Zone' : 'Add Zone'} onClose={() => setShowModal(false)}>
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold mb-2">Zone Code</label>
-              <input
-                type="text"
-                className="input-field"
-                value={formData.zone_code}
-                onChange={e => setFormData({ ...formData, zone_code: e.target.value })}
-                placeholder="ZONE-MUM-N"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold mb-2">Zone Name</label>
-              <input
-                type="text"
-                className="input-field"
-                value={formData.zone_name}
-                onChange={e => setFormData({ ...formData, zone_name: e.target.value })}
-                placeholder="Mumbai North"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold mb-2">Pincodes (comma separated)</label>
-              <input
-                type="text"
-                className="input-field"
-                value={formData.pincodes}
-                onChange={e => setFormData({ ...formData, pincodes: e.target.value })}
-                placeholder="400001, 400002, 400003"
-              />
-            </div>
+            <div><label className="block text-sm font-bold mb-2">Zone Code</label><input type="text" className="input-field" value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} placeholder="ZONE-MUM-N" /></div>
+            <div><label className="block text-sm font-bold mb-2">Zone Name</label><input type="text" className="input-field" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Mumbai North" /></div>
+            <div><label className="block text-sm font-bold mb-2">Description</label><input type="text" className="input-field" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Covers Mumbai North region" /></div>
           </div>
           <div className="flex gap-3 mt-6">
-            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">
-              Cancel
-            </button>
-            <button onClick={handleSave} className="flex-1 btn-primary">
-              Save Zone
-            </button>
+            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Save Zone'}</button>
           </div>
         </Modal>
       )}
@@ -421,195 +339,101 @@ function ZonesModule() {
 }
 
 // ============================================================================
-// VENDORS MODULE - COMPLETE CRUD
+// VENDORS MODULE - API-BACKED CRUD
 // ============================================================================
 function VendorsModule() {
-  const [vendors, setVendors] = useState<Vendor[]>(generateMockData().vendors);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
-  const [formData, setFormData] = useState({
-    vendor_code: '',
-    company_name: '',
-    gstin: '',
-    contact_person_name: '',
-    contact_phone: '',
-    contact_email: ''
-  });
+  const [formData, setFormData] = useState({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '' });
+  const [saving, setSaving] = useState(false);
 
-  const handleAdd = () => {
-    setEditingVendor(null);
-    setFormData({
-      vendor_code: '',
-      company_name: '',
-      gstin: '',
-      contact_person_name: '',
-      contact_phone: '',
-      contact_email: ''
-    });
-    setShowModal(true);
+  const loadData = async () => {
+    try { const data = await vendorService.getAll(); setVendors(data); }
+    catch (err) { console.error('Failed to load vendors:', err); }
+    finally { setLoading(false); }
   };
 
-  const handleEdit = (vendor: Vendor) => {
-    setEditingVendor(vendor);
-    setFormData({
-      vendor_code: vendor.vendor_code,
-      company_name: vendor.company_name,
-      gstin: vendor.gstin,
-      contact_person_name: vendor.contact_person_name,
-      contact_phone: vendor.contact_phone,
-      contact_email: vendor.contact_email
-    });
-    setShowModal(true);
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdd = () => { setEditingVendor(null); setFormData({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '' }); setShowModal(true); };
+  const handleEdit = (vendor: Vendor) => { setEditingVendor(vendor); setFormData({ company_name: vendor.company_name, contact_name: vendor.contact_name || '', email: vendor.email || '', phone: vendor.phone || '', gstin: vendor.gstin || '', address: vendor.address || '', city: vendor.city || '', state: vendor.state || '', pincode: vendor.pincode || '' }); setShowModal(true); };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (editingVendor) { await vendorService.update(editingVendor.id, formData); }
+      else { await vendorService.create(formData); }
+      await loadData(); setShowModal(false);
+    } catch (err) { console.error('Save vendor error:', err); alert('Failed to save vendor.'); }
+    finally { setSaving(false); }
   };
 
-  const handleSave = () => {
-    if (editingVendor) {
-      setVendors(vendors.map(v => v.id === editingVendor.id ? { ...v, ...formData } : v));
-    } else {
-      const newVendor: Vendor = {
-        id: String(Date.now()),
-        ...formData,
-        verification_status: 'pending',
-        is_active: true
-      };
-      setVendors([...vendors, newVendor]);
-    }
-    setShowModal(false);
-  };
-
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Delete this vendor?')) {
-      setVendors(vendors.filter(v => v.id !== id));
+      try { await vendorService.delete(id); await loadData(); }
+      catch (err) { console.error('Delete vendor error:', err); alert('Failed to delete vendor.'); }
     }
   };
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-mk-gray">Vendor Management</h1>
-        <button onClick={handleAdd} className="btn-primary flex items-center gap-2">
-          <Plus className="w-5 h-5" />
-          Add Vendor
-        </button>
+        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Vendor</button>
       </div>
-
       <div className="bg-white rounded-xl shadow-md p-6">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Code</th>
+        {vendors.length === 0 ? <p className="text-gray-500 text-center py-8">No vendors found. Add your first vendor.</p> : (
+          <table className="w-full">
+            <thead className="bg-gray-50"><tr>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Company</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">GSTIN</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Contact</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">GSTIN</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">City</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {vendors.map(vendor => (
+            </tr></thead>
+            <tbody>{vendors.map(vendor => (
               <tr key={vendor.id} className="border-t hover:bg-gray-50">
-                <td className="px-6 py-4 font-bold">{vendor.vendor_code}</td>
-                <td className="px-6 py-4">{vendor.company_name}</td>
-                <td className="px-6 py-4 font-mono text-sm">{vendor.gstin}</td>
-                <td className="px-6 py-4 text-sm">{vendor.contact_phone}</td>
-                <td className="px-6 py-4">
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    vendor.verification_status === 'verified' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {vendor.verification_status}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex gap-2">
-                    <button onClick={() => handleEdit(vendor)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDelete(vendor.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
+                <td className="px-6 py-4 font-bold">{vendor.company_name}</td>
+                <td className="px-6 py-4 text-sm">{vendor.contact_name || '-'}<br/><span className="text-gray-400">{vendor.phone || ''}</span></td>
+                <td className="px-6 py-4 font-mono text-sm">{vendor.gstin || '-'}</td>
+                <td className="px-6 py-4 text-sm">{vendor.city || '-'}</td>
+                <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${vendor.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{vendor.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td className="px-6 py-4"><div className="flex gap-2">
+                  <button onClick={() => handleEdit(vendor)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(vendor.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                </div></td>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            ))}</tbody>
+          </table>
+        )}
       </div>
-
       {showModal && (
         <Modal title={editingVendor ? 'Edit Vendor' : 'Add Vendor'} onClose={() => setShowModal(false)}>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold mb-2">Vendor Code</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  value={formData.vendor_code}
-                  onChange={e => setFormData({ ...formData, vendor_code: e.target.value })}
-                  placeholder="VND-001"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-2">Company Name</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  value={formData.company_name}
-                  onChange={e => setFormData({ ...formData, company_name: e.target.value })}
-                  placeholder="ABC Distributors"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-bold mb-2">GSTIN</label>
-              <input
-                type="text"
-                className="input-field"
-                value={formData.gstin}
-                onChange={e => setFormData({ ...formData, gstin: e.target.value })}
-                placeholder="27AAACR5678C1Z9"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold mb-2">Contact Person</label>
-              <input
-                type="text"
-                className="input-field"
-                value={formData.contact_person_name}
-                onChange={e => setFormData({ ...formData, contact_person_name: e.target.value })}
-                placeholder="John Doe"
-              />
+              <div><label className="block text-sm font-bold mb-2">Company Name *</label><input type="text" className="input-field" value={formData.company_name} onChange={e => setFormData({ ...formData, company_name: e.target.value })} placeholder="ABC Distributors" /></div>
+              <div><label className="block text-sm font-bold mb-2">Contact Name</label><input type="text" className="input-field" value={formData.contact_name} onChange={e => setFormData({ ...formData, contact_name: e.target.value })} placeholder="John Doe" /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold mb-2">Phone</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  value={formData.contact_phone}
-                  onChange={e => setFormData({ ...formData, contact_phone: e.target.value })}
-                  placeholder="9876543210"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-2">Email</label>
-                <input
-                  type="email"
-                  className="input-field"
-                  value={formData.contact_email}
-                  onChange={e => setFormData({ ...formData, contact_email: e.target.value })}
-                  placeholder="john@abc.com"
-                />
-              </div>
+              <div><label className="block text-sm font-bold mb-2">Phone</label><input type="text" className="input-field" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="9876543210" /></div>
+              <div><label className="block text-sm font-bold mb-2">Email</label><input type="email" className="input-field" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="john@abc.com" /></div>
+            </div>
+            <div><label className="block text-sm font-bold mb-2">GSTIN</label><input type="text" className="input-field" value={formData.gstin} onChange={e => setFormData({ ...formData, gstin: e.target.value })} placeholder="27AAACR5678C1Z9" /></div>
+            <div><label className="block text-sm font-bold mb-2">Address</label><input type="text" className="input-field" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} placeholder="Full address" /></div>
+            <div className="grid grid-cols-3 gap-4">
+              <div><label className="block text-sm font-bold mb-2">City</label><input type="text" className="input-field" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} placeholder="Mumbai" /></div>
+              <div><label className="block text-sm font-bold mb-2">State</label><input type="text" className="input-field" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value })} placeholder="Maharashtra" /></div>
+              <div><label className="block text-sm font-bold mb-2">Pincode</label><input type="text" className="input-field" value={formData.pincode} onChange={e => setFormData({ ...formData, pincode: e.target.value })} placeholder="400001" /></div>
             </div>
           </div>
           <div className="flex gap-3 mt-6">
-            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">
-              Cancel
-            </button>
-            <button onClick={handleSave} className="flex-1 btn-primary">
-              Save Vendor
-            </button>
+            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Save Vendor'}</button>
           </div>
         </Modal>
       )}
@@ -617,124 +441,85 @@ function VendorsModule() {
   );
 }
 
-// Similar CRUD modules for Categories, Brands, Products, Dealers, Orders...
-// (Continuing with simplified versions - same pattern)
-
+// ============================================================================
+// CATEGORIES MODULE - API-BACKED CRUD
+// ============================================================================
 function CategoriesModule() {
-  const [categories, setCategories] = useState<Category[]>(generateMockData().categories);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Category | null>(null);
-  const [formData, setFormData] = useState({ category_name: '', slug: '' });
+  const [formData, setFormData] = useState({ name: '', slug: '' });
+  const [saving, setSaving] = useState(false);
 
-  const handleAdd = () => {
-    setEditingItem(null);
-    setFormData({ category_name: '', slug: '' });
-    setShowModal(true);
+  const loadData = async () => {
+    try { const data = await categoryService.getAll(); setCategories(data); }
+    catch (err) { console.error('Failed to load categories:', err); }
+    finally { setLoading(false); }
   };
 
-  const handleEdit = (item: Category) => {
-    setEditingItem(item);
-    setFormData({ category_name: item.category_name, slug: item.slug });
-    setShowModal(true);
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdd = () => { setEditingItem(null); setFormData({ name: '', slug: '' }); setShowModal(true); };
+  const handleEdit = (item: Category) => { setEditingItem(item); setFormData({ name: item.name, slug: item.slug }); setShowModal(true); };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (editingItem) { await categoryService.update(editingItem.id, formData); }
+      else { await categoryService.create(formData); }
+      await loadData(); setShowModal(false);
+    } catch (err) { console.error('Save category error:', err); alert('Failed to save category.'); }
+    finally { setSaving(false); }
   };
 
-  const handleSave = () => {
-    if (editingItem) {
-      setCategories(categories.map(c => c.id === editingItem.id ? { ...c, ...formData } : c));
-    } else {
-      const newItem: Category = {
-        id: String(Date.now()),
-        ...formData,
-        is_active: true
-      };
-      setCategories([...categories, newItem]);
-    }
-    setShowModal(false);
-  };
-
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Delete this category?')) {
-      setCategories(categories.filter(c => c.id !== id));
+      try { await categoryService.delete(id); await loadData(); }
+      catch (err) { console.error('Delete category error:', err); alert('Failed to delete category.'); }
     }
   };
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-mk-gray">Categories</h1>
-        <button onClick={handleAdd} className="btn-primary flex items-center gap-2">
-          <Plus className="w-5 h-5" />
-          Add Category
-        </button>
+        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Category</button>
       </div>
-
       <div className="bg-white rounded-xl shadow-md p-6">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
+        {categories.length === 0 ? <p className="text-gray-500 text-center py-8">No categories found. Add your first category.</p> : (
+          <table className="w-full">
+            <thead className="bg-gray-50"><tr>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Slug</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Code</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {categories.map(category => (
-              <tr key={category.id} className="border-t hover:bg-gray-50">
-                <td className="px-6 py-4 font-bold">{category.category_name}</td>
-                <td className="px-6 py-4 text-sm">{category.slug}</td>
-                <td className="px-6 py-4">
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
-                    {category.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex gap-2">
-                    <button onClick={() => handleEdit(category)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDelete(category.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
+            </tr></thead>
+            <tbody>{categories.map(cat => (
+              <tr key={cat.id} className="border-t hover:bg-gray-50">
+                <td className="px-6 py-4 font-bold">{cat.name}</td>
+                <td className="px-6 py-4 text-sm">{cat.slug}</td>
+                <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${cat.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{cat.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td className="px-6 py-4"><div className="flex gap-2">
+                  <button onClick={() => handleEdit(cat)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(cat.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                </div></td>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            ))}</tbody>
+          </table>
+        )}
       </div>
-
       {showModal && (
         <Modal title={editingItem ? 'Edit Category' : 'Add Category'} onClose={() => setShowModal(false)}>
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold mb-2">Category Name</label>
-              <input
-                type="text"
-                className="input-field"
-                value={formData.category_name}
-                onChange={e => setFormData({ ...formData, category_name: e.target.value })}
-                placeholder="Plywood"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold mb-2">Slug</label>
-              <input
-                type="text"
-                className="input-field"
-                value={formData.slug}
-                onChange={e => setFormData({ ...formData, slug: e.target.value })}
-                placeholder="plywood"
-              />
-            </div>
+            <div><label className="block text-sm font-bold mb-2">Category Name</label><input type="text" className="input-field" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Plywood" /></div>
+            <div><label className="block text-sm font-bold mb-2">Slug</label><input type="text" className="input-field" value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} placeholder="plywood (auto-generated if empty)" /></div>
           </div>
           <div className="flex gap-3 mt-6">
-            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">
-              Cancel
-            </button>
-            <button onClick={handleSave} className="flex-1 btn-primary">
-              Save Category
-            </button>
+            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Save Category'}</button>
           </div>
         </Modal>
       )}
@@ -742,122 +527,85 @@ function CategoriesModule() {
   );
 }
 
-// BRANDS MODULE (Same CRUD pattern)
+// ============================================================================
+// BRANDS MODULE - API-BACKED CRUD
+// ============================================================================
 function BrandsModule() {
-  const [brands, setBrands] = useState<Brand[]>(generateMockData().brands);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Brand | null>(null);
-  const [formData, setFormData] = useState({ brand_name: '', slug: '' });
+  const [formData, setFormData] = useState({ name: '', slug: '' });
+  const [saving, setSaving] = useState(false);
 
-  const handleAdd = () => {
-    setEditingItem(null);
-    setFormData({ brand_name: '', slug: '' });
-    setShowModal(true);
+  const loadData = async () => {
+    try { const data = await brandService.getAll(); setBrands(data); }
+    catch (err) { console.error('Failed to load brands:', err); }
+    finally { setLoading(false); }
   };
 
-  const handleEdit = (item: Brand) => {
-    setEditingItem(item);
-    setFormData({ brand_name: item.brand_name, slug: item.slug });
-    setShowModal(true);
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdd = () => { setEditingItem(null); setFormData({ name: '', slug: '' }); setShowModal(true); };
+  const handleEdit = (item: Brand) => { setEditingItem(item); setFormData({ name: item.name, slug: item.slug }); setShowModal(true); };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (editingItem) { await brandService.update(editingItem.id, formData); }
+      else { await brandService.create(formData); }
+      await loadData(); setShowModal(false);
+    } catch (err) { console.error('Save brand error:', err); alert('Failed to save brand.'); }
+    finally { setSaving(false); }
   };
 
-  const handleSave = () => {
-    if (editingItem) {
-      setBrands(brands.map(b => b.id === editingItem.id ? { ...b, ...formData } : b));
-    } else {
-      const newItem: Brand = {
-        id: String(Date.now()),
-        ...formData,
-        is_active: true
-      };
-      setBrands([...brands, newItem]);
-    }
-    setShowModal(false);
-  };
-
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Delete this brand?')) {
-      setBrands(brands.filter(b => b.id !== id));
+      try { await brandService.delete(id); await loadData(); }
+      catch (err) { console.error('Delete brand error:', err); alert('Failed to delete brand.'); }
     }
   };
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-mk-gray">Brands</h1>
-        <button onClick={handleAdd} className="btn-primary flex items-center gap-2">
-          <Plus className="w-5 h-5" />
-          Add Brand
-        </button>
+        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Brand</button>
       </div>
-
       <div className="bg-white rounded-xl shadow-md p-6">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
+        {brands.length === 0 ? <p className="text-gray-500 text-center py-8">No brands found. Add your first brand.</p> : (
+          <table className="w-full">
+            <thead className="bg-gray-50"><tr>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Name</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Slug</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Code</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {brands.map(brand => (
+            </tr></thead>
+            <tbody>{brands.map(brand => (
               <tr key={brand.id} className="border-t hover:bg-gray-50">
-                <td className="px-6 py-4 font-bold">{brand.brand_name}</td>
+                <td className="px-6 py-4 font-bold">{brand.name}</td>
                 <td className="px-6 py-4 text-sm">{brand.slug}</td>
-                <td className="px-6 py-4">
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-800">
-                    {brand.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex gap-2">
-                    <button onClick={() => handleEdit(brand)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDelete(brand.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
+                <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${brand.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{brand.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td className="px-6 py-4"><div className="flex gap-2">
+                  <button onClick={() => handleEdit(brand)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(brand.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                </div></td>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            ))}</tbody>
+          </table>
+        )}
       </div>
-
       {showModal && (
         <Modal title={editingItem ? 'Edit Brand' : 'Add Brand'} onClose={() => setShowModal(false)}>
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-bold mb-2">Brand Name</label>
-              <input
-                type="text"
-                className="input-field"
-                value={formData.brand_name}
-                onChange={e => setFormData({ ...formData, brand_name: e.target.value })}
-                placeholder="Century"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold mb-2">Slug</label>
-              <input
-                type="text"
-                className="input-field"
-                value={formData.slug}
-                onChange={e => setFormData({ ...formData, slug: e.target.value })}
-                placeholder="century"
-              />
-            </div>
+            <div><label className="block text-sm font-bold mb-2">Brand Name</label><input type="text" className="input-field" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Century" /></div>
+            <div><label className="block text-sm font-bold mb-2">Slug</label><input type="text" className="input-field" value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} placeholder="century (auto-generated if empty)" /></div>
           </div>
           <div className="flex gap-3 mt-6">
-            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">
-              Cancel
-            </button>
-            <button onClick={handleSave} className="flex-1 btn-primary">
-              Save Brand
-            </button>
+            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Save Brand'}</button>
           </div>
         </Modal>
       )}
@@ -865,99 +613,658 @@ function BrandsModule() {
   );
 }
 
-// PRODUCTS, DEALERS, ORDERS modules follow the same pattern...
+// ============================================================================
+// PRODUCTS MODULE - API-BACKED CRUD
+// ============================================================================
 function ProductsModule() {
-  const [products] = useState<Product[]>(generateMockData().products);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<Product | null>(null);
+  const [formData, setFormData] = useState({
+    name: '', sku: '', category_id: '', brand_id: '', description: '',
+    unit: 'piece', price: '', mrp: '', stock_qty: '', min_order_qty: '1',
+    specifications: '{}'
+  });
+  const [saving, setSaving] = useState(false);
+
+  const loadData = async () => {
+    try {
+      const [prodData, catData, brandData] = await Promise.all([
+        productService.getAll(), categoryService.getAll(), brandService.getAll()
+      ]);
+      setProducts(prodData); setCategories(catData); setBrands(brandData);
+    } catch (err) { console.error('Failed to load products:', err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdd = () => {
+    setEditingItem(null);
+    setFormData({ name: '', sku: '', category_id: '', brand_id: '', description: '', unit: 'piece', price: '', mrp: '', stock_qty: '', min_order_qty: '1', specifications: '{}' });
+    setShowModal(true);
+  };
+
+  const handleEdit = (item: Product) => {
+    setEditingItem(item);
+    setFormData({
+      name: item.name, sku: item.sku || '',
+      category_id: item.category_id || '', brand_id: item.brand_id || '',
+      description: item.description || '', unit: item.unit || 'piece',
+      price: String(item.price || ''), mrp: String(item.mrp || ''),
+      stock_qty: String(item.stock_qty || ''), min_order_qty: String(item.min_order_qty || '1'),
+      specifications: JSON.stringify(item.specifications || {})
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload: any = {
+        ...formData,
+        price: formData.price ? Number(formData.price) : 0,
+        mrp: formData.mrp ? Number(formData.mrp) : null,
+        stock_qty: formData.stock_qty ? Number(formData.stock_qty) : 0,
+        min_order_qty: formData.min_order_qty ? Number(formData.min_order_qty) : 1,
+        brand_id: formData.brand_id || null,
+        category_id: formData.category_id || null,
+      };
+      try { payload.specifications = JSON.parse(formData.specifications); } catch { payload.specifications = {}; }
+      if (editingItem) { await productService.update(editingItem.id, payload); }
+      else { await productService.create(payload); }
+      await loadData(); setShowModal(false);
+    } catch (err) { console.error('Save product error:', err); alert('Failed to save product.'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Delete this product?')) {
+      try { await productService.delete(id); await loadData(); }
+      catch (err) { console.error('Delete product error:', err); alert('Failed to delete product.'); }
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
   return (
     <div>
-      <h1 className="text-3xl font-bold text-mk-gray mb-6">Products</h1>
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <p className="text-gray-600">Products module with full CRUD (same pattern as above)</p>
-        <table className="w-full mt-4">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">SKU</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Product Name</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Category</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Brand</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map(product => (
-              <tr key={product.id} className="border-t">
-                <td className="px-6 py-4 font-mono text-sm">{product.sku}</td>
-                <td className="px-6 py-4">{product.product_name}</td>
-                <td className="px-6 py-4">{product.category_name}</td>
-                <td className="px-6 py-4">{product.brand_name}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-mk-gray">Products</h1>
+        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Product</button>
       </div>
+      <div className="bg-white rounded-xl shadow-md p-6">
+        {products.length === 0 ? <p className="text-gray-500 text-center py-8">No products found. Add your first product.</p> : (
+          <table className="w-full">
+            <thead className="bg-gray-50"><tr>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">SKU</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Product Name</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Category</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Brand</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Price</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Stock</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
+            </tr></thead>
+            <tbody>{products.map(product => (
+              <tr key={product.id} className="border-t hover:bg-gray-50">
+                <td className="px-4 py-4 font-mono text-sm">{product.sku || '-'}</td>
+                <td className="px-4 py-4 font-bold">{product.name}</td>
+                <td className="px-4 py-4 text-sm">{product.category_name || '-'}</td>
+                <td className="px-4 py-4 text-sm">{product.brand_name || '-'}</td>
+                <td className="px-4 py-4 text-sm font-bold text-mk-red">{product.price ? `₹${Number(product.price).toLocaleString()}` : '-'}</td>
+                <td className="px-4 py-4 text-sm">{product.stock_qty}</td>
+                <td className="px-4 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${product.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{product.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td className="px-4 py-4"><div className="flex gap-2">
+                  <button onClick={() => handleEdit(product)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(product.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                </div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      {showModal && (
+        <Modal title={editingItem ? 'Edit Product' : 'Add Product'} onClose={() => setShowModal(false)}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Product Name *</label><input type="text" className="input-field" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Century 18mm BWP Plywood" /></div>
+              <div><label className="block text-sm font-bold mb-2">SKU</label><input type="text" className="input-field" value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value })} placeholder="PLY-CEN-18MM" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Category</label>
+                <select className="input-field" value={formData.category_id} onChange={e => setFormData({ ...formData, category_id: e.target.value })}>
+                  <option value="">Select Category</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div><label className="block text-sm font-bold mb-2">Brand</label>
+                <select className="input-field" value={formData.brand_id} onChange={e => setFormData({ ...formData, brand_id: e.target.value })}>
+                  <option value="">Select Brand</option>
+                  {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div><label className="block text-sm font-bold mb-2">Description</label><textarea className="input-field" rows={2} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Product description" /></div>
+            <div className="grid grid-cols-3 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Price (₹) *</label><input type="number" step="0.01" className="input-field" value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} placeholder="2500" /></div>
+              <div><label className="block text-sm font-bold mb-2">MRP (₹)</label><input type="number" step="0.01" className="input-field" value={formData.mrp} onChange={e => setFormData({ ...formData, mrp: e.target.value })} placeholder="3000" /></div>
+              <div><label className="block text-sm font-bold mb-2">Unit</label>
+                <select className="input-field" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })}>
+                  <option value="piece">Piece</option>
+                  <option value="kg">Kg</option>
+                  <option value="sqft">Sq Ft</option>
+                  <option value="bag">Bag</option>
+                  <option value="box">Box</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Stock Qty</label><input type="number" className="input-field" value={formData.stock_qty} onChange={e => setFormData({ ...formData, stock_qty: e.target.value })} placeholder="100" /></div>
+              <div><label className="block text-sm font-bold mb-2">Min Order Qty</label><input type="number" className="input-field" value={formData.min_order_qty} onChange={e => setFormData({ ...formData, min_order_qty: e.target.value })} placeholder="1" /></div>
+            </div>
+            <div><label className="block text-sm font-bold mb-2">Specifications (JSON)</label><textarea className="input-field font-mono text-sm" rows={3} value={formData.specifications} onChange={e => setFormData({ ...formData, specifications: e.target.value })} placeholder='{"thickness": "18mm", "grade": "BWP"}' /></div>
+          </div>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Save Product'}</button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 
+// ============================================================================
+// DEALERS MODULE - API-BACKED CRUD
+// ============================================================================
 function DealersModule() {
-  const [dealers] = useState<Dealer[]>(generateMockData().dealers);
+  const [dealers, setDealers] = useState<Dealer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<Dealer | null>(null);
+  const [formData, setFormData] = useState({
+    company_name: '', contact_name: '', email: '', phone: '', gstin: '',
+    address: '', city: '', state: '', pincode: ''
+  });
+  const [saving, setSaving] = useState(false);
+
+  const loadData = async () => {
+    try { const data = await dealerService.getAll(); setDealers(data); }
+    catch (err) { console.error('Failed to load dealers:', err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdd = () => {
+    setEditingItem(null);
+    setFormData({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '' });
+    setShowModal(true);
+  };
+
+  const handleEdit = (item: Dealer) => {
+    setEditingItem(item);
+    setFormData({
+      company_name: item.company_name, contact_name: item.contact_name || '',
+      email: item.email || '', phone: item.phone || '', gstin: item.gstin || '',
+      address: item.address || '', city: item.city || '', state: item.state || '', pincode: item.pincode || ''
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (editingItem) { await dealerService.update(editingItem.id, formData); }
+      else { await dealerService.create(formData); }
+      await loadData(); setShowModal(false);
+    } catch (err) { console.error('Save dealer error:', err); alert('Failed to save dealer.'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Delete this dealer?')) {
+      try { await dealerService.delete(id); await loadData(); }
+      catch (err) { console.error('Delete dealer error:', err); alert('Failed to delete dealer.'); }
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
   return (
     <div>
-      <h1 className="text-3xl font-bold text-mk-gray mb-6">Dealers</h1>
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Code</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Company</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Credit Limit</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Available</th>
-            </tr>
-          </thead>
-          <tbody>
-            {dealers.map(dealer => (
-              <tr key={dealer.id} className="border-t">
-                <td className="px-6 py-4 font-bold">{dealer.dealer_code}</td>
-                <td className="px-6 py-4">{dealer.company_name}</td>
-                <td className="px-6 py-4">₹{(dealer.credit_limit / 100000).toFixed(1)}L</td>
-                <td className="px-6 py-4">₹{(dealer.available_credit / 100000).toFixed(1)}L</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-mk-gray">Dealer Management</h1>
+        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Dealer</button>
       </div>
+      <div className="bg-white rounded-xl shadow-md p-6">
+        {dealers.length === 0 ? <p className="text-gray-500 text-center py-8">No dealers found. Add your first dealer.</p> : (
+          <table className="w-full">
+            <thead className="bg-gray-50"><tr>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Company</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Contact</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">GSTIN</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">City</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
+            </tr></thead>
+            <tbody>{dealers.map(dealer => (
+              <tr key={dealer.id} className="border-t hover:bg-gray-50">
+                <td className="px-4 py-4 font-bold">{dealer.company_name}</td>
+                <td className="px-4 py-4 text-sm">{dealer.contact_name || '-'}<br/><span className="text-gray-400">{dealer.phone || ''}</span></td>
+                <td className="px-4 py-4 font-mono text-sm">{dealer.gstin || '-'}</td>
+                <td className="px-4 py-4 text-sm">{dealer.city || '-'}</td>
+                <td className="px-4 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${dealer.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{dealer.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td className="px-4 py-4"><div className="flex gap-2">
+                  <button onClick={() => handleEdit(dealer)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(dealer.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                </div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      {showModal && (
+        <Modal title={editingItem ? 'Edit Dealer' : 'Add Dealer'} onClose={() => setShowModal(false)}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Company Name *</label><input type="text" className="input-field" value={formData.company_name} onChange={e => setFormData({ ...formData, company_name: e.target.value })} placeholder="Sharma Trading Co" /></div>
+              <div><label className="block text-sm font-bold mb-2">Contact Name</label><input type="text" className="input-field" value={formData.contact_name} onChange={e => setFormData({ ...formData, contact_name: e.target.value })} placeholder="Rajesh Sharma" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Phone</label><input type="text" className="input-field" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="9876543210" /></div>
+              <div><label className="block text-sm font-bold mb-2">Email</label><input type="email" className="input-field" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="dealer@company.com" /></div>
+            </div>
+            <div><label className="block text-sm font-bold mb-2">GSTIN</label><input type="text" className="input-field" value={formData.gstin} onChange={e => setFormData({ ...formData, gstin: e.target.value })} placeholder="27AABCS1234D1Z5" /></div>
+            <div><label className="block text-sm font-bold mb-2">Address</label><input type="text" className="input-field" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} placeholder="Full address" /></div>
+            <div className="grid grid-cols-3 gap-4">
+              <div><label className="block text-sm font-bold mb-2">City</label><input type="text" className="input-field" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} placeholder="Mumbai" /></div>
+              <div><label className="block text-sm font-bold mb-2">State</label><input type="text" className="input-field" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value })} placeholder="Maharashtra" /></div>
+              <div><label className="block text-sm font-bold mb-2">Pincode</label><input type="text" className="input-field" value={formData.pincode} onChange={e => setFormData({ ...formData, pincode: e.target.value })} placeholder="400001" /></div>
+            </div>
+          </div>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Save Dealer'}</button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 
-function OrdersModule() {
-  const [orders] = useState<Order[]>(generateMockData().orders);
+// ============================================================================
+// BUYERS MODULE - API-BACKED CRUD
+// ============================================================================
+function BuyersModule() {
+  const [buyers, setBuyers] = useState<Buyer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<Buyer | null>(null);
+  const [formData, setFormData] = useState({
+    company_name: '', gstin: '', pan: '', company_type: '', company_address: '', billing_address: '',
+    first_name: '', last_name: '', email: '', phone: ''
+  });
+  const [saving, setSaving] = useState(false);
+
+  const loadData = async () => {
+    try { const data = await buyerService.getAll(); setBuyers(data); }
+    catch (err) { console.error('Failed to load buyers:', err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdd = () => {
+    setEditingItem(null);
+    setFormData({ company_name: '', gstin: '', pan: '', company_type: '', company_address: '', billing_address: '', first_name: '', last_name: '', email: '', phone: '' });
+    setShowModal(true);
+  };
+
+  const handleEdit = (item: Buyer) => {
+    setEditingItem(item);
+    setFormData({
+      company_name: item.company_name, gstin: item.gstin || '', pan: (item as any).pan || '',
+      company_type: item.company_type || '', company_address: (item as any).company_address || '',
+      billing_address: (item as any).billing_address || '',
+      first_name: item.first_name || '', last_name: item.last_name || '',
+      email: item.email || '', phone: item.phone || ''
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (editingItem) { await buyerService.update(editingItem.id, formData); }
+      else { await buyerService.create(formData); }
+      await loadData(); setShowModal(false);
+    } catch (err) { console.error('Save buyer error:', err); alert('Failed to save buyer.'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Deactivate this buyer?')) {
+      try { await buyerService.delete(id); await loadData(); }
+      catch (err) { console.error('Delete buyer error:', err); alert('Failed to deactivate buyer.'); }
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
   return (
     <div>
-      <h1 className="text-3xl font-bold text-mk-gray mb-6">Orders</h1>
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Order #</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Buyer</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Type</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Amount</th>
-              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map(order => (
-              <tr key={order.id} className="border-t">
-                <td className="px-6 py-4 font-bold">{order.order_number}</td>
-                <td className="px-6 py-4">{order.buyer_name}</td>
-                <td className="px-6 py-4"><span className="px-2 py-1 bg-gray-100 rounded text-xs">{order.order_type}</span></td>
-                <td className="px-6 py-4 font-bold text-mk-red">₹{order.total_amount.toLocaleString()}</td>
-                <td className="px-6 py-4"><span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800">{order.order_status}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-mk-gray">Buyer Management</h1>
+        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Buyer</button>
       </div>
+      <div className="bg-white rounded-xl shadow-md p-6">
+        {buyers.length === 0 ? <p className="text-gray-500 text-center py-8">No buyers found. Add your first buyer.</p> : (
+          <table className="w-full">
+            <thead className="bg-gray-50"><tr>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Company</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Contact Person</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Email</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Phone</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">GSTIN</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Type</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
+            </tr></thead>
+            <tbody>{buyers.map(buyer => (
+              <tr key={buyer.id} className="border-t hover:bg-gray-50">
+                <td className="px-4 py-4 font-bold">{buyer.company_name}</td>
+                <td className="px-4 py-4 text-sm">{buyer.first_name} {buyer.last_name}</td>
+                <td className="px-4 py-4 text-sm">{buyer.email}</td>
+                <td className="px-4 py-4 text-sm">{buyer.phone}</td>
+                <td className="px-4 py-4 font-mono text-sm">{buyer.gstin || '-'}</td>
+                <td className="px-4 py-4 text-sm">{buyer.company_type || '-'}</td>
+                <td className="px-4 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${buyer.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{buyer.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td className="px-4 py-4"><div className="flex gap-2">
+                  <button onClick={() => handleEdit(buyer)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(buyer.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                </div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      {showModal && (
+        <Modal title={editingItem ? 'Edit Buyer' : 'Add Buyer'} onClose={() => setShowModal(false)}>
+          <div className="space-y-4">
+            <div><label className="block text-sm font-bold mb-2">Company Name *</label><input type="text" className="input-field" value={formData.company_name} onChange={e => setFormData({ ...formData, company_name: e.target.value })} placeholder="ABC Builders Pvt Ltd" /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">First Name *</label><input type="text" className="input-field" value={formData.first_name} onChange={e => setFormData({ ...formData, first_name: e.target.value })} placeholder="Raj" /></div>
+              <div><label className="block text-sm font-bold mb-2">Last Name *</label><input type="text" className="input-field" value={formData.last_name} onChange={e => setFormData({ ...formData, last_name: e.target.value })} placeholder="Patel" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Email *</label><input type="email" className="input-field" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="raj@abc.com" /></div>
+              <div><label className="block text-sm font-bold mb-2">Phone *</label><input type="text" className="input-field" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="9876543210" /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div><label className="block text-sm font-bold mb-2">GSTIN</label><input type="text" className="input-field" value={formData.gstin} onChange={e => setFormData({ ...formData, gstin: e.target.value })} placeholder="27AAACR5678C1Z9" /></div>
+              <div><label className="block text-sm font-bold mb-2">PAN</label><input type="text" className="input-field" value={formData.pan} onChange={e => setFormData({ ...formData, pan: e.target.value })} placeholder="AAACR5678C" /></div>
+              <div><label className="block text-sm font-bold mb-2">Company Type</label>
+                <select className="input-field" value={formData.company_type} onChange={e => setFormData({ ...formData, company_type: e.target.value })}>
+                  <option value="">Select Type</option>
+                  <option value="Builder">Builder</option>
+                  <option value="Contractor">Contractor</option>
+                  <option value="Interior Designer">Interior Designer</option>
+                  <option value="Architect">Architect</option>
+                  <option value="Retailer">Retailer</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div><label className="block text-sm font-bold mb-2">Company Address</label><textarea className="input-field" rows={2} value={formData.company_address} onChange={e => setFormData({ ...formData, company_address: e.target.value })} placeholder="Full company address" /></div>
+            <div><label className="block text-sm font-bold mb-2">Billing Address</label><textarea className="input-field" rows={2} value={formData.billing_address} onChange={e => setFormData({ ...formData, billing_address: e.target.value })} placeholder="Billing address (if different)" /></div>
+          </div>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Save Buyer'}</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// ORDERS MODULE - API-BACKED FULL CRUD
+// ============================================================================
+function OrdersModule() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Create order form state
+  const [buyers, setBuyers] = useState<Buyer[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+
+  const [orderForm, setOrderForm] = useState({
+    buyer_id: '', vendor_id: '', shipping_address: '', notes: ''
+  });
+  const [orderItems, setOrderItems] = useState<Array<{ product_id: string; product_name: string; sku: string; quantity: number; unit_price: number }>>([]);
+
+  // Edit order form state
+  const [editForm, setEditForm] = useState({
+    status: '', notes: '', shipping_address: ''
+  });
+
+  const loadData = async () => {
+    try { const data = await orderService.getAll(); setOrders(data); }
+    catch (err) { console.error('Failed to load orders:', err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdd = async () => {
+    setOrderForm({ buyer_id: '', vendor_id: '', shipping_address: '', notes: '' });
+    setOrderItems([]);
+    try {
+      const [buyerData, productData] = await Promise.all([
+        buyerService.getAll(), productService.getAll()
+      ]);
+      setBuyers(buyerData); setProducts(productData);
+    } catch (err) { console.error('Failed to load form data:', err); }
+    setShowModal(true);
+  };
+
+  const addOrderItem = () => {
+    setOrderItems([...orderItems, { product_id: '', product_name: '', sku: '', quantity: 1, unit_price: 0 }]);
+  };
+
+  const updateOrderItem = (index: number, field: string, value: any) => {
+    const updated = [...orderItems];
+    (updated[index] as any)[field] = value;
+    if (field === 'product_id') {
+      const prod = products.find(p => p.id === value);
+      if (prod) {
+        updated[index].product_name = prod.name;
+        updated[index].sku = prod.sku || '';
+        updated[index].unit_price = Number(prod.price) || 0;
+      }
+    }
+    setOrderItems(updated);
+  };
+
+  const removeOrderItem = (index: number) => {
+    setOrderItems(orderItems.filter((_, i) => i !== index));
+  };
+
+  const handleCreateOrder = async () => {
+    if (!orderForm.buyer_id || orderItems.length === 0) {
+      alert('Please select buyer and add at least one item.'); return;
+    }
+    setSaving(true);
+    try {
+      await orderService.create({
+        ...orderForm,
+        items: orderItems.map(i => ({ product_id: i.product_id, quantity: i.quantity, unit_price: i.unit_price }))
+      });
+      await loadData(); setShowModal(false);
+    } catch (err) { console.error('Create order error:', err); alert('Failed to create order.'); }
+    finally { setSaving(false); }
+  };
+
+  const handleEdit = (order: Order) => {
+    setEditingOrder(order);
+    setEditForm({
+      status: order.status, notes: order.notes || '',
+      shipping_address: order.shipping_address || ''
+    });
+    setShowEditModal(true);
+  };
+
+  const handleUpdateOrder = async () => {
+    if (!editingOrder) return;
+    setSaving(true);
+    try {
+      await orderService.update(editingOrder.id, editForm);
+      await loadData(); setShowEditModal(false);
+    } catch (err) { console.error('Update order error:', err); alert('Failed to update order.'); }
+    finally { setSaving(false); }
+  };
+
+  const handleCancel = async (id: string) => {
+    if (confirm('Cancel this order?')) {
+      try { await orderService.delete(id); await loadData(); }
+      catch (err) { console.error('Cancel order error:', err); alert('Failed to cancel order.'); }
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  const statusColors: Record<string, string> = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    confirmed: 'bg-blue-100 text-blue-800',
+    processing: 'bg-indigo-100 text-indigo-800',
+    shipped: 'bg-purple-100 text-purple-800',
+    delivered: 'bg-green-100 text-green-800',
+    cancelled: 'bg-red-100 text-red-800',
+  };
+
+  const subtotal = orderItems.reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-mk-gray">Order Management</h1>
+        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Create Order</button>
+      </div>
+      <div className="bg-white rounded-xl shadow-md p-6">
+        {orders.length === 0 ? <p className="text-gray-500 text-center py-8">No orders found. Create your first order.</p> : (
+          <table className="w-full">
+            <thead className="bg-gray-50"><tr>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Order #</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Buyer</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Amount</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Date</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
+            </tr></thead>
+            <tbody>{orders.map(order => (
+              <tr key={order.id} className="border-t hover:bg-gray-50">
+                <td className="px-4 py-4 font-bold">{order.order_number}</td>
+                <td className="px-4 py-4 text-sm">{order.buyer_company || '-'}</td>
+                <td className="px-4 py-4 font-bold text-mk-red">₹{Number(order.total_amount || 0).toLocaleString()}</td>
+                <td className="px-4 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColors[order.status] || 'bg-gray-100 text-gray-800'}`}>{order.status}</span></td>
+                <td className="px-4 py-4 text-sm">{new Date(order.created_at).toLocaleDateString()}</td>
+                <td className="px-4 py-4"><div className="flex gap-2">
+                  <button onClick={() => handleEdit(order)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                  {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                    <button onClick={() => handleCancel(order.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                  )}
+                </div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+
+      {/* CREATE ORDER MODAL */}
+      {showModal && (
+        <Modal title="Create New Order" onClose={() => setShowModal(false)}>
+          <div className="space-y-4">
+            <div><label className="block text-sm font-bold mb-2">Buyer *</label>
+              <select className="input-field" value={orderForm.buyer_id} onChange={e => setOrderForm({ ...orderForm, buyer_id: e.target.value })}>
+                <option value="">Select Buyer</option>
+                {buyers.map(b => <option key={b.id} value={b.id}>{b.company_name || `${b.first_name} ${b.last_name}`}</option>)}
+              </select>
+            </div>
+            <div><label className="block text-sm font-bold mb-2">Shipping Address</label><input type="text" className="input-field" value={orderForm.shipping_address} onChange={e => setOrderForm({ ...orderForm, shipping_address: e.target.value })} placeholder="Full delivery address" /></div>
+
+            <p className="text-sm font-bold text-gray-500 uppercase mt-4">Order Items</p>
+            {orderItems.map((item, idx) => (
+              <div key={idx} className="flex gap-2 items-end bg-gray-50 p-3 rounded-lg">
+                <div className="flex-1"><label className="block text-xs font-bold mb-1">Product</label>
+                  <select className="input-field text-sm" value={item.product_id} onChange={e => updateOrderItem(idx, 'product_id', e.target.value)}>
+                    <option value="">Select</option>
+                    {products.map(p => <option key={p.id} value={p.id}>{p.name} {p.sku ? `(${p.sku})` : ''}</option>)}
+                  </select>
+                </div>
+                <div className="w-20"><label className="block text-xs font-bold mb-1">Qty</label>
+                  <input type="number" min="1" className="input-field text-sm" value={item.quantity} onChange={e => updateOrderItem(idx, 'quantity', Number(e.target.value))} />
+                </div>
+                <div className="w-28"><label className="block text-xs font-bold mb-1">Unit Price</label>
+                  <input type="number" min="0" step="0.01" className="input-field text-sm" value={item.unit_price} onChange={e => updateOrderItem(idx, 'unit_price', Number(e.target.value))} />
+                </div>
+                <div className="w-24 text-sm font-bold pt-5">₹{(item.quantity * item.unit_price).toLocaleString()}</div>
+                <button onClick={() => removeOrderItem(idx)} className="p-2 text-red-600 hover:bg-red-100 rounded mb-0.5"><X className="w-4 h-4" /></button>
+              </div>
+            ))}
+            <button onClick={addOrderItem} className="text-sm text-blue-600 font-bold hover:underline flex items-center gap-1"><Plus className="w-4 h-4" /> Add Item</button>
+
+            {orderItems.length > 0 && (
+              <div className="bg-gray-50 p-4 rounded-lg text-right">
+                <p className="text-lg font-bold text-mk-red">Total: ₹{subtotal.toLocaleString()}</p>
+              </div>
+            )}
+
+            <div><label className="block text-sm font-bold mb-2">Notes</label><textarea className="input-field" rows={2} value={orderForm.notes} onChange={e => setOrderForm({ ...orderForm, notes: e.target.value })} /></div>
+          </div>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleCreateOrder} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Creating...' : 'Create Order'}</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* EDIT ORDER MODAL */}
+      {showEditModal && editingOrder && (
+        <Modal title={`Edit Order ${editingOrder.order_number}`} onClose={() => setShowEditModal(false)}>
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg text-sm space-y-1">
+              <p><span className="font-bold">Buyer:</span> {editingOrder.buyer_company || '-'}</p>
+              <p><span className="font-bold">Total:</span> <span className="text-mk-red font-bold">₹{Number(editingOrder.total_amount || 0).toLocaleString()}</span></p>
+            </div>
+            <div><label className="block text-sm font-bold mb-2">Status</label>
+              <select className="input-field" value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}>
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="processing">Processing</option>
+                <option value="shipped">Shipped</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div><label className="block text-sm font-bold mb-2">Shipping Address</label><input type="text" className="input-field" value={editForm.shipping_address} onChange={e => setEditForm({ ...editForm, shipping_address: e.target.value })} /></div>
+            <div><label className="block text-sm font-bold mb-2">Notes</label><textarea className="input-field" rows={2} value={editForm.notes} onChange={e => setEditForm({ ...editForm, notes: e.target.value })} /></div>
+          </div>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleUpdateOrder} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Update Order'}</button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -971,15 +1278,10 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between p-6 border-b-2">
           <h2 className="text-2xl font-bold text-mk-gray">{title}</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-            <X className="w-6 h-6" />
-          </button>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-6 h-6" /></button>
         </div>
-        <div className="p-6">
-          {children}
-        </div>
+        <div className="p-6">{children}</div>
       </div>
     </div>
   );
 }
-
