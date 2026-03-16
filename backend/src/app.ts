@@ -14,6 +14,7 @@ import buyerRoutes from "./modules/buyer/buyer.routes";
 import addressRoutes from "./modules/address/address.routes";
 import wishlistRoutes from "./modules/wishlist/wishlist.routes";
 import couponRoutes from "./modules/coupon/coupon.routes";
+import cartRoutes from "./modules/cart/cart.routes";
 import { errorHandler } from "./middleware/error.middleware";
 
 dotenv.config();
@@ -48,6 +49,7 @@ app.use("/api/buyers", buyerRoutes);
 app.use("/api/addresses", addressRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/coupons", couponRoutes);
+app.use("/api/cart", cartRoutes);
 
 // Health check
 app.get("/", (_req, res) => {

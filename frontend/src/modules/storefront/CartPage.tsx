@@ -4,7 +4,7 @@ import { useCart } from "../../context/CartContext"
 import { api } from "../../services/api"
 
 export default function CartPage() {
-  const { items, updateQuantity, removeItem, clearCart, totalItems, subtotal, coupon, setCoupon } = useCart()
+  const { items, loading, updateQuantity, removeItem, clearCart, totalItems, subtotal, coupon, setCoupon } = useCart()
   const navigate = useNavigate()
   const [couponCode, setCouponCode] = useState("")
   const [couponLoading, setCouponLoading] = useState(false)
@@ -41,6 +41,10 @@ export default function CartPage() {
 
   const handleProceedToCheckout = () => {
     navigate("/checkout")
+  }
+
+  if (loading) {
+    return <div className="text-center py-20 text-mk-gray-500">Loading cart...</div>
   }
 
   if (items.length === 0) {

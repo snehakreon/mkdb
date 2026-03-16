@@ -237,6 +237,21 @@ CREATE TABLE IF NOT EXISTS order_items (
 );
 
 -- ============================================================
+-- CART ITEMS (persistent cart per user)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS cart_items (
+  id          SERIAL PRIMARY KEY,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  product_id  INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  quantity    INT NOT NULL DEFAULT 1,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(user_id, product_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cart_items_user ON cart_items(user_id);
+
+-- ============================================================
 -- COUPONS
 -- ============================================================
 CREATE TABLE IF NOT EXISTS coupons (
