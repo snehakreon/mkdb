@@ -169,7 +169,7 @@ export default function PublicHeader() {
         {/* Dynamic Category Nav — desktop */}
         <nav className="bg-mk-gray-900 relative hidden md:block" ref={catNavRef}>
           <div className="max-w-7xl mx-auto px-4">
-            <ul className="flex items-center gap-0 text-white text-sm overflow-x-auto scrollbar-hide">
+            <ul className="flex items-center gap-0 text-white text-sm">
               <li>
                 <Link to="/categories" className="flex items-center gap-2 px-4 py-3 bg-mk-red font-semibold whitespace-nowrap">
                   <i className="fas fa-th"></i> All Categories
@@ -181,25 +181,17 @@ export default function PublicHeader() {
                 return (
                   <li
                     key={cat.id}
-                    className="relative"
+                    className="relative group"
                     onMouseEnter={() => setHoveredCat(cat.id)}
                     onMouseLeave={() => setHoveredCat(null)}
                   >
-                    {hasSubs ? (
-                      <span
-                        className={`px-4 py-3 hover:bg-white/10 transition-colors flex items-center gap-1 whitespace-nowrap cursor-pointer ${hoveredCat === cat.id ? "bg-white/10" : ""}`}
-                      >
-                        {cat.name}
-                        <i className="fas fa-chevron-down text-[8px] ml-1 opacity-60"></i>
-                      </span>
-                    ) : (
-                      <Link
-                        to={`/products?category=${cat.id}`}
-                        className={`px-4 py-3 hover:bg-white/10 transition-colors flex items-center gap-1 whitespace-nowrap ${hoveredCat === cat.id ? "bg-white/10" : ""}`}
-                      >
-                        {cat.name}
-                      </Link>
-                    )}
+                    <Link
+                      to={`/products?category=${cat.id}`}
+                      className={`px-4 py-3 hover:bg-white/10 transition-colors flex items-center gap-1 whitespace-nowrap ${hoveredCat === cat.id ? "bg-white/10" : ""}`}
+                    >
+                      {cat.name}
+                      {hasSubs && <i className="fas fa-chevron-down text-[8px] ml-1 opacity-60"></i>}
+                    </Link>
 
                     {/* Subcategory Dropdown */}
                     {hasSubs && hoveredCat === cat.id && (
