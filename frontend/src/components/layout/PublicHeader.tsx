@@ -177,6 +177,7 @@ export default function PublicHeader() {
               </li>
               {parentCategories.map((cat) => {
                 const subs = getSubcategories(cat.id)
+                const hasSubs = subs.length > 0
                 return (
                   <li
                     key={cat.id}
@@ -184,16 +185,24 @@ export default function PublicHeader() {
                     onMouseEnter={() => setHoveredCat(cat.id)}
                     onMouseLeave={() => setHoveredCat(null)}
                   >
-                    <Link
-                      to={`/products?category=${cat.id}`}
-                      className={`px-4 py-3 hover:bg-white/10 transition-colors flex items-center gap-1 whitespace-nowrap ${hoveredCat === cat.id ? "bg-white/10" : ""}`}
-                    >
-                      {cat.name}
-                      {subs.length > 0 && <i className="fas fa-chevron-down text-[8px] ml-1 opacity-60"></i>}
-                    </Link>
+                    {hasSubs ? (
+                      <span
+                        className={`px-4 py-3 hover:bg-white/10 transition-colors flex items-center gap-1 whitespace-nowrap cursor-pointer ${hoveredCat === cat.id ? "bg-white/10" : ""}`}
+                      >
+                        {cat.name}
+                        <i className="fas fa-chevron-down text-[8px] ml-1 opacity-60"></i>
+                      </span>
+                    ) : (
+                      <Link
+                        to={`/products?category=${cat.id}`}
+                        className={`px-4 py-3 hover:bg-white/10 transition-colors flex items-center gap-1 whitespace-nowrap ${hoveredCat === cat.id ? "bg-white/10" : ""}`}
+                      >
+                        {cat.name}
+                      </Link>
+                    )}
 
                     {/* Subcategory Dropdown */}
-                    {subs.length > 0 && hoveredCat === cat.id && (
+                    {hasSubs && hoveredCat === cat.id && (
                       <div className="absolute top-full left-0 bg-white border border-gray-200 rounded-lg shadow-xl py-2 min-w-[220px] z-[60]">
                         <Link
                           to={`/products?category=${cat.id}`}

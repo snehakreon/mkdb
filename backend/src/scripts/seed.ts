@@ -95,16 +95,13 @@ async function seed() {
     console.log("Seeding categories...");
 
     const parentCategories = [
-      { name: "Tiles", slug: "tiles", sort: 1 },
+      { name: "Tiles & Flooring", slug: "tiles", sort: 1 },
       { name: "Paints & Coatings", slug: "paints", sort: 2 },
-      { name: "Sanitaryware", slug: "sanitaryware", sort: 3 },
-      { name: "Hardware & Fittings", slug: "hardware", sort: 4 },
+      { name: "Sanitaryware & Bath", slug: "sanitaryware", sort: 3 },
+      { name: "Hardware & Plumbing", slug: "hardware", sort: 4 },
       { name: "Plywood & Boards", slug: "boards", sort: 5 },
-      { name: "Electrical", slug: "electrical", sort: 6 },
-      { name: "Plumbing", slug: "plumbing", sort: 7 },
-      { name: "Kitchen & Bath", slug: "kitchen", sort: 8 },
-      { name: "Cement & Aggregates", slug: "cement", sort: 9 },
-      { name: "Lighting", slug: "lighting", sort: 10 },
+      { name: "Electrical & Lighting", slug: "electrical", sort: 6 },
+      { name: "Cement & Aggregates", slug: "cement", sort: 7 },
     ];
 
     const catMap: Record<string, number> = {};
@@ -122,57 +119,54 @@ async function seed() {
     }
 
     const subcategories = [
-      // Tiles
+      // Tiles & Flooring
       { name: "Floor Tiles", slug: "floor-tiles", parent: "tiles" },
       { name: "Wall Tiles", slug: "wall-tiles", parent: "tiles" },
       { name: "Vitrified Tiles", slug: "vitrified-tiles", parent: "tiles" },
       { name: "Outdoor Tiles", slug: "outdoor-tiles", parent: "tiles" },
-      // Paints
+      // Paints & Coatings
       { name: "Interior Paints", slug: "interior-paints", parent: "paints" },
       { name: "Exterior Paints", slug: "exterior-paints", parent: "paints" },
       { name: "Wood Finishes", slug: "wood-finishes", parent: "paints" },
       { name: "Primers & Putty", slug: "primers-putty", parent: "paints" },
-      // Sanitaryware
+      // Sanitaryware & Bath (includes former Kitchen & Bath)
       { name: "Wash Basins", slug: "wash-basins", parent: "sanitaryware" },
       { name: "Toilets & WC", slug: "toilets-wc", parent: "sanitaryware" },
       { name: "Faucets & Taps", slug: "faucets-taps", parent: "sanitaryware" },
       { name: "Shower Systems", slug: "shower-systems", parent: "sanitaryware" },
-      // Hardware
+      { name: "Kitchen Sinks", slug: "kitchen-sinks", parent: "sanitaryware" },
+      { name: "Kitchen Faucets", slug: "kitchen-faucets", parent: "sanitaryware" },
+      { name: "Kitchen Accessories", slug: "kitchen-accessories", parent: "sanitaryware" },
+      { name: "Chimneys & Hobs", slug: "chimneys-hobs", parent: "sanitaryware" },
+      // Hardware & Plumbing (includes former Plumbing)
       { name: "Door Handles", slug: "door-handles", parent: "hardware" },
       { name: "Locks & Latches", slug: "locks-latches", parent: "hardware" },
       { name: "Hinges", slug: "hinges", parent: "hardware" },
       { name: "Drawer Slides", slug: "drawer-slides", parent: "hardware" },
-      // Plywood
+      { name: "CPVC Pipes", slug: "cpvc-pipes", parent: "hardware" },
+      { name: "PVC Pipes", slug: "pvc-pipes", parent: "hardware" },
+      { name: "Pipe Fittings", slug: "pipe-fittings", parent: "hardware" },
+      { name: "Water Tanks", slug: "water-tanks", parent: "hardware" },
+      // Plywood & Boards
       { name: "BWP Plywood", slug: "bwp-plywood", parent: "boards" },
       { name: "MR Grade Plywood", slug: "mr-plywood", parent: "boards" },
       { name: "Block Board", slug: "block-board", parent: "boards" },
       { name: "MDF Board", slug: "mdf-board", parent: "boards" },
-      // Electrical
+      // Electrical & Lighting (includes former Lighting)
       { name: "Switches & Sockets", slug: "switches-sockets", parent: "electrical" },
       { name: "MCBs & Distribution", slug: "mcbs-distribution", parent: "electrical" },
       { name: "Wires & Cables", slug: "wires-cables", parent: "electrical" },
       { name: "Fans", slug: "fans", parent: "electrical" },
-      // Plumbing
-      { name: "CPVC Pipes", slug: "cpvc-pipes", parent: "plumbing" },
-      { name: "PVC Pipes", slug: "pvc-pipes", parent: "plumbing" },
-      { name: "Pipe Fittings", slug: "pipe-fittings", parent: "plumbing" },
-      { name: "Water Tanks", slug: "water-tanks", parent: "plumbing" },
-      // Kitchen
-      { name: "Kitchen Sinks", slug: "kitchen-sinks", parent: "kitchen" },
-      { name: "Kitchen Faucets", slug: "kitchen-faucets", parent: "kitchen" },
-      { name: "Kitchen Accessories", slug: "kitchen-accessories", parent: "kitchen" },
-      { name: "Chimneys & Hobs", slug: "chimneys-hobs", parent: "kitchen" },
-      // Cement
+      { name: "LED Bulbs", slug: "led-bulbs", parent: "electrical" },
+      { name: "Panel Lights", slug: "panel-lights", parent: "electrical" },
+      { name: "Downlighters", slug: "downlighters", parent: "electrical" },
+      { name: "Outdoor Lights", slug: "outdoor-lights", parent: "electrical" },
+      { name: "Decorative Lights", slug: "decorative-lights", parent: "electrical" },
+      // Cement & Aggregates
       { name: "OPC Cement", slug: "opc-cement", parent: "cement" },
       { name: "PPC Cement", slug: "ppc-cement", parent: "cement" },
       { name: "White Cement", slug: "white-cement", parent: "cement" },
       { name: "Ready Mix Concrete", slug: "ready-mix", parent: "cement" },
-      // Lighting
-      { name: "LED Bulbs", slug: "led-bulbs", parent: "lighting" },
-      { name: "Panel Lights", slug: "panel-lights", parent: "lighting" },
-      { name: "Downlighters", slug: "downlighters", parent: "lighting" },
-      { name: "Outdoor Lights", slug: "outdoor-lights", parent: "lighting" },
-      { name: "Decorative Lights", slug: "decorative-lights", parent: "lighting" },
     ];
 
     for (const s of subcategories) {
@@ -327,7 +321,7 @@ async function seed() {
     }
 
     console.log("\nSeed complete! Database is ready.");
-    console.log("  20 brands, 10 parent categories, 41 subcategories, 62 products");
+    console.log("  20 brands, 7 parent categories, 44 subcategories, 62 products");
 
   } catch (error: any) {
     console.error("Seed error:", error.message);
