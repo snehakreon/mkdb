@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useAuth } from "../../context/AuthContext"
 import { api } from "../../services/api"
 
@@ -13,6 +13,13 @@ export default function MyAccountPage() {
     lastName: user?.lastName || "",
     phone: user?.phone || "",
   })
+  const [stats, setStats] = useState({ totalOrders: 0, wishlistItems: 0, savedAddresses: 0 })
+
+  useEffect(() => {
+    api.get("/auth/account-summary")
+      .then((res) => setStats(res.data))
+      .catch(() => {})
+  }, [])
 
   const handleEdit = () => {
     setForm({
@@ -119,7 +126,7 @@ export default function MyAccountPage() {
               <i className="fas fa-box text-blue-600"></i>
             </div>
             <div>
-              <p className="text-2xl font-bold text-mk-gray-900">0</p>
+              <p className="text-2xl font-bold text-mk-gray-900">{stats.totalOrders}</p>
               <p className="text-xs text-mk-gray-500">Total Orders</p>
             </div>
           </div>
@@ -128,7 +135,7 @@ export default function MyAccountPage() {
               <i className="fas fa-heart text-red-500"></i>
             </div>
             <div>
-              <p className="text-2xl font-bold text-mk-gray-900">0</p>
+              <p className="text-2xl font-bold text-mk-gray-900">{stats.wishlistItems}</p>
               <p className="text-xs text-mk-gray-500">Wishlist Items</p>
             </div>
           </div>
@@ -137,7 +144,7 @@ export default function MyAccountPage() {
               <i className="fas fa-map-marker-alt text-green-600"></i>
             </div>
             <div>
-              <p className="text-2xl font-bold text-mk-gray-900">0</p>
+              <p className="text-2xl font-bold text-mk-gray-900">{stats.savedAddresses}</p>
               <p className="text-xs text-mk-gray-500">Saved Addresses</p>
             </div>
           </div>

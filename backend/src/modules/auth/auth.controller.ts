@@ -258,6 +258,32 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// GET /api/auth/account-summary
+export const accountSummary = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const userId = req.user.userId;
+
+    const [orders, wishlist, addresses] = await Promise.all([
+      pool.query("SELECT COUNT(*)::int AS count FROM orders WHERE buyer_id IN (SELECT id FROM buyers WHERE user_id = $1)", [userId]),
+      pool.query("SELECT COUNT(*)::int AS count FROM wishlists WHERE user_id = $1", [userId]),
+      pool.query("SELECT COUNT(*)::int AS count FROM buyer_addresses WHERE user_id = $1", [userId]),
+    ]);
+
+    res.json({
+      totalOrders: orders.rows[0].count,
+      wishlistItems: wishlist.rows[0].count,
+      savedAddresses: addresses.rows[0].count,
+    });
+  } catch (error: any) {
+    console.error("Account summary error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // GET /api/auth/me
 export const me = async (req: AuthRequest, res: Response) => {
   try {
