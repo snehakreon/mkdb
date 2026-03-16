@@ -32,8 +32,11 @@ ws1.merge_cells("A1:D1")
 ws1["A1"] = "MATERIAL KING - Project Status Report"
 ws1["A1"].font = Font(bold=True, size=16, color="2F5496")
 
+elapsed_weeks = (date(2026, 3, 16) - date(2026, 1, 22)).days / 7
+remaining_weeks = (date(2026, 4, 30) - date(2026, 3, 16)).days / 7
+
 ws1.merge_cells("A2:D2")
-ws1["A2"] = f"Generated: {date.today().strftime('%d %b %Y')}  |  Team: 6-7 devs  |  Start: 21 Jan 2026  |  Deadline: 30 Apr 2026  |  7.5 weeks remaining"
+ws1["A2"] = f"Generated: {date.today().strftime('%d %b %Y')}  |  Team: 6-7 devs  |  Start: 22 Jan 2026  |  Deadline: 30 Apr 2026  |  {remaining_weeks:.1f} weeks remaining"
 ws1["A2"].font = Font(size=10, color="666666")
 
 # Headers
@@ -45,72 +48,98 @@ for col, val in enumerate(["Module / Feature", "Area", "Status", "Notes"], 1):
     cell.alignment = Alignment(horizontal="center")
     cell.border = thin_border
 
-# Data
+# Data — UPDATED TO REFLECT ACTUAL STATUS AS OF 16 MAR 2026
 data = [
-    # BACKEND - COMPLETED (Jan 21 - Mar 10)
-    ("BACKEND - COMPLETED (Jan 21 - Mar 10, ~7 weeks)", "", "", ""),
-    ("Auth Module (register, login, JWT, refresh, logout)", "Backend", "DONE", "Full JWT auth with role middleware"),
-    ("Products CRUD API", "Backend", "DONE", "List, create, update, delete"),
+    # BACKEND - COMPLETED (Jan 22 - Mar 10)
+    ("BACKEND - COMPLETED (Jan 22 - Mar 10, ~7 weeks)", "", "", ""),
+    ("Auth Module (register, login, JWT, refresh, logout)", "Backend", "DONE", "Full JWT auth with role middleware, account locking after 5 failed attempts"),
+    ("Products CRUD API", "Backend", "DONE", "List, create, update, delete + active endpoint with filters"),
     ("Brands CRUD API", "Backend", "DONE", "List, create, update, delete"),
-    ("Categories CRUD API", "Backend", "DONE", "List, create, update, delete"),
+    ("Categories CRUD API", "Backend", "DONE", "List, create, update, delete + parent/child hierarchy + reorganize endpoint"),
     ("Vendors CRUD API", "Backend", "DONE", "List, create, update, delete"),
     ("Zones CRUD API (with pincodes)", "Backend", "DONE", "Zone-vendor assignments, pincode mapping"),
     ("Buyers CRUD API (with projects)", "Backend", "DONE", "Buyer + project management"),
     ("Dealers CRUD API", "Backend", "DONE", "With credit limit, approval status"),
-    ("Orders CRUD API (with items)", "Backend", "DONE", "Order creation with GST calc, line items"),
-    ("DB Schema (15 tables) + Seed Script", "Backend", "DONE", "Full schema with migration patches"),
+    ("Orders CRUD API (with items)", "Backend", "DONE", "Order creation with transaction, line items, cart auto-clear"),
+    ("Cart API (server-side + guest sync)", "Backend", "DONE", "Add/update/remove/clear + sync on login"),
+    ("Wishlist API", "Backend", "DONE", "Add/remove/list user wishlist"),
+    ("Coupon API", "Backend", "DONE", "Validate/apply coupons, percentage/fixed, usage limits"),
+    ("Address API", "Backend", "DONE", "CRUD for user addresses with default address support"),
+    ("DB Schema (15+ tables) + Seed Script", "Backend", "DONE", "Full schema with migration patches"),
     ("Validation & Error Middleware", "Backend", "DONE", "Request validation middleware"),
     ("Role-based Access Control", "Backend", "DONE", "Admin, dealer, buyer, vendor roles"),
 
-    # FRONTEND - PARTIAL
-    ("FRONTEND - COMPLETED / PARTIAL", "", "", ""),
-    ("Vite + React 19 + TypeScript", "Frontend", "DONE", "Project scaffolded"),
-    ("Axios API Client + Auth Interceptor", "Frontend", "DONE", "Base URL, token injection"),
-    ("AuthContext (basic shell)", "Frontend", "PARTIAL", "Context created; no useAuth hook, no token refresh"),
-    ("Header Component", "Frontend", "DONE", "Navigation header"),
-    ("Route Definitions (skeleton)", "Frontend", "PARTIAL", "4 routes defined; BrowserRouter missing"),
-    ("Tailwind CSS Config", "Frontend", "PARTIAL", "Installed but content paths empty"),
+    # FRONTEND - COMPLETED (Phase 1 Foundation — done ahead of schedule)
+    ("FRONTEND - FOUNDATION (COMPLETED)", "", "", ""),
+    ("Vite + React 19 + TypeScript", "Frontend", "DONE", "Project scaffolded and running"),
+    ("Tailwind CSS Config (custom MK theme)", "Frontend", "DONE", "mk-red, mk-gray palette, Montserrat font"),
+    ("BrowserRouter + Route Definitions", "Frontend", "DONE", "Full route tree: public, admin, account sections"),
+    ("React Query (QueryClientProvider)", "Frontend", "DONE", "Configured with retry:1, staleTime:30s"),
+    ("Axios API Client + Token Refresh", "Frontend", "DONE", "Auto-refresh on 401, concurrent request queue"),
+    ("AuthContext + useAuth hook", "Frontend", "DONE", "Login/logout/updateUser/isAdmin, auto-load on mount"),
+    ("Protected Routes / Route Guards", "Frontend", "DONE", "ProtectedRoute component with loading spinner"),
+    ("API Service Layer (13 modules)", "Frontend", "DONE", "product, category, brand, vendor, zone, dealer, buyer, order, auth, cart, coupon, wishlist, address"),
+    ("Login Page", "Frontend", "DONE", "Email/password login with validation"),
+    ("Register Page", "Frontend", "DONE", "User registration with role selection"),
 
-    # BACKEND - PENDING
+    # FRONTEND - ADMIN CRUD MODULES (COMPLETED — done ahead of Phase 2 schedule)
+    ("FRONTEND - ADMIN CRUD MODULES (COMPLETED)", "", "", ""),
+    ("Admin Dashboard", "Frontend", "DONE", "Stats cards (orders, revenue, products, buyers, dealers) + recent orders table"),
+    ("Products Module (list + forms)", "Frontend", "DONE", "Full CRUD with 4-tab form (basic, dimensions, attributes, packaging)"),
+    ("Brands Module (list + forms)", "Frontend", "DONE", "CRUD with DataTable + FormModal"),
+    ("Categories Module (list + forms)", "Frontend", "DONE", "CRUD with parent/child hierarchy"),
+    ("Vendors Module (list + forms)", "Frontend", "DONE", "CRUD with DataTable + FormModal"),
+    ("Zones Module (list + forms)", "Frontend", "DONE", "CRUD with DataTable + FormModal"),
+    ("Buyers Module (list + forms)", "Frontend", "DONE", "CRUD with DataTable + FormModal"),
+    ("Dealers Module (list + forms)", "Frontend", "DONE", "CRUD with DataTable + FormModal"),
+    ("Orders Module (list + detail)", "Frontend", "DONE", "Admin order management with status updates"),
+    ("Reusable UI Components", "Frontend", "DONE", "DataTable, FormField, FormModal, StatusBadge"),
+
+    # FRONTEND - STOREFRONT (COMPLETED)
+    ("FRONTEND - STOREFRONT PAGES (COMPLETED)", "", "", ""),
+    ("Public Header + Nav with Category Hover Dropdowns", "Frontend", "DONE", "7 merged categories, hover subcategory menus, linked to products"),
+    ("Public Footer", "Frontend", "DONE", "Footer with links"),
+    ("Home Page", "Frontend", "DONE", "Hero section + featured products"),
+    ("Products List Page", "Frontend", "DONE", "Filters (category, brand, price range, search, sort)"),
+    ("Product Detail Page", "Frontend", "DONE", "Product info tabs, wishlist, add to cart"),
+    ("Categories Page", "Frontend", "DONE", "Category grid with subcategory tags"),
+    ("Cart Page", "Frontend", "DONE", "Cart items, coupon apply, tax/shipping calc"),
+    ("Checkout Page", "Frontend", "DONE", "Address selection, payment method, order placement"),
+    ("Order Confirmation Page", "Frontend", "DONE", "Post-checkout confirmation (protected)"),
+    ("About Page", "Frontend", "DONE", "Static about us page"),
+    ("Contact Page", "Frontend", "DONE", "Contact form"),
+
+    # FRONTEND - BUYER ACCOUNT (COMPLETED)
+    ("FRONTEND - BUYER ACCOUNT (COMPLETED)", "", "", ""),
+    ("My Account Page", "Frontend", "DONE", "Profile management"),
+    ("My Orders Page", "Frontend", "DONE", "Order history with detail view"),
+    ("Addresses Page", "Frontend", "DONE", "Saved addresses CRUD with default"),
+    ("Wishlist Page", "Frontend", "DONE", "Wishlist management"),
+
+    # BACKEND - STILL PENDING
     ("BACKEND - PENDING (must complete by Apr 30)", "", "", ""),
-    ("Inventory Management", "Backend", "MISSING", "Stock tracking, low-stock alerts, reorder points"),
-    ("Pricing Tiers / Discount Structures", "Backend", "PARTIAL", "Dealer credit exists; tier logic not implemented"),
-    ("Order Workflow State Machine", "Backend", "PARTIAL", "Status fields exist; no transition validation"),
-    ("File Upload (Multer/S3)", "Backend", "MISSING", "Tech sheet upload, product images"),
-    ("Payment Integration (Razorpay)", "Backend", "MISSING", "No payment gateway code"),
+    ("Search & Filtering + Pagination (server-side)", "Backend", "PARTIAL", "Product search/filter/sort DONE. Server-side pagination (page/offset/total) MISSING across all endpoints"),
+    ("Order Workflow State Machine", "Backend", "PARTIAL", "Status fields exist (pending→confirmed→dispatched→delivered); NO transition validation logic"),
+    ("Inventory Management (stock decrement)", "Backend", "PARTIAL", "stock_qty field exists; NO auto-decrement on order, NO low-stock alerts"),
+    ("File Upload Middleware (Multer/S3)", "Backend", "MISSING", "No multer, no S3 config, no upload routes. Images stored as URLs only"),
+    ("Payment Integration (Razorpay)", "Backend", "MISSING", "No payment gateway code. Only COD supported"),
     ("Invoice Generation (PDF)", "Backend", "MISSING", "No PDF generation library or templates"),
+    ("Pricing Tiers / Discount Structures", "Backend", "PARTIAL", "Dealer credit + coupon system exists; tier-based pricing logic not implemented"),
     ("Delivery Tracking", "Backend", "PARTIAL", "Basic date fields; no tracking numbers or logistics API"),
-    ("Reporting / Analytics APIs", "Backend", "MISSING", "No dashboard stats, sales reports, analytics"),
-    ("Search & Filtering + Pagination", "Backend", "MISSING", "No query params, pagination in any controller"),
+    ("Reporting / Analytics APIs", "Backend", "MISSING", "No sales reports, trend analytics, export APIs"),
     ("Notifications (Email/SMS)", "Backend", "MISSING", "No nodemailer/twilio integration"),
 
-    # FRONTEND - MISSING
-    ("FRONTEND - PAGES & MODULES (must complete by Apr 30)", "", "", ""),
-    ("Login Page", "Frontend", "MISSING", ""),
-    ("Register Page", "Frontend", "MISSING", ""),
-    ("Admin Dashboard", "Frontend", "MISSING", "Stats, charts, recent orders"),
-    ("Products Module (list + forms)", "Frontend", "MISSING", "CRUD UI with tech sheet upload"),
-    ("Brands Module (list + forms)", "Frontend", "MISSING", "CRUD UI"),
-    ("Categories Module (list + forms)", "Frontend", "MISSING", "CRUD UI"),
-    ("Vendors Module (list + forms)", "Frontend", "MISSING", "CRUD UI"),
-    ("Zones Module (list + forms + pincodes)", "Frontend", "MISSING", "CRUD UI with pincode management"),
-    ("Buyers Module (list + forms + projects)", "Frontend", "MISSING", "CRUD UI with project sub-module"),
-    ("Dealers Module (list + forms)", "Frontend", "MISSING", "CRUD UI with approval workflow"),
-    ("Orders Module (list + detail + create)", "Frontend", "MISSING", "Full order flow UI"),
-    ("Inventory Module UI", "Frontend", "MISSING", "Stock levels, alerts"),
-    ("Invoice Module UI", "Frontend", "MISSING", "View/download invoices"),
-    ("Delivery Tracking UI", "Frontend", "MISSING", "Track order delivery status"),
-    ("Payment Module UI", "Frontend", "MISSING", "Payment processing screens"),
-    ("Reporting / Dashboard Charts", "Frontend", "MISSING", "Sales summary, top products, dealer analytics"),
-
-    # FRONTEND - INFRA
-    ("FRONTEND - INFRASTRUCTURE (must complete by Apr 30)", "", "", ""),
-    ("React Query Setup (QueryClientProvider)", "Frontend", "MISSING", "Installed but not configured"),
-    ("API Service Layer (per module)", "Frontend", "MISSING", "No service methods for API calls"),
-    ("Protected Routes / Route Guards", "Frontend", "MISSING", "No auth-based route protection"),
-    ("Role-based UI (admin/dealer/buyer)", "Frontend", "MISSING", "Different dashboards per role"),
-    ("Search & Filter Components", "Frontend", "MISSING", "Reusable search/filter bars"),
-    ("Responsive Design / Mobile", "Frontend", "MISSING", "Mobile-friendly layout"),
+    # FRONTEND - STILL PENDING
+    ("FRONTEND - PENDING (must complete by Apr 30)", "", "", ""),
+    ("Inventory Module UI", "Frontend", "MISSING", "Stock levels, alerts, reorder points dashboard"),
+    ("Payment Module UI", "Frontend", "MISSING", "Payment processing screens (Razorpay integration)"),
+    ("Invoice Module UI", "Frontend", "MISSING", "View/download invoices as PDF"),
+    ("Delivery Tracking UI", "Frontend", "MISSING", "Track order delivery status with timeline"),
+    ("Reporting / Dashboard Charts", "Frontend", "MISSING", "Sales summary, top products, dealer analytics with charts"),
+    ("Role-based Dashboards (dealer, buyer, vendor)", "Frontend", "MISSING", "Different dashboards per role"),
+    ("Products File Upload UI", "Frontend", "MISSING", "Image upload in product forms (needs Multer backend)"),
+    ("Responsive Design / Mobile", "Frontend", "PARTIAL", "Desktop works; mobile nav exists but needs polish"),
+    ("Admin Dashboard Charts", "Frontend", "PARTIAL", "Stats cards done; no charts/graphs, no date-range analytics"),
 ]
 
 row = 5
@@ -149,74 +178,82 @@ for item in data:
 ws1.column_dimensions["A"].width = 55
 ws1.column_dimensions["B"].width = 12
 ws1.column_dimensions["C"].width = 12
-ws1.column_dimensions["D"].width = 55
+ws1.column_dimensions["D"].width = 70
 
 # ============================================================
 # SHEET 2: GANTT CHART
 # ============================================================
 ws2 = wb.create_sheet("Gantt Chart")
 
-# Full project: Jan 21 to Apr 30 = 14.3 weeks => 15 week columns
-project_start = date(2026, 1, 19)  # Monday of week containing Jan 21
-today_marker = date(2026, 3, 10)
+# Full project: Jan 22 to Apr 30
+project_start = date(2026, 1, 19)  # Monday of week containing Jan 22
+today_marker = date(2026, 3, 16)
 deadline = date(2026, 4, 30)
 num_weeks = 15  # Jan 19 to Apr 27 (15 weeks)
 
-# Gantt tasks: (name, area, start_week, duration_weeks, team, status)
-# week 0 = Jan 19, week 1 = Jan 26, week 2 = Feb 2, ...
-# week 7 = Mar 9 (THIS WEEK), week 14 = Apr 20
+# Calculate current week index (0-based)
+today_week_index = (today_marker - project_start).days // 7  # = 8 (W9, week of Mar 16)
+
 gantt_tasks = [
-    # COMPLETED PHASE (Weeks 0-7, Jan 21 - Mar 10)
-    ("COMPLETED: Backend CRUD & Setup (Jan 21 - Mar 10)", "", 0, 0, "", "done"),
+    # COMPLETED PHASE (Weeks 0-7, Jan 22 - Mar 10)
+    ("COMPLETED: Backend CRUD & Setup (Jan 22 - Mar 10)", "", 0, 0, "", "done"),
     ("Project Setup (Vite, Express, DB, TypeScript)", "Full Stack", 0, 2, "All Devs", "done"),
     ("Auth Module (JWT, register, login, roles)", "Backend", 1, 2, "Dev 3, Dev 4", "done"),
     ("Products + Brands + Categories CRUD APIs", "Backend", 2, 2, "Dev 1, Dev 2", "done"),
     ("Vendors + Zones CRUD APIs", "Backend", 3, 2, "Dev 3, Dev 5", "done"),
     ("Buyers + Dealers + Orders CRUD APIs", "Backend", 4, 3, "Dev 4, Dev 6, Dev 7", "done"),
-    ("DB Schema (15 tables) + Seed + Middleware", "Backend", 5, 2, "Dev 3", "done"),
+    ("Cart + Wishlist + Coupon + Address APIs", "Backend", 5, 2, "Dev 3, Dev 7", "done"),
+    ("DB Schema (15+ tables) + Seed + Middleware", "Backend", 5, 2, "Dev 3", "done"),
     ("Frontend Scaffolding (Axios, AuthContext, Header)", "Frontend", 5, 2, "Dev 1", "done"),
 
-    # ── TODAY LINE (Week 7 = Mar 9) ──
+    # PHASE 1: Foundation — COMPLETED (Mar 10-16)
+    ("PHASE 1: FOUNDATION (Mar 10-23) ✅ COMPLETED", "", 0, 0, "", ""),
+    ("Fix Tailwind + BrowserRouter + React Query setup", "Frontend", 7, 1, "Dev 1", "done"),
+    ("Auth Pages (Login + Register + Token Refresh)", "Frontend", 7, 1, "Dev 2", "done"),
+    ("Protected Routes + useAuth hook", "Frontend", 7, 1, "Dev 1", "done"),
+    ("API Service Layer (13 modules)", "Frontend", 7, 1, "Dev 1, Dev 2", "done"),
+    ("Search & Filtering (product backend)", "Backend", 7, 1, "Dev 3", "done"),
+    ("Storefront: Home, Products, Detail, Cart, Checkout", "Frontend", 7, 2, "Dev 1, Dev 2, Dev 5", "done"),
+    ("Buyer Account: Orders, Addresses, Wishlist", "Frontend", 7, 2, "Dev 2, Dev 6", "done"),
+    ("Category Reorganization + Nav Hover Dropdowns", "Frontend", 8, 1, "Dev 1", "done"),
 
-    # PHASE 1: Foundation & Quick Wins (Week 8-9, Mar 10-23) — 2 weeks
-    ("PHASE 1: FOUNDATION (Mar 10 - Mar 23) ⚡ START NOW", "", 0, 0, "", ""),
-    ("Fix Tailwind + BrowserRouter + React Query setup", "Frontend", 7, 1, "Dev 1", "pending"),
-    ("Auth Pages (Login + Register + Token Refresh)", "Frontend", 7, 1, "Dev 2", "pending"),
-    ("Protected Routes + useAuth hook", "Frontend", 7, 1, "Dev 1", "pending"),
-    ("API Service Layer (all modules)", "Frontend", 8, 1, "Dev 1, Dev 2", "pending"),
-    ("Search & Filtering + Pagination (all backends)", "Backend", 7, 2, "Dev 3", "pending"),
-    ("File Upload Middleware (Multer/S3)", "Backend", 7, 1, "Dev 4", "pending"),
-    ("Order Workflow State Machine", "Backend", 7, 1, "Dev 7", "pending"),
-    ("Inventory Management Backend", "Backend", 8, 1, "Dev 4", "pending"),
+    # Items from Phase 1 still pending
+    ("PHASE 1 REMAINING (Mar 16-23) ⚡ THIS WEEK", "", 0, 0, "", ""),
+    ("Server-side Pagination (all endpoints)", "Backend", 8, 1, "Dev 3", "pending"),
+    ("File Upload Middleware (Multer/S3)", "Backend", 8, 1, "Dev 4", "pending"),
+    ("Order Workflow State Machine", "Backend", 8, 1, "Dev 7", "pending"),
+    ("Inventory Decrement on Order + Alerts", "Backend", 8, 1, "Dev 4", "pending"),
 
-    # PHASE 2: Core CRUD Modules (Week 9-11, Mar 24 - Apr 6) — 2 weeks
-    ("PHASE 2: CORE CRUD MODULES (Mar 24 - Apr 6)", "", 0, 0, "", ""),
-    ("Products Module UI (list + forms + file upload)", "Frontend", 9, 2, "Dev 1", "pending"),
-    ("Brands + Categories Module UI", "Frontend", 9, 1, "Dev 2", "pending"),
-    ("Vendors Module UI", "Frontend", 9, 1, "Dev 5", "pending"),
-    ("Zones Module UI (with pincodes)", "Frontend", 10, 1, "Dev 5", "pending"),
-    ("Dealers Module UI (with approval workflow)", "Frontend", 9, 2, "Dev 6", "pending"),
-    ("Buyers Module UI (with projects)", "Frontend", 9, 2, "Dev 2", "pending"),
+    # PHASE 2: DONE EARLY + Remaining backend (Mar 24 - Apr 6)
+    ("PHASE 2: CORE MODULES (Mar 24 - Apr 6)", "", 0, 0, "", ""),
+    ("Products Module UI (list + forms + 4 tabs)", "Frontend", 7, 2, "Dev 1", "done"),
+    ("Brands + Categories Module UI", "Frontend", 7, 1, "Dev 2", "done"),
+    ("Vendors Module UI", "Frontend", 7, 1, "Dev 5", "done"),
+    ("Zones Module UI", "Frontend", 7, 1, "Dev 5", "done"),
+    ("Dealers Module UI", "Frontend", 7, 2, "Dev 6", "done"),
+    ("Buyers Module UI", "Frontend", 7, 2, "Dev 2", "done"),
+    ("Orders Module UI (admin)", "Frontend", 7, 2, "Dev 1, Dev 2", "done"),
+    ("Admin Dashboard (stats + recent orders)", "Frontend", 7, 2, "Dev 2, Dev 5", "done"),
+    ("Products File Upload UI (needs Multer)", "Frontend", 9, 1, "Dev 1", "pending"),
     ("Pricing Tiers / Discount Backend", "Backend", 9, 1, "Dev 4", "pending"),
     ("Payment Integration Backend (Razorpay)", "Backend", 9, 2, "Dev 7", "pending"),
     ("Invoice Generation Backend (PDF)", "Backend", 10, 1, "Dev 3", "pending"),
 
-    # PHASE 3: Orders, Business Logic & Dashboard (Week 11-13, Apr 7-20) — 2 weeks
-    ("PHASE 3: ORDERS & DASHBOARD (Apr 7 - Apr 20)", "", 0, 0, "", ""),
-    ("Orders Module UI (list + detail + create flow)", "Frontend", 11, 2, "Dev 1, Dev 2", "pending"),
+    # PHASE 3: Orders, Business Logic & Dashboard (Apr 7-20)
+    ("PHASE 3: BUSINESS LOGIC & DASHBOARD (Apr 7 - Apr 20)", "", 0, 0, "", ""),
     ("Inventory Module UI (stock levels, alerts)", "Frontend", 11, 1, "Dev 5", "pending"),
-    ("Payment Module UI", "Frontend", 11, 1, "Dev 6", "pending"),
-    ("Invoice Module UI (view/download)", "Frontend", 12, 1, "Dev 6", "pending"),
-    ("Admin Dashboard (stats, charts, recent orders)", "Frontend", 11, 2, "Dev 2, Dev 5", "pending"),
+    ("Payment Module UI (Razorpay frontend)", "Frontend", 11, 1, "Dev 6", "pending"),
+    ("Invoice Module UI (view/download PDF)", "Frontend", 12, 1, "Dev 6", "pending"),
+    ("Admin Dashboard Charts (recharts/chart.js)", "Frontend", 11, 2, "Dev 2, Dev 5", "pending"),
     ("Reporting APIs (sales, top products, analytics)", "Backend", 11, 1, "Dev 3", "pending"),
     ("Delivery Tracking Backend + UI", "Full Stack", 11, 2, "Dev 7", "pending"),
     ("Notifications Backend (Email/SMS)", "Backend", 12, 1, "Dev 4", "pending"),
 
-    # PHASE 4: Role-based, Polish & Launch (Week 13-15, Apr 21-30) — 1.5 weeks
-    ("PHASE 4: POLISH & LAUNCH (Apr 21 - Apr 30) 🚀 DEADLINE", "", 0, 0, "", ""),
+    # PHASE 4: Role-based, Polish & Launch (Apr 21-30)
+    ("PHASE 4: POLISH & LAUNCH (Apr 21 - Apr 30) \U0001f680 DEADLINE", "", 0, 0, "", ""),
     ("Role-based Dashboards (dealer, buyer, vendor)", "Frontend", 13, 1, "Dev 1, Dev 6", "pending"),
     ("Reporting Dashboard Charts (frontend)", "Frontend", 13, 1, "Dev 2, Dev 5", "pending"),
-    ("Search & Filter Components + Responsive Design", "Frontend", 13, 1, "Dev 3", "pending"),
+    ("Responsive Design + Mobile Polish", "Frontend", 13, 1, "Dev 3", "pending"),
     ("Integration Testing (API + UI)", "Full Stack", 13, 1, "All Devs", "pending"),
     ("Bug Fixes & Performance Optimization", "Full Stack", 14, 1, "All Devs", "pending"),
     ("UAT + Production Deployment", "Full Stack", 14, 1, "All Devs", "pending"),
@@ -225,21 +262,21 @@ gantt_tasks = [
 # Colors
 completed_color = "A9D18E"   # Green for done
 phase_colors = {
-    "PHASE 1": "4472C4",     # Blue
-    "PHASE 2": "ED7D31",     # Orange
-    "PHASE 3": "70AD47",     # Green
-    "PHASE 4": "FF6B6B",     # Red/urgent
+    "PHASE 1: FOUNDATION": "4472C4",
+    "PHASE 1 REMAINING": "4472C4",
+    "PHASE 2": "ED7D31",
+    "PHASE 3": "70AD47",
+    "PHASE 4": "FF6B6B",
     "COMPLETED": completed_color,
 }
 
 # Title
 ws2.merge_cells("A1:F1")
-ws2["A1"] = "MATERIAL KING - Gantt Chart (Jan 21, 2026 - Apr 30, 2026)"
+ws2["A1"] = "MATERIAL KING - Gantt Chart (Jan 22, 2026 - Apr 30, 2026)"
 ws2["A1"].font = Font(bold=True, size=16, color="2F5496")
 
 ws2.merge_cells("A2:F2")
-ws2["A2"] = "Team: 6-7 Developers  |  Total: 14 Weeks  |  Elapsed: 7 weeks  |  REMAINING: 7.5 weeks  |  Deadline: 30 Apr 2026"
-ws2["A2"].font = Font(size=10, color="CC0000")
+ws2["A2"] = f"Team: 6-7 Developers  |  Total: 14 Weeks  |  Elapsed: {elapsed_weeks:.0f} weeks  |  REMAINING: {remaining_weeks:.1f} weeks  |  Deadline: 30 Apr 2026"
 ws2["A2"].font = Font(bold=True, size=10, color="CC0000")
 
 # Header row
@@ -254,7 +291,7 @@ for col, val in enumerate(headers, 1):
 
 # Week columns (start at col 7)
 week_start_col = 7
-today_week_index = 7  # week 7 = Mar 9 (this week)
+
 today_col_fill = PatternFill(start_color="FFD700", end_color="FFD700", fill_type="solid")
 
 for w in range(num_weeks):
@@ -291,8 +328,10 @@ for task in gantt_tasks:
         # Determine phase key
         if "COMPLETED" in name:
             current_phase = "COMPLETED"
+        elif "PHASE 1" in name and "REMAINING" in name:
+            current_phase = "PHASE 1 REMAINING"
         elif "PHASE 1" in name:
-            current_phase = "PHASE 1"
+            current_phase = "PHASE 1: FOUNDATION"
         elif "PHASE 2" in name:
             current_phase = "PHASE 2"
         elif "PHASE 3" in name:
@@ -340,7 +379,7 @@ for task in gantt_tasks:
         if start_week <= w < start_week + duration:
             cell.fill = bar_fill
             if status == "done":
-                cell.value = "✓"
+                cell.value = "\u2713"
                 cell.font = Font(color="FFFFFF", bold=True, size=9)
                 cell.alignment = Alignment(horizontal="center")
         else:
@@ -355,12 +394,12 @@ for task in gantt_tasks:
 
 # Add TODAY marker row
 ws2.merge_cells(f"A{row}:F{row}")
-ws2.cell(row=row, column=1, value="▲ TODAY (Mar 10, 2026) — 7.5 weeks to deadline").font = Font(bold=True, size=11, color="CC0000")
+ws2.cell(row=row, column=1, value=f"\u25b2 TODAY (Mar 16, 2026) \u2014 {remaining_weeks:.1f} weeks to deadline").font = Font(bold=True, size=11, color="CC0000")
 ws2.cell(row=row, column=1).fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
 for c in range(2, week_start_col + num_weeks):
     ws2.cell(row=row, column=c).fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
 today_marker_cell = ws2.cell(row=row, column=week_start_col + today_week_index)
-today_marker_cell.value = "▲ NOW"
+today_marker_cell.value = "\u25b2 NOW"
 today_marker_cell.font = Font(bold=True, size=9, color="CC0000")
 today_marker_cell.fill = PatternFill(start_color="FFD700", end_color="FFD700", fill_type="solid")
 today_marker_cell.alignment = Alignment(horizontal="center")
@@ -370,12 +409,12 @@ row += 2
 ws2.cell(row=row, column=1, value="LEGEND:").font = Font(bold=True, size=10)
 row += 1
 legends = [
-    (completed_color, "Completed (Jan 21 - Mar 10)"),
-    ("4472C4", "Phase 1: Foundation (Mar 10-23)"),
-    ("ED7D31", "Phase 2: Core CRUD (Mar 24 - Apr 6)"),
-    ("70AD47", "Phase 3: Orders & Dashboard (Apr 7-20)"),
+    (completed_color, "Completed (Jan 22 - Mar 10)"),
+    ("4472C4", "Phase 1: Foundation (Mar 10-23) \u2014 mostly DONE"),
+    ("ED7D31", "Phase 2: Core CRUD (Mar 24 - Apr 6) \u2014 frontend DONE, backend partial"),
+    ("70AD47", "Phase 3: Business Logic & Dashboard (Apr 7-20)"),
     ("FF6B6B", "Phase 4: Polish & Launch (Apr 21-30)"),
-    ("CC0000", "TODAY marker (Mar 10)"),
+    ("CC0000", "TODAY marker (Mar 16)"),
 ]
 for color, label in legends:
     ws2.cell(row=row, column=1).fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
@@ -384,9 +423,9 @@ for color, label in legends:
     row += 1
 
 # Column widths for Gantt
-ws2.column_dimensions["A"].width = 52
+ws2.column_dimensions["A"].width = 55
 ws2.column_dimensions["B"].width = 12
-ws2.column_dimensions["C"].width = 16
+ws2.column_dimensions["C"].width = 18
 ws2.column_dimensions["D"].width = 11
 ws2.column_dimensions["E"].width = 11
 ws2.column_dimensions["F"].width = 5
@@ -401,66 +440,74 @@ ws3["A1"] = "PROJECT SUMMARY"
 ws3["A1"].font = Font(bold=True, size=14, color="2F5496")
 
 ws3.merge_cells("A2:C2")
-ws3["A2"] = "Start: 21 Jan 2026  |  Today: 10 Mar 2026  |  Deadline: 30 Apr 2026"
+ws3["A2"] = f"Start: 22 Jan 2026  |  Today: 16 Mar 2026  |  Deadline: 30 Apr 2026"
 ws3["A2"].font = Font(bold=True, size=10, color="CC0000")
 
 stats = [
     ("", "", ""),
     ("TIMELINE", "", ""),
-    ("Project Start", "21 Jan 2026", ""),
-    ("Today", "10 Mar 2026", "7 weeks elapsed"),
-    ("Hard Deadline", "30 Apr 2026", "7.5 weeks remaining"),
+    ("Project Start", "22 Jan 2026", ""),
+    ("Today", "16 Mar 2026", f"{elapsed_weeks:.0f} weeks elapsed"),
+    ("Hard Deadline", "30 Apr 2026", f"{remaining_weeks:.1f} weeks remaining"),
     ("Total Duration", "14 weeks", "No buffer for delays"),
     ("", "", ""),
     ("COMPLETION STATUS", "Count", "Details"),
-    ("Backend CRUD Completed", "13 modules", "Auth, Products, Brands, Categories, Vendors, Zones, Buyers, Dealers, Orders, Schema, Seed, Validation, RBAC"),
-    ("Backend Features Pending", "10 features", "Inventory, Pricing, Workflow, Upload, Payments, Invoices, Delivery, Reporting, Search/Pagination, Notifications"),
-    ("Frontend Completed", "4 items", "Vite setup, Axios client, AuthContext shell, Header"),
-    ("Frontend Pending", "22+ items", "All pages, modules, dashboard, role-based UI, integration"),
+    ("Backend CRUD Completed", "17 modules", "Auth, Products, Brands, Categories, Vendors, Zones, Buyers, Dealers, Orders, Cart, Wishlist, Coupon, Address, Schema, Seed, Validation, RBAC"),
+    ("Backend Features Pending", "7 features", "Pagination, File Upload, Payments, Invoices, Reporting, Notifications, Pricing Tiers"),
+    ("Backend Features Partial", "3 features", "Order Workflow (needs transition validation), Inventory (needs decrement), Delivery Tracking"),
+    ("Frontend Completed", "48 items", "All admin CRUD (9 modules), all storefront pages (11), buyer account (4), foundation (10), UI components (4), nav/footer"),
+    ("Frontend Pending", "8 items", "Inventory UI, Payment UI, Invoice UI, Delivery UI, Dashboard Charts, Role-based Dashboards, File Upload UI, Responsive polish"),
     ("", "", ""),
-    ("Overall Completion", "~25%", "Backend CRUD done. Frontend barely started. 75% work remains in 50% time."),
+    ("Overall Completion", "~60%", "Backend CRUD + Frontend CRUD + Storefront all done. Remaining: business logic backends + specialized UIs."),
     ("", "", ""),
     ("RISK ASSESSMENT", "", ""),
-    ("Schedule Risk", "HIGH", "75% work in 7.5 weeks with 6-7 devs. Very tight."),
-    ("Critical Path", "Orders + Payments + Invoices", "These depend on each other — must start early"),
-    ("Parallel Tracks Needed", "YES", "Backend features + Frontend CRUD must run simultaneously"),
-    ("Recommended Action", "AGGRESSIVE SPRINTS", "2-week sprints, daily standups, no scope creep"),
+    ("Schedule Risk", "MEDIUM", "Ahead of schedule on frontend. ~40% work in 6.4 weeks. Manageable with focus."),
+    ("Critical Path", "Payments + Invoices + Inventory", "These depend on each other \u2014 must start this week"),
+    ("Parallel Tracks Needed", "YES", "Backend features (pagination, upload, payments) + Frontend UIs simultaneously"),
+    ("Recommended Action", "FOCUSED SPRINTS", "Tackle P0 items (pagination, upload, state machine, inventory) this week"),
     ("", "", ""),
     ("PHASE PLAN (REMAINING)", "Duration", "Focus"),
-    ("Phase 1: Foundation", "Mar 10-23 (2 wks)", "Auth UI, routing, API layer, search/filter backend, file upload, workflow"),
-    ("Phase 2: Core CRUD", "Mar 24 - Apr 6 (2 wks)", "ALL entity CRUD UIs, pricing, payments backend, invoices backend"),
-    ("Phase 3: Orders & Dashboard", "Apr 7-20 (2 wks)", "Orders UI, inventory UI, payment/invoice UI, dashboard, reporting, delivery, notifications"),
-    ("Phase 4: Polish & Launch", "Apr 21-30 (1.5 wks)", "Role-based UI, responsive design, testing, UAT, deployment"),
+    ("Phase 1 Remaining", "Mar 16-23 (1 wk)", "Pagination, File Upload, Order State Machine, Inventory Decrement"),
+    ("Phase 2 Remaining", "Mar 24 - Apr 6 (2 wks)", "Pricing tiers, Razorpay payment backend, Invoice PDF generation, Product file upload UI"),
+    ("Phase 3: Business Logic", "Apr 7-20 (2 wks)", "Inventory UI, Payment UI, Invoice UI, Dashboard charts, Reporting APIs, Delivery tracking, Notifications"),
+    ("Phase 4: Polish & Launch", "Apr 21-30 (1.5 wks)", "Role-based dashboards, responsive design, testing, UAT, deployment"),
     ("", "", ""),
-    ("TEAM ALLOCATION (suggested)", "", ""),
-    ("Dev 1 (Frontend Lead)", "", "Foundation setup → Products UI → Orders UI → Role-based dashboards"),
-    ("Dev 2 (Frontend)", "", "Auth pages → Brands/Categories/Buyers UI → Orders UI → Dashboard charts"),
-    ("Dev 3 (Backend + Frontend)", "", "Search/Pagination → Invoice backend → Reporting APIs → Filter components"),
-    ("Dev 4 (Backend Lead)", "", "File upload → Inventory backend → Pricing tiers → Notifications"),
-    ("Dev 5 (Frontend)", "", "Vendors/Zones UI → Inventory UI → Dashboard → Responsive design"),
-    ("Dev 6 (Frontend)", "", "Dealers UI → Payment UI → Invoice UI → Role-based views"),
-    ("Dev 7 (Backend)", "", "Order workflow → Payment integration → Delivery tracking → Testing"),
+    ("WHAT WAS DONE AHEAD OF SCHEDULE", "", ""),
+    ("All Admin CRUD UIs (9 modules)", "Phase 2 \u2192 Done in Phase 1", "Products, Brands, Categories, Vendors, Zones, Buyers, Dealers, Orders, Dashboard"),
+    ("All Storefront Pages (11 pages)", "Phase 2-3 \u2192 Done in Phase 1", "Home, Products, Detail, Cart, Checkout, Confirmation, Categories, About, Contact + Header/Footer"),
+    ("Buyer Account (4 pages)", "Phase 3 \u2192 Done in Phase 1", "My Account, My Orders, Addresses, Wishlist"),
+    ("Cart + Wishlist + Coupon APIs", "Not in plan \u2192 Done", "Server-side cart, wishlist, coupon validation \u2014 bonus features"),
+    ("", "", ""),
+    ("TEAM ALLOCATION (suggested for remaining)", "", ""),
+    ("Dev 1 (Frontend Lead)", "", "File Upload UI \u2192 Role-based Dashboards \u2192 Responsive polish"),
+    ("Dev 2 (Frontend)", "", "Dashboard Charts \u2192 Reporting UI \u2192 Integration testing"),
+    ("Dev 3 (Backend + Frontend)", "", "Pagination \u2192 Invoice PDF backend \u2192 Reporting APIs"),
+    ("Dev 4 (Backend Lead)", "", "File Upload Multer \u2192 Inventory decrement \u2192 Notifications"),
+    ("Dev 5 (Frontend)", "", "Inventory UI \u2192 Dashboard charts \u2192 Responsive design"),
+    ("Dev 6 (Frontend)", "", "Payment UI \u2192 Invoice UI \u2192 Role-based views"),
+    ("Dev 7 (Backend)", "", "Order State Machine \u2192 Razorpay \u2192 Delivery tracking"),
 ]
 
 for i, (a, b, c) in enumerate(stats, 4):
     ws3.cell(row=i, column=1, value=a).border = thin_border if a else Border()
     ws3.cell(row=i, column=2, value=b).border = thin_border if a else Border()
     ws3.cell(row=i, column=3, value=c).border = thin_border if a else Border()
-    if a in ("COMPLETION STATUS", "PHASE PLAN (REMAINING)", "TEAM ALLOCATION (suggested)", "TIMELINE", "RISK ASSESSMENT"):
+    if a in ("COMPLETION STATUS", "PHASE PLAN (REMAINING)", "TEAM ALLOCATION (suggested for remaining)",
+             "TIMELINE", "RISK ASSESSMENT", "WHAT WAS DONE AHEAD OF SCHEDULE"):
         for col in range(1, 4):
             ws3.cell(row=i, column=col).font = header_font
             ws3.cell(row=i, column=col).fill = header_fill
     if a == "Overall Completion":
-        ws3.cell(row=i, column=1).font = Font(bold=True, size=12, color="9C0006")
-        ws3.cell(row=i, column=2).font = Font(bold=True, size=12, color="9C0006")
-        ws3.cell(row=i, column=3).font = Font(bold=True, size=11, color="9C0006")
-    if "HIGH" in str(b):
-        ws3.cell(row=i, column=2).font = Font(bold=True, color="CC0000")
-        ws3.cell(row=i, column=2).fill = missing_fill
+        ws3.cell(row=i, column=1).font = Font(bold=True, size=12, color="006100")
+        ws3.cell(row=i, column=2).font = Font(bold=True, size=12, color="006100")
+        ws3.cell(row=i, column=3).font = Font(bold=True, size=11, color="006100")
+    if "MEDIUM" in str(b):
+        ws3.cell(row=i, column=2).font = Font(bold=True, color="ED7D31")
+        ws3.cell(row=i, column=2).fill = partial_fill
 
-ws3.column_dimensions["A"].width = 38
-ws3.column_dimensions["B"].width = 32
-ws3.column_dimensions["C"].width = 75
+ws3.column_dimensions["A"].width = 42
+ws3.column_dimensions["B"].width = 34
+ws3.column_dimensions["C"].width = 80
 
 # Save
 output_path = "/home/user/materialking/MaterialKing_Gantt_Chart.xlsx"
