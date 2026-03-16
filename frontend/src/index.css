@@ -83,3 +83,12 @@ body {
   background-color: #ED1C24;
   color: white;
 }
+
+/* Hide scrollbar but keep scrolling for category nav */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
