@@ -66,8 +66,9 @@ export default function CheckoutPage() {
         ? `${address.full_name}, ${address.address_line1}${address.address_line2 ? ", " + address.address_line2 : ""}, ${address.city}, ${address.state} - ${address.pincode}, Phone: ${address.phone}`
         : ""
 
-      await api.post("/orders", {
+      const { data: order } = await api.post("/orders", {
         shipping_address: shippingAddr,
+        payment_method: paymentMethod,
         total_amount: total,
         notes: coupon ? `Coupon: ${coupon.code} (-₹${discountAmount})` : undefined,
         items: items.map((item) => ({
@@ -79,7 +80,7 @@ export default function CheckoutPage() {
       })
 
       clearCart()
-      navigate("/account/orders")
+      navigate(`/order-confirmation/${order.id}`)
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to place order. Please try again.")
     } finally {

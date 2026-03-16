@@ -1,12 +1,13 @@
 import { Request, Response } from "express";
+import { AuthRequest } from "../../middleware/auth.middleware";
 import pool from "../../config/db";
 
-// GET /api/orders
-export const getAll = async (_req: Request, res: Response) => {
+// GET /api/orders (admin: all, buyer: own)
+export const getAll = async (req: Request, res: Response) => {
   try {
     const result = await pool.query(
-      `SELECT o.id, o.order_number, o.status, o.total_amount,
-              o.shipping_address, o.notes, o.created_at, o.updated_at,
+      `SELECT o.id, o.order_number, o.status, o.payment_method, o.payment_status,
+              o.total_amount, o.shipping_address, o.notes, o.created_at, o.updated_at,
               o.buyer_id, o.dealer_id, o.vendor_id,
               b.company_name AS buyer_company, b.contact_name AS buyer_contact,
               d.company_name AS dealer_company,
@@ -24,13 +25,69 @@ export const getAll = async (_req: Request, res: Response) => {
   }
 };
 
+// GET /api/orders/my — buyer's own orders
+export const getMyOrders = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+
+    const result = await pool.query(
+      `SELECT o.id, o.order_number, o.status, o.payment_method, o.payment_status,
+              o.total_amount, o.shipping_address, o.notes, o.created_at, o.updated_at,
+              (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS item_count
+       FROM orders o
+       JOIN buyers b ON o.buyer_id = b.id
+       WHERE b.user_id = $1
+       ORDER BY o.created_at DESC`,
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error("Order getMyOrders error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/orders/my/:id — buyer's own order detail
+export const getMyOrderDetail = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const { id } = req.params;
+
+    const orderResult = await pool.query(
+      `SELECT o.id, o.order_number, o.status, o.payment_method, o.payment_status,
+              o.total_amount, o.shipping_address, o.notes, o.created_at, o.updated_at
+       FROM orders o
+       JOIN buyers b ON o.buyer_id = b.id
+       WHERE o.id = $1 AND b.user_id = $2`,
+      [id, userId]
+    );
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const itemsResult = await pool.query(
+      `SELECT oi.id, oi.product_id, oi.quantity, oi.unit_price, oi.total_price,
+              p.name AS product_name, p.sku, p.image_url, p.unit
+       FROM order_items oi
+       LEFT JOIN products p ON oi.product_id = p.id
+       WHERE oi.order_id = $1`,
+      [id]
+    );
+
+    res.json({ ...orderResult.rows[0], items: itemsResult.rows });
+  } catch (error: any) {
+    console.error("Order getMyOrderDetail error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // GET /api/orders/:id
 export const getById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const orderResult = await pool.query(
-      `SELECT o.id, o.order_number, o.status, o.total_amount,
-              o.shipping_address, o.notes, o.created_at, o.updated_at,
+      `SELECT o.id, o.order_number, o.status, o.payment_method, o.payment_status,
+              o.total_amount, o.shipping_address, o.notes, o.created_at, o.updated_at,
               o.buyer_id, o.dealer_id, o.vendor_id,
               b.company_name AS buyer_company, b.contact_name AS buyer_contact,
               d.company_name AS dealer_company,
@@ -46,7 +103,6 @@ export const getById = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Get order items
     const itemsResult = await pool.query(
       `SELECT oi.id, oi.order_id, oi.product_id, oi.quantity, oi.unit_price, oi.total_price,
               p.name AS product_name, p.sku
@@ -64,12 +120,25 @@ export const getById = async (req: Request, res: Response) => {
 };
 
 // POST /api/orders
-export const create = async (req: Request, res: Response) => {
+export const create = async (req: AuthRequest, res: Response) => {
   const client = await pool.connect();
   try {
-    const { buyer_id, dealer_id, vendor_id, shipping_address, notes, items } = req.body;
+    const userId = req.user?.userId;
+    const { buyer_id, dealer_id, vendor_id, shipping_address, notes, items, payment_method } = req.body;
 
     await client.query("BEGIN");
+
+    // Auto-resolve buyer_id from logged-in user if not provided
+    let resolvedBuyerId = buyer_id || null;
+    if (!resolvedBuyerId && userId) {
+      const buyerResult = await client.query(
+        `SELECT id FROM buyers WHERE user_id = $1 AND is_active = true LIMIT 1`,
+        [userId]
+      );
+      if (buyerResult.rows.length > 0) {
+        resolvedBuyerId = buyerResult.rows[0].id;
+      }
+    }
 
     // Generate order number
     const countResult = await client.query("SELECT COUNT(*) FROM orders");
@@ -86,10 +155,12 @@ export const create = async (req: Request, res: Response) => {
 
     const orderResult = await client.query(
       `INSERT INTO orders (order_number, buyer_id, dealer_id, vendor_id, status,
-                           total_amount, shipping_address, notes)
-       VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7)
+                           payment_method, payment_status, total_amount, shipping_address, notes)
+       VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8, $9)
        RETURNING *`,
-      [order_number, buyer_id || null, dealer_id || null, vendor_id || null,
+      [order_number, resolvedBuyerId, dealer_id || null, vendor_id || null,
+       payment_method || "cod",
+       payment_method === "cod" ? "unpaid" : "unpaid",
        total_amount, shipping_address || null, notes || null]
     );
 
@@ -107,6 +178,11 @@ export const create = async (req: Request, res: Response) => {
       }
     }
 
+    // Clear the user's cart after successful order
+    if (userId) {
+      await client.query(`DELETE FROM cart_items WHERE user_id = $1`, [userId]);
+    }
+
     await client.query("COMMIT");
     res.status(201).json(orderResult.rows[0]);
   } catch (error: any) {
@@ -122,7 +198,7 @@ export const create = async (req: Request, res: Response) => {
 export const update = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status, total_amount, shipping_address, notes, vendor_id } = req.body;
+    const { status, total_amount, shipping_address, notes, vendor_id, payment_status } = req.body;
 
     const result = await pool.query(
       `UPDATE orders SET
@@ -131,10 +207,11 @@ export const update = async (req: Request, res: Response) => {
         shipping_address = COALESCE($3, shipping_address),
         notes = COALESCE($4, notes),
         vendor_id = COALESCE($5, vendor_id),
+        payment_status = COALESCE($6, payment_status),
         updated_at = NOW()
-       WHERE id = $6
+       WHERE id = $7
        RETURNING *`,
-      [status, total_amount, shipping_address, notes, vendor_id, id]
+      [status, total_amount, shipping_address, notes, vendor_id, payment_status, id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Order not found" });

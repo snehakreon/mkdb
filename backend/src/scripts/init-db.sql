@@ -219,6 +219,10 @@ CREATE TABLE IF NOT EXISTS orders (
   vendor_id       INT REFERENCES vendors(id) ON DELETE SET NULL,
   status          VARCHAR(30) NOT NULL DEFAULT 'pending'
                   CHECK (status IN ('pending','confirmed','processing','shipped','delivered','cancelled')),
+  payment_method  VARCHAR(30) NOT NULL DEFAULT 'cod'
+                  CHECK (payment_method IN ('cod','upi','netbanking','card')),
+  payment_status  VARCHAR(30) NOT NULL DEFAULT 'unpaid'
+                  CHECK (payment_status IN ('unpaid','paid','refunded')),
   total_amount    NUMERIC(14,2) NOT NULL DEFAULT 0,
   shipping_address TEXT,
   notes           TEXT,

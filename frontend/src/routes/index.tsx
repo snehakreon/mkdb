@@ -15,6 +15,7 @@ import ProductDetailPage from "../modules/storefront/ProductDetailPage"
 import StorefrontCategoriesPage from "../modules/storefront/CategoriesPage"
 import CartPage from "../modules/storefront/CartPage"
 import CheckoutPage from "../modules/storefront/CheckoutPage"
+import OrderConfirmationPage from "../modules/storefront/OrderConfirmationPage"
 import AboutPage from "../modules/storefront/AboutPage"
 import ContactPage from "../modules/storefront/ContactPage"
 
@@ -50,6 +51,9 @@ export default function AppRoutes() {
         <Route path="/categories" element={<StorefrontCategoriesPage />} />
         <Route path="/cart" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/order-confirmation/:id" element={
+          <ProtectedRoute><OrderConfirmationPage /></ProtectedRoute>
+        } />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
 

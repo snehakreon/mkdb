@@ -1,11 +1,17 @@
 import { Router } from "express";
-import { getAll, getById, create, update, remove } from "./order.controller";
+import { authenticate } from "../../middleware/auth.middleware";
+import { getAll, getById, create, update, remove, getMyOrders, getMyOrderDetail } from "./order.controller";
 
 const router = Router();
 
+// Buyer's own orders (auth required)
+router.get("/my", authenticate, getMyOrders);
+router.get("/my/:id", authenticate, getMyOrderDetail);
+
+// General CRUD
 router.get("/", getAll);
 router.get("/:id", getById);
-router.post("/", create);
+router.post("/", authenticate, create);
 router.put("/:id", update);
 router.delete("/:id", remove);
 
