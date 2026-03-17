@@ -20,9 +20,9 @@ export const orderService = {
     return Promise.resolve(MOCK_ORDERS);
   },
 
-  async getPaginated(page = 1, pageSize = 20): Promise<PaginatedResult<Order>> {
+  async getPaginated(page = 1, pageSize = 20, search = ''): Promise<PaginatedResult<Order>> {
     if (API_CONFIG.USE_REAL_API) {
-      return apiService.getPaginated<Order>('/orders', { page, pageSize });
+      return apiService.getPaginated<Order>('/orders', { page, pageSize, ...(search && { search }) });
     }
     return { data: MOCK_ORDERS, pagination: { page: 1, pageSize: 20, total: MOCK_ORDERS.length, totalPages: 1 } };
   },

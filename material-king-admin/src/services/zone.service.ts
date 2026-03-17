@@ -16,9 +16,9 @@ export const zoneService = {
     return Promise.resolve(MOCK_ZONES);
   },
 
-  async getPaginated(page = 1, pageSize = 20): Promise<PaginatedResult<Zone>> {
+  async getPaginated(page = 1, pageSize = 20, search = ''): Promise<PaginatedResult<Zone>> {
     if (API_CONFIG.USE_REAL_API) {
-      return apiService.getPaginated<Zone>('/zones', { page, pageSize });
+      return apiService.getPaginated<Zone>('/zones', { page, pageSize, ...(search && { search }) });
     }
     return { data: MOCK_ZONES, pagination: { page: 1, pageSize: 20, total: MOCK_ZONES.length, totalPages: 1 } };
   },

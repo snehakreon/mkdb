@@ -15,9 +15,9 @@ export const categoryService = {
       : Promise.resolve(MOCK_CATEGORIES);
   },
 
-  async getPaginated(page = 1, pageSize = 20): Promise<PaginatedResult<Category>> {
+  async getPaginated(page = 1, pageSize = 20, search = ''): Promise<PaginatedResult<Category>> {
     if (API_CONFIG.USE_REAL_API) {
-      return apiService.getPaginated<Category>('/categories', { page, pageSize });
+      return apiService.getPaginated<Category>('/categories', { page, pageSize, ...(search && { search }) });
     }
     return { data: MOCK_CATEGORIES, pagination: { page: 1, pageSize: 20, total: MOCK_CATEGORIES.length, totalPages: 1 } };
   },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, CreditCard, ShoppingCart, AlertCircle, Bell, Edit2, Trash2, Plus, X, LogOut } from 'lucide-react';
+import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, CreditCard, ShoppingCart, AlertCircle, Bell, Edit2, Trash2, Plus, X, LogOut, Search, Ticket } from 'lucide-react';
 import LoginPage from './auth/LoginPage';
 import { zoneService } from './services/zone.service';
 import { vendorService } from './services/vendor.service';
@@ -9,6 +9,7 @@ import { productService } from './services/product.service';
 import { dealerService } from './services/dealer.service';
 import { orderService } from './services/order.service';
 import { buyerService } from './services/buyer.service';
+import { couponService, Coupon } from './services/coupon.service';
 import { Zone, Vendor, Category, Brand, Product, Order, Dealer, Buyer } from './types';
 import { API_CONFIG } from './config/api.config';
 import apiService from './services/api.service';
@@ -168,6 +169,7 @@ function Sidebar({ currentModule, setCurrentModule, isOpen }: any) {
     { id: 'dealers', label: 'Dealers', icon: Users },
     { id: 'buyers', label: 'Buyers', icon: CreditCard },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
+    { id: 'coupons', label: 'Coupons', icon: Ticket },
   ];
 
   return (
@@ -205,6 +207,7 @@ function ModuleRenderer({ module }: { module: string }) {
     case 'dealers': return <DealersModule />;
     case 'buyers': return <BuyersModule />;
     case 'orders': return <OrdersModule />;
+    case 'coupons': return <CouponsModule />;
     default: return <DashboardModule />;
   }
 }
@@ -213,18 +216,44 @@ function ModuleRenderer({ module }: { module: string }) {
 // DASHBOARD MODULE
 // ============================================================================
 function DashboardModule() {
-  const stats = [
-    { label: 'Total Orders', value: '1,247', icon: ShoppingCart, color: 'bg-blue-500' },
-    { label: 'Active Vendors', value: '52', icon: Building2, color: 'bg-green-500' },
-    { label: 'Total GMV', value: '₹5.2 Cr', icon: DollarSign, color: 'bg-purple-500' },
-    { label: 'Pending', value: '23', icon: AlertCircle, color: 'bg-red-500' },
-  ];
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_CONFIG.API_BASE_URL.replace('/api', '')}/api/stats`);
+        setStats(await res.json());
+      } catch { /* ignore */ }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  const formatCurrency = (v: number) => {
+    if (v >= 10000000) return `₹${(v / 10000000).toFixed(1)} Cr`;
+    if (v >= 100000) return `₹${(v / 100000).toFixed(1)} L`;
+    if (v >= 1000) return `₹${(v / 1000).toFixed(1)} K`;
+    return `₹${v}`;
+  };
+
+  const cards = stats ? [
+    { label: 'Total Orders', value: stats.orders.toLocaleString(), icon: ShoppingCart, color: 'bg-blue-500' },
+    { label: 'Active Vendors', value: stats.vendors.toLocaleString(), icon: Building2, color: 'bg-green-500' },
+    { label: 'Total GMV', value: formatCurrency(stats.gmv), icon: DollarSign, color: 'bg-purple-500' },
+    { label: 'Pending Orders', value: stats.pending_orders.toLocaleString(), icon: AlertCircle, color: 'bg-red-500' },
+    { label: 'Products', value: stats.products.toLocaleString(), icon: Package, color: 'bg-indigo-500' },
+    { label: 'Dealers', value: stats.dealers.toLocaleString(), icon: Users, color: 'bg-teal-500' },
+    { label: 'Buyers', value: stats.buyers.toLocaleString(), icon: CreditCard, color: 'bg-orange-500' },
+    { label: 'Categories', value: stats.categories.toLocaleString(), icon: Boxes, color: 'bg-cyan-500' },
+  ] : [];
+
+  if (loading) return <LoadingSpinner />;
 
   return (
     <div>
       <h1 className="text-3xl font-bold text-mk-gray mb-6">Dashboard</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, idx) => (
+        {cards.map((stat, idx) => (
           <div key={idx} className="bg-white rounded-xl p-6 shadow-md border-l-4 border-mk-red">
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm text-gray-500 font-bold uppercase">{stat.label}</span>
@@ -291,6 +320,20 @@ function Pagination({ page, totalPages, total, pageSize, onPageChange }: {
 }
 
 // ============================================================================
+// SEARCH BAR COMPONENT
+// ============================================================================
+function SearchBar({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <input type="text" value={value} onChange={e => onChange(e.target.value)}
+        placeholder={placeholder || 'Search...'}
+        className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-mk-red focus:border-mk-red outline-none w-64" />
+    </div>
+  );
+}
+
+// ============================================================================
 // ZONES MODULE - API-BACKED CRUD
 // ============================================================================
 function ZonesModule() {
@@ -301,11 +344,12 @@ function ZonesModule() {
   const [formData, setFormData] = useState({ code: '', name: '', description: '' });
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async (p = page) => {
+  const loadData = async (p = page, s = search) => {
     try {
-      const result = await zoneService.getPaginated(p, 20);
+      const result = await zoneService.getPaginated(p, 20, s);
       setZones(Array.isArray(result.data) ? result.data : []);
       setPagination(result.pagination);
     } catch (err) { console.error('Failed to load zones:', err); }
@@ -313,6 +357,7 @@ function ZonesModule() {
   };
 
   useEffect(() => { loadData(); }, [page]);
+  useEffect(() => { const t = setTimeout(() => { setPage(1); loadData(1, search); }, 300); return () => clearTimeout(t); }, [search]);
 
   const handlePageChange = (p: number) => { setPage(p); };
 
@@ -342,7 +387,10 @@ function ZonesModule() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-mk-gray">Zones</h1>
-        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Zone</button>
+        <div className="flex items-center gap-3">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search zones..." />
+          <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Zone</button>
+        </div>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
         {zones.length === 0 ? <p className="text-gray-500 text-center py-8">No zones found. Add your first zone.</p> : (
@@ -392,35 +440,40 @@ function ZonesModule() {
 // ============================================================================
 function VendorsModule() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
-  const [formData, setFormData] = useState({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '' });
+  const [formData, setFormData] = useState({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '', zone_id: '' });
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async (p = page) => {
+  const loadData = async (p = page, s = search) => {
     try {
-      const result = await vendorService.getPaginated(p, 20);
+      const [result, zoneData] = await Promise.all([vendorService.getPaginated(p, 20, s), zoneService.getAll()]);
       setVendors(Array.isArray(result.data) ? result.data : []);
       setPagination(result.pagination);
+      setZones(Array.isArray(zoneData) ? zoneData : []);
     } catch (err) { console.error('Failed to load vendors:', err); }
     finally { setLoading(false); }
   };
 
   useEffect(() => { loadData(); }, [page]);
+  useEffect(() => { const t = setTimeout(() => { setPage(1); loadData(1, search); }, 300); return () => clearTimeout(t); }, [search]);
 
   const handlePageChange = (p: number) => { setPage(p); };
 
-  const handleAdd = () => { setEditingVendor(null); setFormData({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '' }); setShowModal(true); };
-  const handleEdit = (vendor: Vendor) => { setEditingVendor(vendor); setFormData({ company_name: vendor.company_name, contact_name: vendor.contact_name || '', email: vendor.email || '', phone: vendor.phone || '', gstin: vendor.gstin || '', address: vendor.address || '', city: vendor.city || '', state: vendor.state || '', pincode: vendor.pincode || '' }); setShowModal(true); };
+  const handleAdd = () => { setEditingVendor(null); setFormData({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '', zone_id: '' }); setShowModal(true); };
+  const handleEdit = (vendor: Vendor) => { setEditingVendor(vendor); setFormData({ company_name: vendor.company_name, contact_name: vendor.contact_name || '', email: vendor.email || '', phone: vendor.phone || '', gstin: vendor.gstin || '', address: (vendor as any).address || '', city: vendor.city || '', state: vendor.state || '', pincode: (vendor as any).pincode || '', zone_id: (vendor as any).zone_id ? String((vendor as any).zone_id) : '' }); setShowModal(true); };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      if (editingVendor) { await vendorService.update(editingVendor.id, formData); }
-      else { await vendorService.create(formData); }
+      const payload = { ...formData, zone_id: formData.zone_id ? Number(formData.zone_id) : null } as any;
+      if (editingVendor) { await vendorService.update(editingVendor.id, payload); }
+      else { await vendorService.create(payload); }
       await loadData(); setShowModal(false);
     } catch (err) { console.error('Save vendor error:', err); alert('Failed to save vendor.'); }
     finally { setSaving(false); }
@@ -439,7 +492,10 @@ function VendorsModule() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-mk-gray">Vendor Management</h1>
-        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Vendor</button>
+        <div className="flex items-center gap-3">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search vendors..." />
+          <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Vendor</button>
+        </div>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
         {vendors.length === 0 ? <p className="text-gray-500 text-center py-8">No vendors found. Add your first vendor.</p> : (
@@ -487,6 +543,12 @@ function VendorsModule() {
               <div><label className="block text-sm font-bold mb-2">State</label><input type="text" className="input-field" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value })} placeholder="Maharashtra" /></div>
               <div><label className="block text-sm font-bold mb-2">Pincode</label><input type="text" className="input-field" value={formData.pincode} onChange={e => setFormData({ ...formData, pincode: e.target.value })} placeholder="400001" /></div>
             </div>
+            <div><label className="block text-sm font-bold mb-2">Zone</label>
+              <select className="input-field" value={formData.zone_id} onChange={e => setFormData({ ...formData, zone_id: e.target.value })}>
+                <option value="">Select Zone</option>
+                {zones.map(z => <option key={z.id} value={z.id}>{z.name} ({z.code})</option>)}
+              </select>
+            </div>
           </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
@@ -511,9 +573,11 @@ function CategoriesModule() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async (p = page) => {
+  const [search, setSearch] = useState('');
+
+  const loadData = async (p = page, s = search) => {
     try {
-      const result = await categoryService.getPaginated(p, 20);
+      const result = await categoryService.getPaginated(p, 20, s);
       setCategories(Array.isArray(result.data) ? result.data : []);
       setPagination(result.pagination);
     } catch (err) { console.error('Failed to load categories:', err); }
@@ -521,6 +585,7 @@ function CategoriesModule() {
   };
 
   useEffect(() => { loadData(); }, [page]);
+  useEffect(() => { const t = setTimeout(() => { setPage(1); loadData(1, search); }, 300); return () => clearTimeout(t); }, [search]);
 
   const handlePageChange = (p: number) => { setPage(p); };
 
@@ -550,7 +615,10 @@ function CategoriesModule() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-mk-gray">Categories</h1>
-        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Category</button>
+        <div className="flex items-center gap-3">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search categories..." />
+          <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Category</button>
+        </div>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
         {categories.length === 0 ? <p className="text-gray-500 text-center py-8">No categories found. Add your first category.</p> : (
@@ -605,9 +673,11 @@ function BrandsModule() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async (p = page) => {
+  const [search, setSearch] = useState('');
+
+  const loadData = async (p = page, s = search) => {
     try {
-      const result = await brandService.getPaginated(p, 20);
+      const result = await brandService.getPaginated(p, 20, s);
       setBrands(Array.isArray(result.data) ? result.data : []);
       setPagination(result.pagination);
     } catch (err) { console.error('Failed to load brands:', err); }
@@ -615,6 +685,7 @@ function BrandsModule() {
   };
 
   useEffect(() => { loadData(); }, [page]);
+  useEffect(() => { const t = setTimeout(() => { setPage(1); loadData(1, search); }, 300); return () => clearTimeout(t); }, [search]);
 
   const handlePageChange = (p: number) => { setPage(p); };
 
@@ -644,7 +715,10 @@ function BrandsModule() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-mk-gray">Brands</h1>
-        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Brand</button>
+        <div className="flex items-center gap-3">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search brands..." />
+          <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Brand</button>
+        </div>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
         {brands.length === 0 ? <p className="text-gray-500 text-center py-8">No brands found. Add your first brand.</p> : (
@@ -699,7 +773,9 @@ function ProductsModule() {
   const [formData, setFormData] = useState({
     name: '', sku: '', category_id: '', brand_id: '', description: '',
     unit: 'piece', price: '', mrp: '', stock_qty: '', min_order_qty: '1',
-    specifications: '{}', tech_sheet_url: ''
+    specifications: '{}', tech_sheet_url: '', hsn_code: '', image_url: '',
+    country_of_origin: '', colour: '', grade: '', material: '',
+    thickness_mm: '', length_mm: '', breadth_mm: '', weight_kg: ''
   });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -707,10 +783,12 @@ function ProductsModule() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async (p = page) => {
+  const [search, setSearch] = useState('');
+
+  const loadData = async (p = page, s = search) => {
     try {
       const [prodResult, catData, brandData] = await Promise.all([
-        productService.getPaginated(p, 20), categoryService.getAll(), brandService.getAll()
+        productService.getPaginated(p, 20, s), categoryService.getAll(), brandService.getAll()
       ]);
       setProducts(Array.isArray(prodResult.data) ? prodResult.data : []);
       setPagination(prodResult.pagination);
@@ -721,17 +799,19 @@ function ProductsModule() {
   };
 
   useEffect(() => { loadData(); }, [page]);
+  useEffect(() => { const t = setTimeout(() => { setPage(1); loadData(1, search); }, 300); return () => clearTimeout(t); }, [search]);
 
   const handlePageChange = (p: number) => { setPage(p); };
 
   const handleAdd = () => {
     setEditingItem(null);
-    setFormData({ name: '', sku: '', category_id: '', brand_id: '', description: '', unit: 'piece', price: '', mrp: '', stock_qty: '', min_order_qty: '1', specifications: '{}', tech_sheet_url: '' });
+    setFormData({ name: '', sku: '', category_id: '', brand_id: '', description: '', unit: 'piece', price: '', mrp: '', stock_qty: '', min_order_qty: '1', specifications: '{}', tech_sheet_url: '', hsn_code: '', image_url: '', country_of_origin: '', colour: '', grade: '', material: '', thickness_mm: '', length_mm: '', breadth_mm: '', weight_kg: '' });
     setShowModal(true);
   };
 
   const handleEdit = (item: Product) => {
     setEditingItem(item);
+    const p = item as any;
     setFormData({
       name: item.name, sku: item.sku || '',
       category_id: item.category_id || '', brand_id: item.brand_id || '',
@@ -739,7 +819,13 @@ function ProductsModule() {
       price: String(item.price || ''), mrp: String(item.mrp || ''),
       stock_qty: String(item.stock_qty || ''), min_order_qty: String(item.min_order_qty || '1'),
       specifications: JSON.stringify(item.specifications || {}),
-      tech_sheet_url: (item as any).tech_sheet_url || ''
+      tech_sheet_url: p.tech_sheet_url || '', hsn_code: p.hsn_code || '',
+      image_url: p.image_url || '', country_of_origin: p.country_of_origin || '',
+      colour: p.colour || '', grade: p.grade || '', material: p.material || '',
+      thickness_mm: p.thickness_mm ? String(p.thickness_mm) : '',
+      length_mm: p.length_mm ? String(p.length_mm) : '',
+      breadth_mm: p.breadth_mm ? String(p.breadth_mm) : '',
+      weight_kg: p.weight_kg ? String(p.weight_kg) : ''
     });
     setShowModal(true);
   };
@@ -770,6 +856,16 @@ function ProductsModule() {
         min_order_qty: formData.min_order_qty ? Number(formData.min_order_qty) : 1,
         brand_id: formData.brand_id || null,
         category_id: formData.category_id || null,
+        thickness_mm: formData.thickness_mm ? Number(formData.thickness_mm) : null,
+        length_mm: formData.length_mm ? Number(formData.length_mm) : null,
+        breadth_mm: formData.breadth_mm ? Number(formData.breadth_mm) : null,
+        weight_kg: formData.weight_kg ? Number(formData.weight_kg) : null,
+        hsn_code: formData.hsn_code || null,
+        image_url: formData.image_url || null,
+        country_of_origin: formData.country_of_origin || null,
+        colour: formData.colour || null,
+        grade: formData.grade || null,
+        material: formData.material || null,
       };
       try { payload.specifications = JSON.parse(formData.specifications); } catch { payload.specifications = {}; }
       if (editingItem) { await productService.update(editingItem.id, payload); }
@@ -792,7 +888,10 @@ function ProductsModule() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-mk-gray">Products</h1>
-        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Product</button>
+        <div className="flex items-center gap-3">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search products..." />
+          <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Product</button>
+        </div>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
         {products.length === 0 ? <p className="text-gray-500 text-center py-8">No products found. Add your first product.</p> : (
@@ -865,6 +964,22 @@ function ProductsModule() {
               <div><label className="block text-sm font-bold mb-2">Stock Qty</label><input type="number" className="input-field" value={formData.stock_qty} onChange={e => setFormData({ ...formData, stock_qty: e.target.value })} placeholder="100" /></div>
               <div><label className="block text-sm font-bold mb-2">Min Order Qty</label><input type="number" className="input-field" value={formData.min_order_qty} onChange={e => setFormData({ ...formData, min_order_qty: e.target.value })} placeholder="1" /></div>
             </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div><label className="block text-sm font-bold mb-2">HSN Code</label><input type="text" className="input-field" value={formData.hsn_code} onChange={e => setFormData({ ...formData, hsn_code: e.target.value })} placeholder="44121000" /></div>
+              <div><label className="block text-sm font-bold mb-2">Country of Origin</label><input type="text" className="input-field" value={formData.country_of_origin} onChange={e => setFormData({ ...formData, country_of_origin: e.target.value })} placeholder="India" /></div>
+              <div><label className="block text-sm font-bold mb-2">Image URL</label><input type="text" className="input-field" value={formData.image_url} onChange={e => setFormData({ ...formData, image_url: e.target.value })} placeholder="/uploads/..." /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Colour</label><input type="text" className="input-field" value={formData.colour} onChange={e => setFormData({ ...formData, colour: e.target.value })} placeholder="Natural" /></div>
+              <div><label className="block text-sm font-bold mb-2">Grade</label><input type="text" className="input-field" value={formData.grade} onChange={e => setFormData({ ...formData, grade: e.target.value })} placeholder="BWP" /></div>
+              <div><label className="block text-sm font-bold mb-2">Material</label><input type="text" className="input-field" value={formData.material} onChange={e => setFormData({ ...formData, material: e.target.value })} placeholder="Plywood" /></div>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Thickness (mm)</label><input type="number" step="0.1" className="input-field" value={formData.thickness_mm} onChange={e => setFormData({ ...formData, thickness_mm: e.target.value })} /></div>
+              <div><label className="block text-sm font-bold mb-2">Length (mm)</label><input type="number" className="input-field" value={formData.length_mm} onChange={e => setFormData({ ...formData, length_mm: e.target.value })} /></div>
+              <div><label className="block text-sm font-bold mb-2">Breadth (mm)</label><input type="number" className="input-field" value={formData.breadth_mm} onChange={e => setFormData({ ...formData, breadth_mm: e.target.value })} /></div>
+              <div><label className="block text-sm font-bold mb-2">Weight (kg)</label><input type="number" step="0.01" className="input-field" value={formData.weight_kg} onChange={e => setFormData({ ...formData, weight_kg: e.target.value })} /></div>
+            </div>
             <div><label className="block text-sm font-bold mb-2">Specifications (JSON)</label><textarea className="input-field font-mono text-sm" rows={3} value={formData.specifications} onChange={e => setFormData({ ...formData, specifications: e.target.value })} placeholder='{"thickness": "18mm", "grade": "BWP"}' /></div>
             <div>
               <label className="block text-sm font-bold mb-2">Tech Data Sheet (PDF)</label>
@@ -894,33 +1009,38 @@ function ProductsModule() {
 // ============================================================================
 function DealersModule() {
   const [dealers, setDealers] = useState<Dealer[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Dealer | null>(null);
   const [formData, setFormData] = useState({
     company_name: '', contact_name: '', email: '', phone: '', gstin: '',
-    address: '', city: '', state: '', pincode: ''
+    address: '', city: '', state: '', pincode: '', zone_id: ''
   });
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async (p = page) => {
+  const [search, setSearch] = useState('');
+
+  const loadData = async (p = page, s = search) => {
     try {
-      const result = await dealerService.getPaginated(p, 20);
+      const [result, zoneData] = await Promise.all([dealerService.getPaginated(p, 20, s), zoneService.getAll()]);
       setDealers(Array.isArray(result.data) ? result.data : []);
       setPagination(result.pagination);
+      setZones(Array.isArray(zoneData) ? zoneData : []);
     } catch (err) { console.error('Failed to load dealers:', err); }
     finally { setLoading(false); }
   };
 
   useEffect(() => { loadData(); }, [page]);
+  useEffect(() => { const t = setTimeout(() => { setPage(1); loadData(1, search); }, 300); return () => clearTimeout(t); }, [search]);
 
   const handlePageChange = (p: number) => { setPage(p); };
 
   const handleAdd = () => {
     setEditingItem(null);
-    setFormData({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '' });
+    setFormData({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '', zone_id: '' });
     setShowModal(true);
   };
 
@@ -929,7 +1049,8 @@ function DealersModule() {
     setFormData({
       company_name: item.company_name, contact_name: item.contact_name || '',
       email: item.email || '', phone: item.phone || '', gstin: item.gstin || '',
-      address: item.address || '', city: item.city || '', state: item.state || '', pincode: item.pincode || ''
+      address: item.address || '', city: item.city || '', state: item.state || '', pincode: item.pincode || '',
+      zone_id: (item as any).zone_id ? String((item as any).zone_id) : ''
     });
     setShowModal(true);
   };
@@ -937,8 +1058,9 @@ function DealersModule() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      if (editingItem) { await dealerService.update(editingItem.id, formData); }
-      else { await dealerService.create(formData); }
+      const payload = { ...formData, zone_id: formData.zone_id ? Number(formData.zone_id) : null } as any;
+      if (editingItem) { await dealerService.update(editingItem.id, payload); }
+      else { await dealerService.create(payload); }
       await loadData(); setShowModal(false);
     } catch (err) { console.error('Save dealer error:', err); alert('Failed to save dealer.'); }
     finally { setSaving(false); }
@@ -957,7 +1079,10 @@ function DealersModule() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-mk-gray">Dealer Management</h1>
-        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Dealer</button>
+        <div className="flex items-center gap-3">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search dealers..." />
+          <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Dealer</button>
+        </div>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
         {dealers.length === 0 ? <p className="text-gray-500 text-center py-8">No dealers found. Add your first dealer.</p> : (
@@ -1005,6 +1130,12 @@ function DealersModule() {
               <div><label className="block text-sm font-bold mb-2">State</label><input type="text" className="input-field" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value })} placeholder="Maharashtra" /></div>
               <div><label className="block text-sm font-bold mb-2">Pincode</label><input type="text" className="input-field" value={formData.pincode} onChange={e => setFormData({ ...formData, pincode: e.target.value })} placeholder="400001" /></div>
             </div>
+            <div><label className="block text-sm font-bold mb-2">Zone</label>
+              <select className="input-field" value={formData.zone_id} onChange={e => setFormData({ ...formData, zone_id: e.target.value })}>
+                <option value="">Select Zone</option>
+                {zones.map(z => <option key={z.id} value={z.id}>{z.name} ({z.code})</option>)}
+              </select>
+            </div>
           </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
@@ -1032,9 +1163,11 @@ function BuyersModule() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async (p = page) => {
+  const [search, setSearch] = useState('');
+
+  const loadData = async (p = page, s = search) => {
     try {
-      const result = await buyerService.getPaginated(p, 20);
+      const result = await buyerService.getPaginated(p, 20, s);
       setBuyers(Array.isArray(result.data) ? result.data : []);
       setPagination(result.pagination);
     } catch (err) { console.error('Failed to load buyers:', err); }
@@ -1042,6 +1175,7 @@ function BuyersModule() {
   };
 
   useEffect(() => { loadData(); }, [page]);
+  useEffect(() => { const t = setTimeout(() => { setPage(1); loadData(1, search); }, 300); return () => clearTimeout(t); }, [search]);
 
   const handlePageChange = (p: number) => { setPage(p); };
 
@@ -1086,7 +1220,10 @@ function BuyersModule() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-mk-gray">Buyer Management</h1>
-        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Buyer</button>
+        <div className="flex items-center gap-3">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search buyers..." />
+          <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Buyer</button>
+        </div>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
         {buyers.length === 0 ? <p className="text-gray-500 text-center py-8">No buyers found. Add your first buyer.</p> : (
@@ -1187,9 +1324,11 @@ function OrdersModule() {
     status: '', notes: '', shipping_address: ''
   });
 
-  const loadData = async (p = page) => {
+  const [search, setSearch] = useState('');
+
+  const loadData = async (p = page, s = search) => {
     try {
-      const result = await orderService.getPaginated(p, 20);
+      const result = await orderService.getPaginated(p, 20, s);
       setOrders(Array.isArray(result.data) ? result.data : []);
       setPagination(result.pagination);
     } catch (err) { console.error('Failed to load orders:', err); }
@@ -1197,6 +1336,7 @@ function OrdersModule() {
   };
 
   useEffect(() => { loadData(); }, [page]);
+  useEffect(() => { const t = setTimeout(() => { setPage(1); loadData(1, search); }, 300); return () => clearTimeout(t); }, [search]);
 
   const handlePageChange = (p: number) => { setPage(p); };
 
@@ -1269,8 +1409,26 @@ function OrdersModule() {
     finally { setSaving(false); }
   };
 
+  const statusTransitions: Record<string, string[]> = {
+    pending: ['confirmed', 'cancelled'],
+    confirmed: ['processing', 'cancelled'],
+    processing: ['shipped', 'cancelled'],
+    shipped: ['delivered'],
+  };
+
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    const label = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+    if (!confirm(`Change order status to "${label}"?`)) return;
+    try {
+      await apiService.update('/orders', `${id}/status`, { status: newStatus } as any);
+      await loadData();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Failed to update status.');
+    }
+  };
+
   const handleCancel = async (id: string) => {
-    if (confirm('Cancel this order?')) {
+    if (confirm('Cancel this order? Stock will be restored.')) {
       try { await orderService.delete(id); await loadData(); }
       catch (err) { console.error('Cancel order error:', err); alert('Failed to cancel order.'); }
     }
@@ -1293,7 +1451,10 @@ function OrdersModule() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-mk-gray">Order Management</h1>
-        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Create Order</button>
+        <div className="flex items-center gap-3">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search orders..." />
+          <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Create Order</button>
+        </div>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
         {orders.length === 0 ? <p className="text-gray-500 text-center py-8">No orders found. Create your first order.</p> : (
@@ -1313,10 +1474,14 @@ function OrdersModule() {
                 <td className="px-4 py-4 font-bold text-mk-red">₹{Number(order.total_amount || 0).toLocaleString()}</td>
                 <td className="px-4 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColors[order.status] || 'bg-gray-100 text-gray-800'}`}>{order.status}</span></td>
                 <td className="px-4 py-4 text-sm">{new Date(order.created_at).toLocaleDateString()}</td>
-                <td className="px-4 py-4"><div className="flex gap-2">
-                  <button onClick={() => handleEdit(order)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                <td className="px-4 py-4"><div className="flex gap-2 flex-wrap">
+                  <button onClick={() => handleEdit(order)} className="p-2 text-blue-600 hover:bg-blue-50 rounded" title="Edit"><Edit2 className="w-4 h-4" /></button>
+                  {(statusTransitions[order.status] || []).filter(s => s !== 'cancelled').map(s => (
+                    <button key={s} onClick={() => handleStatusChange(order.id, s)}
+                      className="px-2 py-1 text-xs font-bold rounded bg-blue-50 text-blue-700 hover:bg-blue-100 capitalize">{s}</button>
+                  ))}
                   {order.status !== 'delivered' && order.status !== 'cancelled' && (
-                    <button onClick={() => handleCancel(order.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => handleCancel(order.id)} className="px-2 py-1 text-xs font-bold rounded bg-red-50 text-red-600 hover:bg-red-100">Cancel</button>
                   )}
                 </div></td>
               </tr>
@@ -1398,6 +1563,148 @@ function OrdersModule() {
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
             <button onClick={handleUpdateOrder} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Update Order'}</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// COUPONS MODULE
+// ============================================================================
+function CouponsModule() {
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<Coupon | null>(null);
+  const [formData, setFormData] = useState({
+    code: '', description: '', discount_type: 'percentage' as 'percentage' | 'fixed',
+    discount_value: '', min_order_amount: '0', max_discount: '',
+    usage_limit: '', valid_from: '', valid_until: '', is_active: true
+  });
+  const [saving, setSaving] = useState(false);
+
+  const loadData = async () => {
+    try {
+      const data = await couponService.getAll();
+      setCoupons(Array.isArray(data) ? data : []);
+    } catch (err) { console.error('Failed to load coupons:', err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdd = () => {
+    setEditingItem(null);
+    setFormData({ code: '', description: '', discount_type: 'percentage', discount_value: '', min_order_amount: '0', max_discount: '', usage_limit: '', valid_from: new Date().toISOString().slice(0, 10), valid_until: '', is_active: true });
+    setShowModal(true);
+  };
+
+  const handleEdit = (item: Coupon) => {
+    setEditingItem(item);
+    setFormData({
+      code: item.code, description: item.description || '', discount_type: item.discount_type,
+      discount_value: String(item.discount_value), min_order_amount: String(item.min_order_amount || 0),
+      max_discount: item.max_discount ? String(item.max_discount) : '',
+      usage_limit: item.usage_limit ? String(item.usage_limit) : '',
+      valid_from: item.valid_from ? item.valid_from.slice(0, 10) : '',
+      valid_until: item.valid_until ? item.valid_until.slice(0, 10) : '',
+      is_active: item.is_active
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        ...formData,
+        discount_value: Number(formData.discount_value),
+        min_order_amount: Number(formData.min_order_amount) || 0,
+        max_discount: formData.max_discount ? Number(formData.max_discount) : null,
+        usage_limit: formData.usage_limit ? Number(formData.usage_limit) : null,
+        valid_from: formData.valid_from || null,
+        valid_until: formData.valid_until || null,
+      };
+      if (editingItem) { await couponService.update(editingItem.id, payload); }
+      else { await couponService.create(payload); }
+      await loadData(); setShowModal(false);
+    } catch (err) { console.error('Save coupon error:', err); alert('Failed to save coupon.'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Delete this coupon?')) {
+      try { await couponService.delete(id); await loadData(); }
+      catch (err) { console.error('Delete coupon error:', err); alert('Failed to delete coupon.'); }
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-mk-gray">Coupons</h1>
+        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Coupon</button>
+      </div>
+      <div className="bg-white rounded-xl shadow-md p-6">
+        {coupons.length === 0 ? <p className="text-gray-500 text-center py-8">No coupons found.</p> : (
+          <table className="w-full">
+            <thead className="bg-gray-50"><tr>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Code</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Type</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Value</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Min Order</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Usage</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Valid Until</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
+            </tr></thead>
+            <tbody>{coupons.map(c => (
+              <tr key={c.id} className="border-t hover:bg-gray-50">
+                <td className="px-4 py-3 font-bold font-mono">{c.code}</td>
+                <td className="px-4 py-3 text-sm">{c.discount_type === 'percentage' ? 'Percentage' : 'Fixed'}</td>
+                <td className="px-4 py-3 text-sm font-bold">{c.discount_type === 'percentage' ? `${c.discount_value}%` : `₹${c.discount_value}`}{c.max_discount ? ` (max ₹${c.max_discount})` : ''}</td>
+                <td className="px-4 py-3 text-sm">₹{Number(c.min_order_amount).toLocaleString()}</td>
+                <td className="px-4 py-3 text-sm">{c.used_count}{c.usage_limit ? `/${c.usage_limit}` : '/∞'}</td>
+                <td className="px-4 py-3 text-sm">{c.valid_until ? new Date(c.valid_until).toLocaleDateString() : 'No expiry'}</td>
+                <td className="px-4 py-3"><span className={`px-3 py-1 rounded-full text-xs font-bold ${c.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{c.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td className="px-4 py-3"><div className="flex gap-2">
+                  <button onClick={() => handleEdit(c)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(c.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                </div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      {showModal && (
+        <Modal title={editingItem ? 'Edit Coupon' : 'Add Coupon'} onClose={() => setShowModal(false)}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Coupon Code *</label><input type="text" className="input-field uppercase" value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value.toUpperCase() })} placeholder="SAVE20" /></div>
+              <div><label className="block text-sm font-bold mb-2">Discount Type</label><select className="input-field" value={formData.discount_type} onChange={e => setFormData({ ...formData, discount_type: e.target.value as any })}><option value="percentage">Percentage</option><option value="fixed">Fixed Amount</option></select></div>
+            </div>
+            <div><label className="block text-sm font-bold mb-2">Description</label><input type="text" className="input-field" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Save 20% on your order" /></div>
+            <div className="grid grid-cols-3 gap-4">
+              <div><label className="block text-sm font-bold mb-2">{formData.discount_type === 'percentage' ? 'Discount %' : 'Discount ₹'} *</label><input type="number" className="input-field" value={formData.discount_value} onChange={e => setFormData({ ...formData, discount_value: e.target.value })} /></div>
+              <div><label className="block text-sm font-bold mb-2">Min Order ₹</label><input type="number" className="input-field" value={formData.min_order_amount} onChange={e => setFormData({ ...formData, min_order_amount: e.target.value })} /></div>
+              <div><label className="block text-sm font-bold mb-2">Max Discount ₹</label><input type="number" className="input-field" value={formData.max_discount} onChange={e => setFormData({ ...formData, max_discount: e.target.value })} placeholder="Optional" /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Usage Limit</label><input type="number" className="input-field" value={formData.usage_limit} onChange={e => setFormData({ ...formData, usage_limit: e.target.value })} placeholder="Unlimited" /></div>
+              <div><label className="block text-sm font-bold mb-2">Valid From</label><input type="date" className="input-field" value={formData.valid_from} onChange={e => setFormData({ ...formData, valid_from: e.target.value })} /></div>
+              <div><label className="block text-sm font-bold mb-2">Valid Until</label><input type="date" className="input-field" value={formData.valid_until} onChange={e => setFormData({ ...formData, valid_until: e.target.value })} placeholder="No expiry" /></div>
+            </div>
+            {editingItem && (
+              <div><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="w-4 h-4" /><span className="text-sm font-bold">Active</span></label></div>
+            )}
+          </div>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Save Coupon'}</button>
           </div>
         </Modal>
       )}

@@ -25,9 +25,9 @@ export const vendorService = {
     return Promise.resolve(MOCK_VENDORS);
   },
 
-  async getPaginated(page = 1, pageSize = 20): Promise<PaginatedResult<Vendor>> {
+  async getPaginated(page = 1, pageSize = 20, search = ''): Promise<PaginatedResult<Vendor>> {
     if (API_CONFIG.USE_REAL_API) {
-      return apiService.getPaginated<Vendor>('/vendors', { page, pageSize });
+      return apiService.getPaginated<Vendor>('/vendors', { page, pageSize, ...(search && { search }) });
     }
     return { data: MOCK_VENDORS, pagination: { page: 1, pageSize: 20, total: MOCK_VENDORS.length, totalPages: 1 } };
   },

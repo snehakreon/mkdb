@@ -20,9 +20,9 @@ export const productService = {
     return Promise.resolve(MOCK_PRODUCTS);
   },
 
-  async getPaginated(page = 1, pageSize = 20): Promise<PaginatedResult<Product>> {
+  async getPaginated(page = 1, pageSize = 20, search = ''): Promise<PaginatedResult<Product>> {
     if (API_CONFIG.USE_REAL_API) {
-      return apiService.getPaginated<Product>('/products', { page, pageSize });
+      return apiService.getPaginated<Product>('/products', { page, pageSize, ...(search && { search }) });
     }
     return { data: MOCK_PRODUCTS, pagination: { page: 1, pageSize: 20, total: MOCK_PRODUCTS.length, totalPages: 1 } };
   },

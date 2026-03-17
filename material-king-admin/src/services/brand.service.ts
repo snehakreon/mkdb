@@ -13,9 +13,9 @@ export const brandService = {
   async getAll(): Promise<Brand[]> {
     return API_CONFIG.USE_REAL_API ? apiService.getAll<Brand>('/brands') : Promise.resolve(MOCK_BRANDS);
   },
-  async getPaginated(page = 1, pageSize = 20): Promise<PaginatedResult<Brand>> {
+  async getPaginated(page = 1, pageSize = 20, search = ''): Promise<PaginatedResult<Brand>> {
     if (API_CONFIG.USE_REAL_API) {
-      return apiService.getPaginated<Brand>('/brands', { page, pageSize });
+      return apiService.getPaginated<Brand>('/brands', { page, pageSize, ...(search && { search }) });
     }
     return { data: MOCK_BRANDS, pagination: { page: 1, pageSize: 20, total: MOCK_BRANDS.length, totalPages: 1 } };
   },

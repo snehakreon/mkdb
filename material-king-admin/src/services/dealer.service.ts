@@ -19,9 +19,9 @@ export const dealerService = {
     return Promise.resolve(MOCK_DEALERS);
   },
 
-  async getPaginated(page = 1, pageSize = 20): Promise<PaginatedResult<Dealer>> {
+  async getPaginated(page = 1, pageSize = 20, search = ''): Promise<PaginatedResult<Dealer>> {
     if (API_CONFIG.USE_REAL_API) {
-      return apiService.getPaginated<Dealer>('/dealers', { page, pageSize });
+      return apiService.getPaginated<Dealer>('/dealers', { page, pageSize, ...(search && { search }) });
     }
     return { data: MOCK_DEALERS, pagination: { page: 1, pageSize: 20, total: MOCK_DEALERS.length, totalPages: 1 } };
   },

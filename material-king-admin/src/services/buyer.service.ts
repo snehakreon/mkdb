@@ -6,8 +6,8 @@ export const buyerService = {
     return apiService.getAll<Buyer>('/buyers');
   },
 
-  async getPaginated(page = 1, pageSize = 20): Promise<PaginatedResult<Buyer>> {
-    return apiService.getPaginated<Buyer>('/buyers', { page, pageSize });
+  async getPaginated(page = 1, pageSize = 20, search = ''): Promise<PaginatedResult<Buyer>> {
+    return apiService.getPaginated<Buyer>('/buyers', { page, pageSize, ...(search && { search }) });
   },
 
   async create(data: any): Promise<Buyer> {
