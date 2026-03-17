@@ -194,19 +194,17 @@ function Sidebar({ currentModule, setCurrentModule, isOpen }: any) {
 // MODULE RENDERER
 // ============================================================================
 function ModuleRenderer({ module }: { module: string }) {
-  const modules: Record<string, JSX.Element> = {
-    dashboard: <DashboardModule />,
-    zones: <ZonesModule />,
-    vendors: <VendorsModule />,
-    categories: <CategoriesModule />,
-    brands: <BrandsModule />,
-    products: <ProductsModule />,
-    dealers: <DealersModule />,
-    buyers: <BuyersModule />,
-    orders: <OrdersModule />,
-  };
-
-  return modules[module] || <DashboardModule />;
+  switch (module) {
+    case 'zones': return <ZonesModule />;
+    case 'vendors': return <VendorsModule />;
+    case 'categories': return <CategoriesModule />;
+    case 'brands': return <BrandsModule />;
+    case 'products': return <ProductsModule />;
+    case 'dealers': return <DealersModule />;
+    case 'buyers': return <BuyersModule />;
+    case 'orders': return <OrdersModule />;
+    default: return <DashboardModule />;
+  }
 }
 
 // ============================================================================
@@ -263,7 +261,7 @@ function ZonesModule() {
   const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
-    try { const data = await zoneService.getAll(); setZones(data); }
+    try { const data = await zoneService.getAll(); setZones(Array.isArray(data) ? data : []); }
     catch (err) { console.error('Failed to load zones:', err); }
     finally { setLoading(false); }
   };
@@ -352,7 +350,7 @@ function VendorsModule() {
   const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
-    try { const data = await vendorService.getAll(); setVendors(data); }
+    try { const data = await vendorService.getAll(); setVendors(Array.isArray(data) ? data : []); }
     catch (err) { console.error('Failed to load vendors:', err); }
     finally { setLoading(false); }
   };
@@ -455,7 +453,7 @@ function CategoriesModule() {
   const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
-    try { const data = await categoryService.getAll(); setCategories(data); }
+    try { const data = await categoryService.getAll(); setCategories(Array.isArray(data) ? data : []); }
     catch (err) { console.error('Failed to load categories:', err); }
     finally { setLoading(false); }
   };
@@ -541,7 +539,7 @@ function BrandsModule() {
   const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
-    try { const data = await brandService.getAll(); setBrands(data); }
+    try { const data = await brandService.getAll(); setBrands(Array.isArray(data) ? data : []); }
     catch (err) { console.error('Failed to load brands:', err); }
     finally { setLoading(false); }
   };
@@ -639,7 +637,9 @@ function ProductsModule() {
       const [prodData, catData, brandData] = await Promise.all([
         productService.getAll(), categoryService.getAll(), brandService.getAll()
       ]);
-      setProducts(prodData); setCategories(catData); setBrands(brandData);
+      setProducts(Array.isArray(prodData) ? prodData : []);
+      setCategories(Array.isArray(catData) ? catData : []);
+      setBrands(Array.isArray(brandData) ? brandData : []);
     } catch (err) { console.error('Failed to load products:', err); }
     finally { setLoading(false); }
   };
@@ -828,7 +828,7 @@ function DealersModule() {
   const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
-    try { const data = await dealerService.getAll(); setDealers(data); }
+    try { const data = await dealerService.getAll(); setDealers(Array.isArray(data) ? data : []); }
     catch (err) { console.error('Failed to load dealers:', err); }
     finally { setLoading(false); }
   };
@@ -947,7 +947,7 @@ function BuyersModule() {
   const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
-    try { const data = await buyerService.getAll(); setBuyers(data); }
+    try { const data = await buyerService.getAll(); setBuyers(Array.isArray(data) ? data : []); }
     catch (err) { console.error('Failed to load buyers:', err); }
     finally { setLoading(false); }
   };
@@ -1094,7 +1094,7 @@ function OrdersModule() {
   });
 
   const loadData = async () => {
-    try { const data = await orderService.getAll(); setOrders(data); }
+    try { const data = await orderService.getAll(); setOrders(Array.isArray(data) ? data : []); }
     catch (err) { console.error('Failed to load orders:', err); }
     finally { setLoading(false); }
   };
@@ -1108,7 +1108,8 @@ function OrdersModule() {
       const [buyerData, productData] = await Promise.all([
         buyerService.getAll(), productService.getAll()
       ]);
-      setBuyers(buyerData); setProducts(productData);
+      setBuyers(Array.isArray(buyerData) ? buyerData : []);
+      setProducts(Array.isArray(productData) ? productData : []);
     } catch (err) { console.error('Failed to load form data:', err); }
     setShowModal(true);
   };
