@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../../middleware/auth.middleware";
-import { getAll, getById, create, update, remove, getMyOrders, getMyOrderDetail } from "./order.controller";
+import { getAll, getById, create, update, updateStatus, remove, getMyOrders, getMyOrderDetail } from "./order.controller";
 
 const router = Router();
 
@@ -13,6 +13,7 @@ router.get("/", getAll);
 router.get("/:id", getById);
 router.post("/", authenticate, create);
 router.put("/:id", update);
+router.put("/:id/status", updateStatus);
 router.delete("/:id", remove);
 
 export default router;

@@ -232,11 +232,36 @@ export const create = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// Valid state transitions for the order workflow
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  pending:    ["confirmed", "cancelled"],
+  confirmed:  ["processing", "cancelled"],
+  processing: ["shipped", "cancelled"],
+  shipped:    ["delivered"],
+  delivered:  [],
+  cancelled:  [],
+};
+
 // PUT /api/orders/:id
 export const update = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { status, total_amount, shipping_address, notes, vendor_id, payment_status } = req.body;
+
+    // If status is being changed, validate transition
+    if (status) {
+      const current = await pool.query(`SELECT status FROM orders WHERE id = $1`, [id]);
+      if (current.rows.length === 0) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      const currentStatus = current.rows[0].status;
+      const allowed = VALID_TRANSITIONS[currentStatus] || [];
+      if (!allowed.includes(status)) {
+        return res.status(400).json({
+          message: `Cannot transition from '${currentStatus}' to '${status}'. Allowed: ${allowed.join(", ") || "none (terminal state)"}`,
+        });
+      }
+    }
 
     const result = await pool.query(
       `UPDATE orders SET
@@ -261,19 +286,64 @@ export const update = async (req: Request, res: Response) => {
   }
 };
 
+// PUT /api/orders/:id/status — dedicated status transition endpoint
+export const updateStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ message: "status is required" });
+    }
+
+    const current = await pool.query(`SELECT id, status, order_number FROM orders WHERE id = $1`, [id]);
+    if (current.rows.length === 0) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const currentStatus = current.rows[0].status;
+    const allowed = VALID_TRANSITIONS[currentStatus] || [];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({
+        message: `Cannot transition from '${currentStatus}' to '${status}'. Allowed: ${allowed.join(", ") || "none (terminal state)"}`,
+        current_status: currentStatus,
+        allowed_transitions: allowed,
+      });
+    }
+
+    const result = await pool.query(
+      `UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [status, id]
+    );
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error("Order updateStatus error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // DELETE /api/orders/:id (cancel order)
 export const remove = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+
+    const current = await pool.query(`SELECT status FROM orders WHERE id = $1`, [id]);
+    if (current.rows.length === 0) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+    const allowed = VALID_TRANSITIONS[current.rows[0].status] || [];
+    if (!allowed.includes("cancelled")) {
+      return res.status(400).json({
+        message: `Cannot cancel order in '${current.rows[0].status}' state`,
+      });
+    }
+
     const result = await pool.query(
       `UPDATE orders SET status = 'cancelled', updated_at = NOW()
-       WHERE id = $1 AND status NOT IN ('delivered', 'cancelled')
+       WHERE id = $1
        RETURNING id, order_number`,
       [id]
     );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Order not found or cannot be cancelled" });
-    }
     res.json({ message: "Order cancelled", order: result.rows[0] });
   } catch (error: any) {
     console.error("Order cancel error:", error);
