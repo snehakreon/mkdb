@@ -178,6 +178,33 @@ export const create = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Validate stock availability and lock rows (FOR UPDATE prevents concurrent overselling)
+    if (items && items.length > 0) {
+      for (const item of items) {
+        const stockResult = await client.query(
+          `SELECT id, name, stock_qty, min_order_qty FROM products WHERE id = $1 FOR UPDATE`,
+          [item.product_id]
+        );
+        if (stockResult.rows.length === 0) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({ message: `Product ${item.product_id} not found` });
+        }
+        const product = stockResult.rows[0];
+        if (item.quantity < product.min_order_qty) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({
+            message: `Minimum order quantity for "${product.name}" is ${product.min_order_qty}`,
+          });
+        }
+        if (product.stock_qty < item.quantity) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({
+            message: `Insufficient stock for "${product.name}". Available: ${product.stock_qty}, requested: ${item.quantity}`,
+          });
+        }
+      }
+    }
+
     // Generate order number
     const countResult = await client.query("SELECT COUNT(*) FROM orders");
     const orderNum = String(Number(countResult.rows[0].count) + 1).padStart(7, "0");
@@ -204,7 +231,7 @@ export const create = async (req: AuthRequest, res: Response) => {
 
     const order_id = orderResult.rows[0].id;
 
-    // Insert order items
+    // Insert order items and decrement stock
     if (items && items.length > 0) {
       for (const item of items) {
         const total_price = item.quantity * item.unit_price;
@@ -212,6 +239,12 @@ export const create = async (req: AuthRequest, res: Response) => {
           `INSERT INTO order_items (order_id, product_id, quantity, unit_price, total_price)
            VALUES ($1, $2, $3, $4, $5)`,
           [order_id, item.product_id, item.quantity, item.unit_price, total_price]
+        );
+
+        // Decrement stock
+        await client.query(
+          `UPDATE products SET stock_qty = stock_qty - $1, updated_at = NOW() WHERE id = $2`,
+          [item.quantity, item.product_id]
         );
       }
     }
@@ -244,26 +277,45 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 
 // PUT /api/orders/:id
 export const update = async (req: Request, res: Response) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const { status, total_amount, shipping_address, notes, vendor_id, payment_status } = req.body;
 
+    await client.query("BEGIN");
+
     // If status is being changed, validate transition
     if (status) {
-      const current = await pool.query(`SELECT status FROM orders WHERE id = $1`, [id]);
+      const current = await client.query(`SELECT status FROM orders WHERE id = $1 FOR UPDATE`, [id]);
       if (current.rows.length === 0) {
+        await client.query("ROLLBACK");
         return res.status(404).json({ message: "Order not found" });
       }
       const currentStatus = current.rows[0].status;
       const allowed = VALID_TRANSITIONS[currentStatus] || [];
       if (!allowed.includes(status)) {
+        await client.query("ROLLBACK");
         return res.status(400).json({
           message: `Cannot transition from '${currentStatus}' to '${status}'. Allowed: ${allowed.join(", ") || "none (terminal state)"}`,
         });
       }
+
+      // Restore stock if cancelling
+      if (status === "cancelled") {
+        const orderItems = await client.query(
+          `SELECT product_id, quantity FROM order_items WHERE order_id = $1`,
+          [id]
+        );
+        for (const item of orderItems.rows) {
+          await client.query(
+            `UPDATE products SET stock_qty = stock_qty + $1, updated_at = NOW() WHERE id = $2`,
+            [item.quantity, item.product_id]
+          );
+        }
+      }
     }
 
-    const result = await pool.query(
+    const result = await client.query(
       `UPDATE orders SET
         status = COALESCE($1, status),
         total_amount = COALESCE($2, total_amount),
@@ -277,17 +329,24 @@ export const update = async (req: Request, res: Response) => {
       [status, total_amount, shipping_address, notes, vendor_id, payment_status, id]
     );
     if (result.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ message: "Order not found" });
     }
+
+    await client.query("COMMIT");
     res.json(result.rows[0]);
   } catch (error: any) {
+    await client.query("ROLLBACK");
     console.error("Order update error:", error);
     res.status(500).json({ message: error.message });
+  } finally {
+    client.release();
   }
 };
 
 // PUT /api/orders/:id/status — dedicated status transition endpoint
 export const updateStatus = async (req: Request, res: Response) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -296,14 +355,18 @@ export const updateStatus = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "status is required" });
     }
 
-    const current = await pool.query(`SELECT id, status, order_number FROM orders WHERE id = $1`, [id]);
+    await client.query("BEGIN");
+
+    const current = await client.query(`SELECT id, status, order_number FROM orders WHERE id = $1 FOR UPDATE`, [id]);
     if (current.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ message: "Order not found" });
     }
 
     const currentStatus = current.rows[0].status;
     const allowed = VALID_TRANSITIONS[currentStatus] || [];
     if (!allowed.includes(status)) {
+      await client.query("ROLLBACK");
       return res.status(400).json({
         message: `Cannot transition from '${currentStatus}' to '${status}'. Allowed: ${allowed.join(", ") || "none (terminal state)"}`,
         current_status: currentStatus,
@@ -311,42 +374,83 @@ export const updateStatus = async (req: Request, res: Response) => {
       });
     }
 
-    const result = await pool.query(
+    // Restore stock if cancelling
+    if (status === "cancelled") {
+      const orderItems = await client.query(
+        `SELECT product_id, quantity FROM order_items WHERE order_id = $1`,
+        [id]
+      );
+      for (const item of orderItems.rows) {
+        await client.query(
+          `UPDATE products SET stock_qty = stock_qty + $1, updated_at = NOW() WHERE id = $2`,
+          [item.quantity, item.product_id]
+        );
+      }
+    }
+
+    const result = await client.query(
       `UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
       [status, id]
     );
+
+    await client.query("COMMIT");
     res.json(result.rows[0]);
   } catch (error: any) {
+    await client.query("ROLLBACK");
     console.error("Order updateStatus error:", error);
     res.status(500).json({ message: error.message });
+  } finally {
+    client.release();
   }
 };
 
-// DELETE /api/orders/:id (cancel order)
+// DELETE /api/orders/:id (cancel order + restore stock)
 export const remove = async (req: Request, res: Response) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
 
-    const current = await pool.query(`SELECT status FROM orders WHERE id = $1`, [id]);
+    await client.query("BEGIN");
+
+    const current = await client.query(`SELECT id, status FROM orders WHERE id = $1 FOR UPDATE`, [id]);
     if (current.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ message: "Order not found" });
     }
     const allowed = VALID_TRANSITIONS[current.rows[0].status] || [];
     if (!allowed.includes("cancelled")) {
+      await client.query("ROLLBACK");
       return res.status(400).json({
         message: `Cannot cancel order in '${current.rows[0].status}' state`,
       });
     }
 
-    const result = await pool.query(
+    // Restore stock for each order item
+    const orderItems = await client.query(
+      `SELECT product_id, quantity FROM order_items WHERE order_id = $1`,
+      [id]
+    );
+    for (const item of orderItems.rows) {
+      await client.query(
+        `UPDATE products SET stock_qty = stock_qty + $1, updated_at = NOW() WHERE id = $2`,
+        [item.quantity, item.product_id]
+      );
+    }
+
+    const result = await client.query(
       `UPDATE orders SET status = 'cancelled', updated_at = NOW()
        WHERE id = $1
        RETURNING id, order_number`,
       [id]
     );
-    res.json({ message: "Order cancelled", order: result.rows[0] });
+
+    await client.query("COMMIT");
+    res.json({ message: "Order cancelled, stock restored", order: result.rows[0] });
   } catch (error: any) {
+    await client.query("ROLLBACK");
     console.error("Order cancel error:", error);
     res.status(500).json({ message: error.message });
+  } finally {
+    client.release();
   }
 };
