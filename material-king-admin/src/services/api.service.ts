@@ -58,6 +58,13 @@ export const apiService = {
   async delete(endpoint: string, id: string): Promise<void> {
     await apiClient.delete(`${endpoint}/${id}`);
   },
+
+  async upload(endpoint: string, formData: FormData): Promise<any> {
+    const response = await apiClient.post(endpoint, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
 };
 
 export default apiService;

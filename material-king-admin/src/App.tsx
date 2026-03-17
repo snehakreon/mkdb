@@ -10,8 +10,8 @@ import { dealerService } from './services/dealer.service';
 import { orderService } from './services/order.service';
 import { buyerService } from './services/buyer.service';
 import { Zone, Vendor, Category, Brand, Product, Order, Dealer, Buyer } from './types';
-import axios from 'axios';
 import { API_CONFIG } from './config/api.config';
+import apiService from './services/api.service';
 // API_CONFIG imported via services
 
 // ============================================================================
@@ -674,12 +674,9 @@ function ProductsModule() {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const token = localStorage.getItem('mk_auth_token');
-      const res = await axios.post(`${API_CONFIG.API_BASE_URL}/upload`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-      });
-      setFormData({ ...formData, tech_sheet_url: res.data.url });
-    } catch { alert('Failed to upload file. Make sure the backend is running.'); }
+      const res = await apiService.upload('/upload', fd);
+      setFormData({ ...formData, tech_sheet_url: res.url });
+    } catch { alert('Failed to upload file. Please try again.'); }
     setUploading(false);
     if (techSheetRef.current) techSheetRef.current.value = '';
   };
