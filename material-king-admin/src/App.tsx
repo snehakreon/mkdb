@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, CreditCard, ShoppingCart, AlertCircle, Bell, Edit2, Trash2, Plus, X, LogOut } from 'lucide-react';
 import LoginPage from './auth/LoginPage';
 import { zoneService } from './services/zone.service';
@@ -10,6 +10,8 @@ import { dealerService } from './services/dealer.service';
 import { orderService } from './services/order.service';
 import { buyerService } from './services/buyer.service';
 import { Zone, Vendor, Category, Brand, Product, Order, Dealer, Buyer } from './types';
+import axios from 'axios';
+import { API_CONFIG } from './config/api.config';
 // API_CONFIG imported via services
 
 // ============================================================================
@@ -626,9 +628,11 @@ function ProductsModule() {
   const [formData, setFormData] = useState({
     name: '', sku: '', category_id: '', brand_id: '', description: '',
     unit: 'piece', price: '', mrp: '', stock_qty: '', min_order_qty: '1',
-    specifications: '{}'
+    specifications: '{}', tech_sheet_url: ''
   });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const techSheetRef = useRef<HTMLInputElement>(null);
 
   const loadData = async () => {
     try {
@@ -644,7 +648,7 @@ function ProductsModule() {
 
   const handleAdd = () => {
     setEditingItem(null);
-    setFormData({ name: '', sku: '', category_id: '', brand_id: '', description: '', unit: 'piece', price: '', mrp: '', stock_qty: '', min_order_qty: '1', specifications: '{}' });
+    setFormData({ name: '', sku: '', category_id: '', brand_id: '', description: '', unit: 'piece', price: '', mrp: '', stock_qty: '', min_order_qty: '1', specifications: '{}', tech_sheet_url: '' });
     setShowModal(true);
   };
 
@@ -656,9 +660,28 @@ function ProductsModule() {
       description: item.description || '', unit: item.unit || 'piece',
       price: String(item.price || ''), mrp: String(item.mrp || ''),
       stock_qty: String(item.stock_qty || ''), min_order_qty: String(item.min_order_qty || '1'),
-      specifications: JSON.stringify(item.specifications || {})
+      specifications: JSON.stringify(item.specifications || {}),
+      tech_sheet_url: (item as any).tech_sheet_url || ''
     });
     setShowModal(true);
+  };
+
+  const handleTechSheetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') { alert('Only PDF files are allowed'); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const token = localStorage.getItem('mk_auth_token');
+      const res = await axios.post(`${API_CONFIG.API_BASE_URL}/upload`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      setFormData({ ...formData, tech_sheet_url: res.data.url });
+    } catch { alert('Failed to upload file. Make sure the backend is running.'); }
+    setUploading(false);
+    if (techSheetRef.current) techSheetRef.current.value = '';
   };
 
   const handleSave = async () => {
@@ -767,6 +790,18 @@ function ProductsModule() {
               <div><label className="block text-sm font-bold mb-2">Min Order Qty</label><input type="number" className="input-field" value={formData.min_order_qty} onChange={e => setFormData({ ...formData, min_order_qty: e.target.value })} placeholder="1" /></div>
             </div>
             <div><label className="block text-sm font-bold mb-2">Specifications (JSON)</label><textarea className="input-field font-mono text-sm" rows={3} value={formData.specifications} onChange={e => setFormData({ ...formData, specifications: e.target.value })} placeholder='{"thickness": "18mm", "grade": "BWP"}' /></div>
+            <div>
+              <label className="block text-sm font-bold mb-2">Tech Data Sheet (PDF)</label>
+              {formData.tech_sheet_url && (
+                <div className="flex items-center gap-2 mb-2">
+                  <a href={`${API_CONFIG.API_BASE_URL.replace('/api', '')}${formData.tech_sheet_url}`} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 underline truncate max-w-[200px]">{formData.tech_sheet_url.split('/').pop()}</a>
+                  <button type="button" onClick={() => setFormData({ ...formData, tech_sheet_url: '' })} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                </div>
+              )}
+              <input ref={techSheetRef} type="file" accept=".pdf,application/pdf" onChange={handleTechSheetUpload}
+                className="block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-bold file:bg-red-50 file:text-mk-red hover:file:bg-red-100" />
+              {uploading && <p className="text-xs text-gray-400 mt-1">Uploading...</p>}
+            </div>
           </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
