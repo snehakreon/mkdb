@@ -53,8 +53,9 @@ export default function App() {
     setIsLoading(false);
   }, []);
 
-  const handleLogin = (token: string, userData: AuthUser) => {
+  const handleLogin = (token: string, refreshToken: string, userData: AuthUser) => {
     localStorage.setItem('mk_auth_token', token);
+    localStorage.setItem('mk_refresh_token', refreshToken);
     localStorage.setItem('mk_user', JSON.stringify(userData));
     setUser(userData);
     setIsAuthenticated(true);
@@ -62,6 +63,7 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('mk_auth_token');
+    localStorage.removeItem('mk_refresh_token');
     localStorage.removeItem('mk_user');
     setUser(null);
     setIsAuthenticated(false);
