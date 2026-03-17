@@ -1,8 +1,10 @@
 import express from "express";
+import path from "path";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import authRoutes from "./modules/auth/auth.routes";
+import uploadRoutes from "./modules/upload/upload.routes";
 import zoneRoutes from "./modules/zone/zone.routes";
 import categoryRoutes from "./modules/category/category.routes";
 import brandRoutes from "./modules/brand/brand.routes";
@@ -36,6 +38,9 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+// Serve uploaded files
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/zones", zoneRoutes);
@@ -50,6 +55,7 @@ app.use("/api/addresses", addressRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/cart", cartRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // Health check
 app.get("/", (_req, res) => {
