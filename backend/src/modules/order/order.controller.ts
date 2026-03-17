@@ -1,10 +1,37 @@
 import { Request, Response } from "express";
 import { AuthRequest } from "../../middleware/auth.middleware";
 import pool from "../../config/db";
+import { parsePagination, buildPaginatedResponse } from "../../utils/pagination";
 
 // GET /api/orders (admin: all, buyer: own)
 export const getAll = async (req: Request, res: Response) => {
   try {
+    const { search, status } = req.query;
+    const pag = parsePagination(req);
+    let where = "";
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    const conditions: string[] = [];
+    if (search) {
+      conditions.push(`(o.order_number ILIKE $${paramIdx} OR b.company_name ILIKE $${paramIdx})`);
+      params.push(`%${search}%`);
+      paramIdx++;
+    }
+    if (status) {
+      conditions.push(`o.status = $${paramIdx}`);
+      params.push(status);
+      paramIdx++;
+    }
+    if (conditions.length > 0) {
+      where = ` WHERE ${conditions.join(" AND ")}`;
+    }
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM orders o LEFT JOIN buyers b ON o.buyer_id = b.id${where}`, params
+    );
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
       `SELECT o.id, o.order_number, o.status, o.payment_method, o.payment_status,
               o.total_amount, o.shipping_address, o.notes, o.created_at, o.updated_at,
@@ -16,9 +43,12 @@ export const getAll = async (req: Request, res: Response) => {
        LEFT JOIN buyers b ON o.buyer_id = b.id
        LEFT JOIN dealers d ON o.dealer_id = d.id
        LEFT JOIN vendors v ON o.vendor_id = v.id
-       ORDER BY o.created_at DESC`
+       ${where}
+       ORDER BY o.created_at DESC
+       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
+      [...params, pag.pageSize, pag.offset]
     );
-    res.json(result.rows);
+    res.json(buildPaginatedResponse(result.rows, total, pag));
   } catch (error: any) {
     console.error("Order getAll error:", error);
     res.status(500).json({ message: error.message });
@@ -29,6 +59,13 @@ export const getAll = async (req: Request, res: Response) => {
 export const getMyOrders = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.userId;
+    const pag = parsePagination(req);
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM orders o JOIN buyers b ON o.buyer_id = b.id WHERE b.user_id = $1`,
+      [userId]
+    );
+    const total = parseInt(countResult.rows[0].count);
 
     const result = await pool.query(
       `SELECT o.id, o.order_number, o.status, o.payment_method, o.payment_status,
@@ -37,10 +74,11 @@ export const getMyOrders = async (req: AuthRequest, res: Response) => {
        FROM orders o
        JOIN buyers b ON o.buyer_id = b.id
        WHERE b.user_id = $1
-       ORDER BY o.created_at DESC`,
-      [userId]
+       ORDER BY o.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, pag.pageSize, pag.offset]
     );
-    res.json(result.rows);
+    res.json(buildPaginatedResponse(result.rows, total, pag));
   } catch (error: any) {
     console.error("Order getMyOrders error:", error);
     res.status(500).json({ message: error.message });
