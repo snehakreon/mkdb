@@ -1,4 +1,4 @@
-import { apiService } from './api.service';
+import { apiService, PaginatedResult } from './api.service';
 import { Product } from '../types';
 import { API_CONFIG } from '../config/api.config';
 
@@ -18,6 +18,13 @@ export const productService = {
       return apiService.getAll<Product>('/products');
     }
     return Promise.resolve(MOCK_PRODUCTS);
+  },
+
+  async getPaginated(page = 1, pageSize = 20): Promise<PaginatedResult<Product>> {
+    if (API_CONFIG.USE_REAL_API) {
+      return apiService.getPaginated<Product>('/products', { page, pageSize });
+    }
+    return { data: MOCK_PRODUCTS, pagination: { page: 1, pageSize: 20, total: MOCK_PRODUCTS.length, totalPages: 1 } };
   },
 
   async getById(id: string): Promise<Product> {

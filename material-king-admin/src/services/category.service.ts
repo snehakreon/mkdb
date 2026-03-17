@@ -1,4 +1,4 @@
-import { apiService } from './api.service';
+import { apiService, PaginatedResult } from './api.service';
 import { Category } from '../types';
 import { API_CONFIG } from '../config/api.config';
 
@@ -10,9 +10,16 @@ const MOCK_CATEGORIES: Category[] = [
 
 export const categoryService = {
   async getAll(): Promise<Category[]> {
-    return API_CONFIG.USE_REAL_API 
-      ? apiService.getAll<Category>('/categories') 
+    return API_CONFIG.USE_REAL_API
+      ? apiService.getAll<Category>('/categories')
       : Promise.resolve(MOCK_CATEGORIES);
+  },
+
+  async getPaginated(page = 1, pageSize = 20): Promise<PaginatedResult<Category>> {
+    if (API_CONFIG.USE_REAL_API) {
+      return apiService.getPaginated<Category>('/categories', { page, pageSize });
+    }
+    return { data: MOCK_CATEGORIES, pagination: { page: 1, pageSize: 20, total: MOCK_CATEGORIES.length, totalPages: 1 } };
   },
 
   async create(data: Partial<Category>): Promise<Category> {

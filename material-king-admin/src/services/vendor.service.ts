@@ -1,4 +1,4 @@
-import { apiService } from './api.service';
+import { apiService, PaginatedResult } from './api.service';
 import { Vendor } from '../types';
 import { API_CONFIG } from '../config/api.config';
 
@@ -23,6 +23,13 @@ export const vendorService = {
       return apiService.getAll<Vendor>('/vendors');
     }
     return Promise.resolve(MOCK_VENDORS);
+  },
+
+  async getPaginated(page = 1, pageSize = 20): Promise<PaginatedResult<Vendor>> {
+    if (API_CONFIG.USE_REAL_API) {
+      return apiService.getPaginated<Vendor>('/vendors', { page, pageSize });
+    }
+    return { data: MOCK_VENDORS, pagination: { page: 1, pageSize: 20, total: MOCK_VENDORS.length, totalPages: 1 } };
   },
 
   async create(data: Partial<Vendor>): Promise<Vendor> {

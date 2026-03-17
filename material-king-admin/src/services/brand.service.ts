@@ -1,4 +1,4 @@
-import { apiService } from './api.service';
+import { apiService, PaginatedResult } from './api.service';
 import { Brand } from '../types';
 import { API_CONFIG } from '../config/api.config';
 
@@ -12,6 +12,12 @@ const MOCK_BRANDS: Brand[] = [
 export const brandService = {
   async getAll(): Promise<Brand[]> {
     return API_CONFIG.USE_REAL_API ? apiService.getAll<Brand>('/brands') : Promise.resolve(MOCK_BRANDS);
+  },
+  async getPaginated(page = 1, pageSize = 20): Promise<PaginatedResult<Brand>> {
+    if (API_CONFIG.USE_REAL_API) {
+      return apiService.getPaginated<Brand>('/brands', { page, pageSize });
+    }
+    return { data: MOCK_BRANDS, pagination: { page: 1, pageSize: 20, total: MOCK_BRANDS.length, totalPages: 1 } };
   },
   async create(data: Partial<Brand>): Promise<Brand> {
     return API_CONFIG.USE_REAL_API ? apiService.create<Brand>('/brands', data) : Promise.resolve({ ...data, id: String(Date.now()), is_active: true } as Brand);

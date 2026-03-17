@@ -252,6 +252,45 @@ function LoadingSpinner() {
 }
 
 // ============================================================================
+// PAGINATION COMPONENT
+// ============================================================================
+function Pagination({ page, totalPages, total, pageSize, onPageChange }: {
+  page: number; totalPages: number; total: number; pageSize: number;
+  onPageChange: (p: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+  const start = (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, total);
+
+  return (
+    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+      <p className="text-sm text-gray-500">Showing {start}–{end} of {total}</p>
+      <div className="flex items-center gap-1">
+        <button onClick={() => onPageChange(1)} disabled={page <= 1}
+          className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">First</button>
+        <button onClick={() => onPageChange(page - 1)} disabled={page <= 1}
+          className="px-3 py-1 text-sm rounded border hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">Prev</button>
+        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+          let p: number;
+          if (totalPages <= 5) p = i + 1;
+          else if (page <= 3) p = i + 1;
+          else if (page >= totalPages - 2) p = totalPages - 4 + i;
+          else p = page - 2 + i;
+          return (
+            <button key={p} onClick={() => onPageChange(p)}
+              className={`px-3 py-1 text-sm rounded border ${p === page ? 'bg-mk-red text-white border-mk-red font-bold' : 'hover:bg-gray-50'}`}>{p}</button>
+          );
+        })}
+        <button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}
+          className="px-3 py-1 text-sm rounded border hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">Next</button>
+        <button onClick={() => onPageChange(totalPages)} disabled={page >= totalPages}
+          className="px-2 py-1 text-xs rounded border hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed">Last</button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // ZONES MODULE - API-BACKED CRUD
 // ============================================================================
 function ZonesModule() {
@@ -261,14 +300,21 @@ function ZonesModule() {
   const [editingZone, setEditingZone] = useState<Zone | null>(null);
   const [formData, setFormData] = useState({ code: '', name: '', description: '' });
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async () => {
-    try { const data = await zoneService.getAll(); setZones(Array.isArray(data) ? data : []); }
-    catch (err) { console.error('Failed to load zones:', err); }
+  const loadData = async (p = page) => {
+    try {
+      const result = await zoneService.getPaginated(p, 20);
+      setZones(Array.isArray(result.data) ? result.data : []);
+      setPagination(result.pagination);
+    } catch (err) { console.error('Failed to load zones:', err); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [page]);
+
+  const handlePageChange = (p: number) => { setPage(p); };
 
   const handleAdd = () => { setEditingZone(null); setFormData({ code: '', name: '', description: '' }); setShowModal(true); };
   const handleEdit = (zone: Zone) => { setEditingZone(zone); setFormData({ code: zone.code, name: zone.name, description: zone.description || '' }); setShowModal(true); };
@@ -322,6 +368,7 @@ function ZonesModule() {
             ))}</tbody>
           </table>
         )}
+        <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} pageSize={pagination.pageSize} onPageChange={handlePageChange} />
       </div>
       {showModal && (
         <Modal title={editingZone ? 'Edit Zone' : 'Add Zone'} onClose={() => setShowModal(false)}>
@@ -350,14 +397,21 @@ function VendorsModule() {
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [formData, setFormData] = useState({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '' });
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async () => {
-    try { const data = await vendorService.getAll(); setVendors(Array.isArray(data) ? data : []); }
-    catch (err) { console.error('Failed to load vendors:', err); }
+  const loadData = async (p = page) => {
+    try {
+      const result = await vendorService.getPaginated(p, 20);
+      setVendors(Array.isArray(result.data) ? result.data : []);
+      setPagination(result.pagination);
+    } catch (err) { console.error('Failed to load vendors:', err); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [page]);
+
+  const handlePageChange = (p: number) => { setPage(p); };
 
   const handleAdd = () => { setEditingVendor(null); setFormData({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '' }); setShowModal(true); };
   const handleEdit = (vendor: Vendor) => { setEditingVendor(vendor); setFormData({ company_name: vendor.company_name, contact_name: vendor.contact_name || '', email: vendor.email || '', phone: vendor.phone || '', gstin: vendor.gstin || '', address: vendor.address || '', city: vendor.city || '', state: vendor.state || '', pincode: vendor.pincode || '' }); setShowModal(true); };
@@ -413,6 +467,7 @@ function VendorsModule() {
             ))}</tbody>
           </table>
         )}
+        <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} pageSize={pagination.pageSize} onPageChange={handlePageChange} />
       </div>
       {showModal && (
         <Modal title={editingVendor ? 'Edit Vendor' : 'Add Vendor'} onClose={() => setShowModal(false)}>
@@ -453,14 +508,21 @@ function CategoriesModule() {
   const [editingItem, setEditingItem] = useState<Category | null>(null);
   const [formData, setFormData] = useState({ name: '', slug: '' });
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async () => {
-    try { const data = await categoryService.getAll(); setCategories(Array.isArray(data) ? data : []); }
-    catch (err) { console.error('Failed to load categories:', err); }
+  const loadData = async (p = page) => {
+    try {
+      const result = await categoryService.getPaginated(p, 20);
+      setCategories(Array.isArray(result.data) ? result.data : []);
+      setPagination(result.pagination);
+    } catch (err) { console.error('Failed to load categories:', err); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [page]);
+
+  const handlePageChange = (p: number) => { setPage(p); };
 
   const handleAdd = () => { setEditingItem(null); setFormData({ name: '', slug: '' }); setShowModal(true); };
   const handleEdit = (item: Category) => { setEditingItem(item); setFormData({ name: item.name, slug: item.slug }); setShowModal(true); };
@@ -512,6 +574,7 @@ function CategoriesModule() {
             ))}</tbody>
           </table>
         )}
+        <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} pageSize={pagination.pageSize} onPageChange={handlePageChange} />
       </div>
       {showModal && (
         <Modal title={editingItem ? 'Edit Category' : 'Add Category'} onClose={() => setShowModal(false)}>
@@ -539,14 +602,21 @@ function BrandsModule() {
   const [editingItem, setEditingItem] = useState<Brand | null>(null);
   const [formData, setFormData] = useState({ name: '', slug: '' });
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async () => {
-    try { const data = await brandService.getAll(); setBrands(Array.isArray(data) ? data : []); }
-    catch (err) { console.error('Failed to load brands:', err); }
+  const loadData = async (p = page) => {
+    try {
+      const result = await brandService.getPaginated(p, 20);
+      setBrands(Array.isArray(result.data) ? result.data : []);
+      setPagination(result.pagination);
+    } catch (err) { console.error('Failed to load brands:', err); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [page]);
+
+  const handlePageChange = (p: number) => { setPage(p); };
 
   const handleAdd = () => { setEditingItem(null); setFormData({ name: '', slug: '' }); setShowModal(true); };
   const handleEdit = (item: Brand) => { setEditingItem(item); setFormData({ name: item.name, slug: item.slug }); setShowModal(true); };
@@ -598,6 +668,7 @@ function BrandsModule() {
             ))}</tbody>
           </table>
         )}
+        <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} pageSize={pagination.pageSize} onPageChange={handlePageChange} />
       </div>
       {showModal && (
         <Modal title={editingItem ? 'Edit Brand' : 'Add Brand'} onClose={() => setShowModal(false)}>
@@ -633,20 +704,25 @@ function ProductsModule() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const techSheetRef = useRef<HTMLInputElement>(null);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async () => {
+  const loadData = async (p = page) => {
     try {
-      const [prodData, catData, brandData] = await Promise.all([
-        productService.getAll(), categoryService.getAll(), brandService.getAll()
+      const [prodResult, catData, brandData] = await Promise.all([
+        productService.getPaginated(p, 20), categoryService.getAll(), brandService.getAll()
       ]);
-      setProducts(Array.isArray(prodData) ? prodData : []);
+      setProducts(Array.isArray(prodResult.data) ? prodResult.data : []);
+      setPagination(prodResult.pagination);
       setCategories(Array.isArray(catData) ? catData : []);
       setBrands(Array.isArray(brandData) ? brandData : []);
     } catch (err) { console.error('Failed to load products:', err); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [page]);
+
+  const handlePageChange = (p: number) => { setPage(p); };
 
   const handleAdd = () => {
     setEditingItem(null);
@@ -748,6 +824,7 @@ function ProductsModule() {
             ))}</tbody>
           </table>
         )}
+        <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} pageSize={pagination.pageSize} onPageChange={handlePageChange} />
       </div>
       {showModal && (
         <Modal title={editingItem ? 'Edit Product' : 'Add Product'} onClose={() => setShowModal(false)}>
@@ -825,14 +902,21 @@ function DealersModule() {
     address: '', city: '', state: '', pincode: ''
   });
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async () => {
-    try { const data = await dealerService.getAll(); setDealers(Array.isArray(data) ? data : []); }
-    catch (err) { console.error('Failed to load dealers:', err); }
+  const loadData = async (p = page) => {
+    try {
+      const result = await dealerService.getPaginated(p, 20);
+      setDealers(Array.isArray(result.data) ? result.data : []);
+      setPagination(result.pagination);
+    } catch (err) { console.error('Failed to load dealers:', err); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [page]);
+
+  const handlePageChange = (p: number) => { setPage(p); };
 
   const handleAdd = () => {
     setEditingItem(null);
@@ -901,6 +985,7 @@ function DealersModule() {
             ))}</tbody>
           </table>
         )}
+        <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} pageSize={pagination.pageSize} onPageChange={handlePageChange} />
       </div>
       {showModal && (
         <Modal title={editingItem ? 'Edit Dealer' : 'Add Dealer'} onClose={() => setShowModal(false)}>
@@ -944,14 +1029,21 @@ function BuyersModule() {
     first_name: '', last_name: '', email: '', phone: ''
   });
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
-  const loadData = async () => {
-    try { const data = await buyerService.getAll(); setBuyers(Array.isArray(data) ? data : []); }
-    catch (err) { console.error('Failed to load buyers:', err); }
+  const loadData = async (p = page) => {
+    try {
+      const result = await buyerService.getPaginated(p, 20);
+      setBuyers(Array.isArray(result.data) ? result.data : []);
+      setPagination(result.pagination);
+    } catch (err) { console.error('Failed to load buyers:', err); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [page]);
+
+  const handlePageChange = (p: number) => { setPage(p); };
 
   const handleAdd = () => {
     setEditingItem(null);
@@ -1026,6 +1118,7 @@ function BuyersModule() {
             ))}</tbody>
           </table>
         )}
+        <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} pageSize={pagination.pageSize} onPageChange={handlePageChange} />
       </div>
       {showModal && (
         <Modal title={editingItem ? 'Edit Buyer' : 'Add Buyer'} onClose={() => setShowModal(false)}>
@@ -1077,6 +1170,8 @@ function OrdersModule() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
 
   // Create order form state
   const [buyers, setBuyers] = useState<Buyer[]>([]);
@@ -1092,13 +1187,18 @@ function OrdersModule() {
     status: '', notes: '', shipping_address: ''
   });
 
-  const loadData = async () => {
-    try { const data = await orderService.getAll(); setOrders(Array.isArray(data) ? data : []); }
-    catch (err) { console.error('Failed to load orders:', err); }
+  const loadData = async (p = page) => {
+    try {
+      const result = await orderService.getPaginated(p, 20);
+      setOrders(Array.isArray(result.data) ? result.data : []);
+      setPagination(result.pagination);
+    } catch (err) { console.error('Failed to load orders:', err); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [page]);
+
+  const handlePageChange = (p: number) => { setPage(p); };
 
   const handleAdd = async () => {
     setOrderForm({ buyer_id: '', vendor_id: '', shipping_address: '', notes: '' });
@@ -1223,6 +1323,7 @@ function OrdersModule() {
             ))}</tbody>
           </table>
         )}
+        <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} pageSize={pagination.pageSize} onPageChange={handlePageChange} />
       </div>
 
       {/* CREATE ORDER MODAL */}

@@ -1,4 +1,4 @@
-import { apiService } from './api.service';
+import { apiService, PaginatedResult } from './api.service';
 import { Zone } from '../types';
 import { API_CONFIG } from '../config/api.config';
 
@@ -14,6 +14,13 @@ export const zoneService = {
       return apiService.getAll<Zone>('/zones');
     }
     return Promise.resolve(MOCK_ZONES);
+  },
+
+  async getPaginated(page = 1, pageSize = 20): Promise<PaginatedResult<Zone>> {
+    if (API_CONFIG.USE_REAL_API) {
+      return apiService.getPaginated<Zone>('/zones', { page, pageSize });
+    }
+    return { data: MOCK_ZONES, pagination: { page: 1, pageSize: 20, total: MOCK_ZONES.length, totalPages: 1 } };
   },
 
   async getById(id: string): Promise<Zone> {

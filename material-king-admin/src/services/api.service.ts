@@ -81,14 +81,28 @@ apiClient.interceptors.response.use(
   }
 );
 
+export interface PaginatedResult<T> {
+  data: T[];
+  pagination: { page: number; pageSize: number; total: number; totalPages: number };
+}
+
 export const apiService = {
-  async getAll<T>(endpoint: string): Promise<T[]> {
-    const response = await apiClient.get(endpoint);
-    // Backend returns paginated responses: { data: [...], pagination: {...} }
+  async getAll<T>(endpoint: string, params?: { page?: number; pageSize?: number; search?: string }): Promise<T[]> {
+    const response = await apiClient.get(endpoint, { params });
     if (response.data && Array.isArray(response.data.data)) {
       return response.data.data;
     }
     return response.data;
+  },
+
+  async getPaginated<T>(endpoint: string, params?: { page?: number; pageSize?: number; search?: string }): Promise<PaginatedResult<T>> {
+    const response = await apiClient.get(endpoint, { params });
+    if (response.data && Array.isArray(response.data.data) && response.data.pagination) {
+      return response.data;
+    }
+    // Fallback for non-paginated endpoints
+    const arr = Array.isArray(response.data) ? response.data : [];
+    return { data: arr, pagination: { page: 1, pageSize: arr.length, total: arr.length, totalPages: 1 } };
   },
 
   async getById<T>(endpoint: string, id: string): Promise<T> {
