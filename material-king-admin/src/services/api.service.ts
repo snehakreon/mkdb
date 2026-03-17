@@ -33,6 +33,10 @@ apiClient.interceptors.response.use(
 export const apiService = {
   async getAll<T>(endpoint: string): Promise<T[]> {
     const response = await apiClient.get(endpoint);
+    // Backend returns paginated responses: { data: [...], pagination: {...} }
+    if (response.data && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
     return response.data;
   },
 
