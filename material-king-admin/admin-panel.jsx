@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { BarChart3, Package, Users, MapPin, DollarSign, ShoppingCart, TrendingUp, AlertCircle, Check, X, Eye, Edit2, Trash2, Plus, Search, Filter, Download, Upload, RefreshCw, Settings, LogOut, Bell, ChevronDown, Home, Building2, Tag, Boxes, Receipt, CreditCard, Truck, AlertTriangle, FileText, Menu } from 'lucide-react';
+import { BarChart3, Package, Users, MapPin, DollarSign, ShoppingCart, TrendingUp, AlertCircle, Check, X, Eye, Edit2, Trash2, Plus, Search, Filter, Download, Upload, RefreshCw, Settings, LogOut, Bell, ChevronDown, Home, Building2, Tag, Boxes, Receipt, CreditCard, Truck, AlertTriangle, FileText, Menu, Ticket, UserCog } from 'lucide-react';
 
 // ============================================================================
 // CONFIGURATION - Toggle between Mock Data and Real API
 // ============================================================================
 const USE_REAL_API = true; // Set to true when NestJS backend is ready
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 // ============================================================================
 // MOCK DATA GENERATOR
@@ -226,6 +226,18 @@ function Sidebar({ currentModule, setCurrentModule, isOpen, toggle }) {
         { id: 'payments', label: 'Payments', icon: Receipt },
         { id: 'settlements', label: 'Settlements', icon: FileText }
       ]
+    },
+    {
+      title: 'Marketing',
+      items: [
+        { id: 'coupons', label: 'Coupons', icon: Ticket }
+      ]
+    },
+    {
+      title: 'Administration',
+      items: [
+        { id: 'admin-users', label: 'Admin Users', icon: UserCog }
+      ]
     }
   ];
 
@@ -284,7 +296,9 @@ function ModuleRenderer({ module, data }) {
     dispatches: <DispatchesModule />,
     disputes: <DisputesModule />,
     payments: <PaymentsModule />,
-    settlements: <SettlementsModule />
+    settlements: <SettlementsModule />,
+    coupons: <CouponsModule />,
+    'admin-users': <AdminUsersModule />
   };
 
   return modules[module] || <Dashboard data={data} />;
@@ -481,6 +495,345 @@ function DealersModule({ data }) {
         <SearchBar placeholder="Search dealers by company or code..." />
         <DataTable data={data} type="dealers" />
       </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// COUPONS MODULE
+// ============================================================================
+function CouponsModule() {
+  const [coupons, setCoupons] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [form, setForm] = useState({
+    code: '', description: '', discount_type: 'percentage',
+    discount_value: '', min_order_amount: '', max_discount: '',
+    usage_limit: '', valid_from: '', valid_until: ''
+  });
+  const [saving, setSaving] = useState(false);
+
+  const fetchCoupons = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/coupons`);
+      const json = await res.json();
+      setCoupons(json.data || json || []);
+    } catch (err) { console.error('Error fetching coupons:', err); }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchCoupons(); }, []);
+
+  const openCreate = () => {
+    setForm({ code: '', description: '', discount_type: 'percentage', discount_value: '', min_order_amount: '', max_discount: '', usage_limit: '', valid_from: '', valid_until: '' });
+    setEditId(null);
+    setShowModal(true);
+  };
+
+  const openEdit = (c) => {
+    setForm({
+      code: c.code || '', description: c.description || '', discount_type: c.discount_type || 'percentage',
+      discount_value: c.discount_value || '', min_order_amount: c.min_order_amount || '',
+      max_discount: c.max_discount || '', usage_limit: c.usage_limit || '',
+      valid_from: c.valid_from ? c.valid_from.slice(0, 10) : '',
+      valid_until: c.valid_until ? c.valid_until.slice(0, 10) : ''
+    });
+    setEditId(c.id);
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const method = editId ? 'PUT' : 'POST';
+      const url = editId ? `${API_BASE_URL}/coupons/${editId}` : `${API_BASE_URL}/coupons`;
+      await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      setShowModal(false);
+      fetchCoupons();
+    } catch (err) { console.error('Error saving coupon:', err); }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this coupon?')) return;
+    try {
+      await fetch(`${API_BASE_URL}/coupons/${id}`, { method: 'DELETE' });
+      fetchCoupons();
+    } catch (err) { console.error('Error deleting coupon:', err); }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-[#4D4D4D]">Coupons</h1>
+        <button onClick={openCreate} className="px-5 py-2.5 bg-[#ED1C24] text-white rounded-lg hover:bg-[#c71920] transition font-bold flex items-center gap-2 shadow-md hover:shadow-lg">
+          <Plus className="w-5 h-5" /> Add Coupon
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-md p-6">
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Loading coupons...</div>
+        ) : coupons.length === 0 ? (
+          <div className="text-center py-12 text-gray-400">No coupons found. Click "Add Coupon" to create one.</div>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                <tr>
+                  {['Code', 'Description', 'Type', 'Value', 'Min Order', 'Max Disc.', 'Usage', 'Valid Until', 'Status', 'Actions'].map((h, i) => (
+                    <th key={i} className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {coupons.map(c => (
+                  <tr key={c.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 font-bold text-gray-900">{c.code}</td>
+                    <td className="px-6 py-4 text-gray-600 max-w-[200px] truncate">{c.description || '-'}</td>
+                    <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${c.discount_type === 'percentage' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>{c.discount_type}</span></td>
+                    <td className="px-6 py-4 font-bold text-[#ED1C24]">{c.discount_type === 'percentage' ? `${c.discount_value}%` : `₹${Number(c.discount_value).toLocaleString('en-IN')}`}</td>
+                    <td className="px-6 py-4">₹{Number(c.min_order_amount || 0).toLocaleString('en-IN')}</td>
+                    <td className="px-6 py-4">{c.max_discount ? `₹${Number(c.max_discount).toLocaleString('en-IN')}` : '-'}</td>
+                    <td className="px-6 py-4">{c.used_count || 0}/{c.usage_limit || '∞'}</td>
+                    <td className="px-6 py-4 text-gray-600">{c.valid_until ? new Date(c.valid_until).toLocaleDateString('en-IN') : '-'}</td>
+                    <td className="px-6 py-4"><StatusBadge status={c.is_active ? 'active' : 'rejected'} /></td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => openEdit(c)} className="p-2.5 text-green-600 hover:bg-green-50 rounded-lg transition-all hover:scale-110" title="Edit"><Edit2 className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete(c.id)} className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-all hover:scale-110" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b-2 border-gray-200">
+              <h2 className="text-2xl font-bold text-[#4D4D4D]">{editId ? 'Edit Coupon' : 'Add Coupon'}</h2>
+              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-all hover:rotate-90"><X className="w-6 h-6" /></button>
+            </div>
+            <div className="p-6 grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Code *</label>
+                <input value={form.code} onChange={e => setForm({...form, code: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent" placeholder="e.g. SAVE20" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Discount Type</label>
+                <select value={form.discount_type} onChange={e => setForm({...form, discount_type: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent">
+                  <option value="percentage">Percentage</option>
+                  <option value="flat">Flat Amount</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-bold text-gray-700 mb-1">Description</label>
+                <input value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent" placeholder="Coupon description" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Discount Value *</label>
+                <input type="number" value={form.discount_value} onChange={e => setForm({...form, discount_value: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent" placeholder={form.discount_type === 'percentage' ? '10' : '500'} />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Min Order Amount</label>
+                <input type="number" value={form.min_order_amount} onChange={e => setForm({...form, min_order_amount: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent" placeholder="0" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Max Discount</label>
+                <input type="number" value={form.max_discount} onChange={e => setForm({...form, max_discount: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent" placeholder="No limit" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Usage Limit</label>
+                <input type="number" value={form.usage_limit} onChange={e => setForm({...form, usage_limit: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent" placeholder="Unlimited" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Valid From</label>
+                <input type="date" value={form.valid_from} onChange={e => setForm({...form, valid_from: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Valid Until</label>
+                <input type="date" value={form.valid_until} onChange={e => setForm({...form, valid_until: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent" />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-6 border-t-2 border-gray-200 bg-gray-50">
+              <button onClick={() => setShowModal(false)} className="px-5 py-2.5 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition font-bold">Cancel</button>
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 bg-[#ED1C24] text-white rounded-lg hover:bg-[#c71920] transition font-bold shadow-md disabled:opacity-50">
+                {saving ? 'Saving...' : editId ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// ADMIN USERS MODULE
+// ============================================================================
+function AdminUsersModule() {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '' });
+  const [saving, setSaving] = useState(false);
+
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin-users`);
+      const json = await res.json();
+      setUsers(json.data || json || []);
+    } catch (err) { console.error('Error fetching admin users:', err); }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchUsers(); }, []);
+
+  const openCreate = () => {
+    setForm({ firstName: '', lastName: '', email: '', phone: '', password: '' });
+    setEditId(null);
+    setShowModal(true);
+  };
+
+  const openEdit = (u) => {
+    setForm({
+      firstName: u.first_name || '', lastName: u.last_name || '',
+      email: u.email || '', phone: u.phone || '', password: ''
+    });
+    setEditId(u.id);
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const method = editId ? 'PUT' : 'POST';
+      const url = editId ? `${API_BASE_URL}/admin-users/${editId}` : `${API_BASE_URL}/admin-users`;
+      const body = { ...form };
+      if (editId && !body.password) delete body.password;
+      await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      setShowModal(false);
+      fetchUsers();
+    } catch (err) { console.error('Error saving admin user:', err); }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this admin user?')) return;
+    try {
+      await fetch(`${API_BASE_URL}/admin-users/${id}`, { method: 'DELETE' });
+      fetchUsers();
+    } catch (err) { console.error('Error deleting admin user:', err); }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-[#4D4D4D]">Admin Users</h1>
+        <button onClick={openCreate} className="px-5 py-2.5 bg-[#ED1C24] text-white rounded-lg hover:bg-[#c71920] transition font-bold flex items-center gap-2 shadow-md hover:shadow-lg">
+          <Plus className="w-5 h-5" /> Add Admin User
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-md p-6">
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Loading admin users...</div>
+        ) : users.length === 0 ? (
+          <div className="text-center py-12 text-gray-400">No admin users found. Click "Add Admin User" to create one.</div>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                <tr>
+                  {['Name', 'Email', 'Phone', 'Roles', 'Status', 'Last Login', 'Actions'].map((h, i) => (
+                    <th key={i} className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {users.map(u => (
+                  <tr key={u.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 font-bold text-gray-900">{u.first_name} {u.last_name || ''}</td>
+                    <td className="px-6 py-4 text-gray-600">{u.email}</td>
+                    <td className="px-6 py-4 text-gray-600">{u.phone || '-'}</td>
+                    <td className="px-6 py-4">
+                      {(u.roles || []).map((r, i) => (
+                        <span key={i} className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-bold mr-1">{r}</span>
+                      ))}
+                    </td>
+                    <td className="px-6 py-4"><StatusBadge status={u.is_active ? 'active' : 'rejected'} /></td>
+                    <td className="px-6 py-4 text-gray-600 text-sm">{u.last_login_at ? new Date(u.last_login_at).toLocaleDateString('en-IN') : 'Never'}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => openEdit(u)} className="p-2.5 text-green-600 hover:bg-green-50 rounded-lg transition-all hover:scale-110" title="Edit"><Edit2 className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete(u.id)} className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-all hover:scale-110" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b-2 border-gray-200">
+              <h2 className="text-2xl font-bold text-[#4D4D4D]">{editId ? 'Edit Admin User' : 'Add Admin User'}</h2>
+              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-all hover:rotate-90"><X className="w-6 h-6" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">First Name *</label>
+                  <input value={form.firstName} onChange={e => setForm({...form, firstName: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">Last Name</label>
+                  <input value={form.lastName} onChange={e => setForm({...form, lastName: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Email *</label>
+                <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Phone</label>
+                <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">{editId ? 'New Password (leave blank to keep)' : 'Password *'}</label>
+                <input type="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ED1C24] focus:border-transparent" />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-6 border-t-2 border-gray-200 bg-gray-50">
+              <button onClick={() => setShowModal(false)} className="px-5 py-2.5 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition font-bold">Cancel</button>
+              <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 bg-[#ED1C24] text-white rounded-lg hover:bg-[#c71920] transition font-bold shadow-md disabled:opacity-50">
+                {saving ? 'Saving...' : editId ? 'Update' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
