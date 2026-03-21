@@ -35,6 +35,8 @@ import ZonesPage from "../modules/zones/ZonesPage"
 import DealersPage from "../modules/dealers/DealersPage"
 import BuyersPage from "../modules/buyers/BuyersPage"
 import OrdersPage from "../modules/orders/OrdersPage"
+import CouponsPage from "../modules/coupons/CouponsPage"
+import AdminUsersPage from "../modules/admin-users/AdminUsersPage"
 
 export default function AppRoutes() {
   return (
@@ -85,6 +87,8 @@ export default function AppRoutes() {
         <Route path="dealers" element={<DealersPage />} />
         <Route path="buyers" element={<BuyersPage />} />
         <Route path="orders" element={<OrdersPage />} />
+        <Route path="coupons" element={<CouponsPage />} />
+        <Route path="admin-users" element={<AdminUsersPage />} />
       </Route>
 
       {/* Legacy redirect */}

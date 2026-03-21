@@ -12,6 +12,8 @@ const navItems = [
   { path: "/admin/dealers", label: "Dealers", icon: "🤝" },
   { path: "/admin/vendors", label: "Vendors", icon: "🏭" },
   { path: "/admin/zones", label: "Zones", icon: "🗺️" },
+  { path: "/admin/coupons", label: "Coupons", icon: "🎟️" },
+  { path: "/admin/admin-users", label: "Admin Users", icon: "👤" },
 ]
 
 export default function AdminLayout() {

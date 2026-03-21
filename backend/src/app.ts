@@ -17,6 +17,7 @@ import wishlistRoutes from "./modules/wishlist/wishlist.routes";
 import couponRoutes from "./modules/coupon/coupon.routes";
 import cartRoutes from "./modules/cart/cart.routes";
 import uploadRoutes from "./modules/upload/upload.routes";
+import adminUserRoutes from "./modules/admin-user/adminUser.routes";
 import { errorHandler } from "./middleware/error.middleware";
 
 dotenv.config();
@@ -56,6 +57,7 @@ app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/admin-users", adminUserRoutes);
 
 // Health check
 app.get("/", (_req, res) => {
