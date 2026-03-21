@@ -32,11 +32,11 @@ ws1.merge_cells("A1:D1")
 ws1["A1"] = "MATERIAL KING - Project Status Report"
 ws1["A1"].font = Font(bold=True, size=16, color="2F5496")
 
-elapsed_weeks = (date(2026, 3, 16) - date(2026, 1, 22)).days / 7
-remaining_weeks = (date(2026, 4, 30) - date(2026, 3, 16)).days / 7
+elapsed_weeks = (date(2026, 3, 21) - date(2026, 1, 22)).days / 7
+remaining_weeks = (date(2026, 4, 30) - date(2026, 3, 21)).days / 7
 
 ws1.merge_cells("A2:D2")
-ws1["A2"] = f"Generated: {date.today().strftime('%d %b %Y')}  |  Team: 6-7 devs  |  Start: 22 Jan 2026  |  Deadline: 30 Apr 2026  |  {remaining_weeks:.1f} weeks remaining"
+ws1["A2"] = f"Generated: 21 Mar 2026  |  Team: 6-7 devs  |  Start: 22 Jan 2026  |  Deadline: 30 Apr 2026  |  {remaining_weeks:.1f} weeks remaining"
 ws1["A2"].font = Font(size=10, color="666666")
 
 # Headers
@@ -116,12 +116,15 @@ data = [
     ("Addresses Page", "Frontend", "DONE", "Saved addresses CRUD with default"),
     ("Wishlist Page", "Frontend", "DONE", "Wishlist management"),
 
+    # BACKEND - PHASE 1 COMPLETED (Mar 21)
+    ("BACKEND - PHASE 1 COMPLETED (Mar 21)", "", "", ""),
+    ("Search & Filtering + Pagination (server-side)", "Backend", "DONE", "Full pagination across ALL endpoints (products, orders, brands, categories, vendors, zones, buyers, dealers, coupons, wishlist, addresses, cart)"),
+    ("Order Workflow State Machine", "Backend", "DONE", "Full state machine: pending→confirmed→processing→shipped→delivered, transition validation, stock restore on cancel"),
+    ("Inventory Management (stock decrement + alerts)", "Backend", "DONE", "Auto-decrement on order, FOR UPDATE locking, restore on cancel, low-stock alerts API, inventory summary endpoint"),
+    ("File Upload Middleware (Multer/S3)", "Backend", "DONE", "Multer disk storage, single/multiple upload, file type validation, 10MB limit, /api/upload endpoints"),
+
     # BACKEND - STILL PENDING
     ("BACKEND - PENDING (must complete by Apr 30)", "", "", ""),
-    ("Search & Filtering + Pagination (server-side)", "Backend", "PARTIAL", "Product search/filter/sort DONE. Server-side pagination (page/offset/total) MISSING across all endpoints"),
-    ("Order Workflow State Machine", "Backend", "PARTIAL", "Status fields exist (pending→confirmed→dispatched→delivered); NO transition validation logic"),
-    ("Inventory Management (stock decrement)", "Backend", "PARTIAL", "stock_qty field exists; NO auto-decrement on order, NO low-stock alerts"),
-    ("File Upload Middleware (Multer/S3)", "Backend", "MISSING", "No multer, no S3 config, no upload routes. Images stored as URLs only"),
     ("Payment Integration (Razorpay)", "Backend", "MISSING", "No payment gateway code. Only COD supported"),
     ("Invoice Generation (PDF)", "Backend", "MISSING", "No PDF generation library or templates"),
     ("Pricing Tiers / Discount Structures", "Backend", "PARTIAL", "Dealer credit + coupon system exists; tier-based pricing logic not implemented"),
@@ -187,7 +190,7 @@ ws2 = wb.create_sheet("Gantt Chart")
 
 # Full project: Jan 22 to Apr 30
 project_start = date(2026, 1, 19)  # Monday of week containing Jan 22
-today_marker = date(2026, 3, 16)
+today_marker = date(2026, 3, 21)
 deadline = date(2026, 4, 30)
 num_weeks = 15  # Jan 19 to Apr 27 (15 weeks)
 
@@ -217,12 +220,12 @@ gantt_tasks = [
     ("Buyer Account: Orders, Addresses, Wishlist", "Frontend", 7, 2, "Dev 2, Dev 6", "done"),
     ("Category Reorganization + Nav Hover Dropdowns", "Frontend", 8, 1, "Dev 1", "done"),
 
-    # Items from Phase 1 still pending
-    ("PHASE 1 REMAINING (Mar 16-23) ⚡ THIS WEEK", "", 0, 0, "", ""),
-    ("Server-side Pagination (all endpoints)", "Backend", 8, 1, "Dev 3", "pending"),
-    ("File Upload Middleware (Multer/S3)", "Backend", 8, 1, "Dev 4", "pending"),
-    ("Order Workflow State Machine", "Backend", 8, 1, "Dev 7", "pending"),
-    ("Inventory Decrement on Order + Alerts", "Backend", 8, 1, "Dev 4", "pending"),
+    # Items from Phase 1 — COMPLETED (Mar 21)
+    ("PHASE 1 REMAINING (Mar 16-23) ✅ COMPLETED", "", 0, 0, "", ""),
+    ("Server-side Pagination (all endpoints)", "Backend", 8, 1, "Dev 3", "done"),
+    ("File Upload Middleware (Multer/S3)", "Backend", 8, 1, "Dev 4", "done"),
+    ("Order Workflow State Machine", "Backend", 8, 1, "Dev 7", "done"),
+    ("Inventory Decrement on Order + Alerts", "Backend", 8, 1, "Dev 4", "done"),
 
     # PHASE 2: DONE EARLY + Remaining backend (Mar 24 - Apr 6)
     ("PHASE 2: CORE MODULES (Mar 24 - Apr 6)", "", 0, 0, "", ""),
@@ -394,7 +397,7 @@ for task in gantt_tasks:
 
 # Add TODAY marker row
 ws2.merge_cells(f"A{row}:F{row}")
-ws2.cell(row=row, column=1, value=f"\u25b2 TODAY (Mar 16, 2026) \u2014 {remaining_weeks:.1f} weeks to deadline").font = Font(bold=True, size=11, color="CC0000")
+ws2.cell(row=row, column=1, value=f"\u25b2 TODAY (Mar 21, 2026) \u2014 {remaining_weeks:.1f} weeks to deadline").font = Font(bold=True, size=11, color="CC0000")
 ws2.cell(row=row, column=1).fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
 for c in range(2, week_start_col + num_weeks):
     ws2.cell(row=row, column=c).fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
@@ -410,11 +413,11 @@ ws2.cell(row=row, column=1, value="LEGEND:").font = Font(bold=True, size=10)
 row += 1
 legends = [
     (completed_color, "Completed (Jan 22 - Mar 10)"),
-    ("4472C4", "Phase 1: Foundation (Mar 10-23) \u2014 mostly DONE"),
+    ("4472C4", "Phase 1: Foundation (Mar 10-23) \u2014 COMPLETED"),
     ("ED7D31", "Phase 2: Core CRUD (Mar 24 - Apr 6) \u2014 frontend DONE, backend partial"),
     ("70AD47", "Phase 3: Business Logic & Dashboard (Apr 7-20)"),
     ("FF6B6B", "Phase 4: Polish & Launch (Apr 21-30)"),
-    ("CC0000", "TODAY marker (Mar 16)"),
+    ("CC0000", "TODAY marker (Mar 21)"),
 ]
 for color, label in legends:
     ws2.cell(row=row, column=1).fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
@@ -440,34 +443,35 @@ ws3["A1"] = "PROJECT SUMMARY"
 ws3["A1"].font = Font(bold=True, size=14, color="2F5496")
 
 ws3.merge_cells("A2:C2")
-ws3["A2"] = f"Start: 22 Jan 2026  |  Today: 16 Mar 2026  |  Deadline: 30 Apr 2026"
+ws3["A2"] = f"Start: 22 Jan 2026  |  Today: 21 Mar 2026  |  Deadline: 30 Apr 2026"
 ws3["A2"].font = Font(bold=True, size=10, color="CC0000")
 
 stats = [
     ("", "", ""),
     ("TIMELINE", "", ""),
     ("Project Start", "22 Jan 2026", ""),
-    ("Today", "16 Mar 2026", f"{elapsed_weeks:.0f} weeks elapsed"),
+    ("Today", "21 Mar 2026", f"{elapsed_weeks:.0f} weeks elapsed"),
     ("Hard Deadline", "30 Apr 2026", f"{remaining_weeks:.1f} weeks remaining"),
     ("Total Duration", "14 weeks", "No buffer for delays"),
     ("", "", ""),
     ("COMPLETION STATUS", "Count", "Details"),
     ("Backend CRUD Completed", "17 modules", "Auth, Products, Brands, Categories, Vendors, Zones, Buyers, Dealers, Orders, Cart, Wishlist, Coupon, Address, Schema, Seed, Validation, RBAC"),
-    ("Backend Features Pending", "7 features", "Pagination, File Upload, Payments, Invoices, Reporting, Notifications, Pricing Tiers"),
-    ("Backend Features Partial", "3 features", "Order Workflow (needs transition validation), Inventory (needs decrement), Delivery Tracking"),
+    ("Backend Features Completed (Phase 1)", "4 features", "Pagination (all endpoints), File Upload (Multer), Order State Machine, Inventory Decrement + Alerts"),
+    ("Backend Features Pending", "4 features", "Payments (Razorpay), Invoices (PDF), Reporting APIs, Notifications (Email/SMS)"),
+    ("Backend Features Partial", "2 features", "Pricing Tiers (coupon done, tier logic pending), Delivery Tracking (basic fields, no logistics API)"),
     ("Frontend Completed", "48 items", "All admin CRUD (9 modules), all storefront pages (11), buyer account (4), foundation (10), UI components (4), nav/footer"),
     ("Frontend Pending", "8 items", "Inventory UI, Payment UI, Invoice UI, Delivery UI, Dashboard Charts, Role-based Dashboards, File Upload UI, Responsive polish"),
     ("", "", ""),
-    ("Overall Completion", "~60%", "Backend CRUD + Frontend CRUD + Storefront all done. Remaining: business logic backends + specialized UIs."),
+    ("Overall Completion", "~68%", "Backend CRUD + Phase 1 features + Frontend CRUD + Storefront all done. Remaining: business logic backends + specialized UIs."),
     ("", "", ""),
     ("RISK ASSESSMENT", "", ""),
-    ("Schedule Risk", "MEDIUM", "Ahead of schedule on frontend. ~40% work in 6.4 weeks. Manageable with focus."),
-    ("Critical Path", "Payments + Invoices + Inventory", "These depend on each other \u2014 must start this week"),
-    ("Parallel Tracks Needed", "YES", "Backend features (pagination, upload, payments) + Frontend UIs simultaneously"),
-    ("Recommended Action", "FOCUSED SPRINTS", "Tackle P0 items (pagination, upload, state machine, inventory) this week"),
+    ("Schedule Risk", "MEDIUM-LOW", "Phase 1 complete. ~32% work in 5.7 weeks. On track with focused sprints."),
+    ("Critical Path", "Payments + Invoices", "These depend on each other \u2014 next priority in Phase 2"),
+    ("Parallel Tracks Needed", "YES", "Backend features (payments, invoices) + Frontend UIs simultaneously"),
+    ("Recommended Action", "FOCUSED SPRINTS", "Start Phase 2: Razorpay + Invoice PDF + Pricing Tiers next week"),
     ("", "", ""),
     ("PHASE PLAN (REMAINING)", "Duration", "Focus"),
-    ("Phase 1 Remaining", "Mar 16-23 (1 wk)", "Pagination, File Upload, Order State Machine, Inventory Decrement"),
+    ("Phase 1", "Mar 16-23 (1 wk)", "COMPLETED: Pagination, File Upload, Order State Machine, Inventory Decrement"),
     ("Phase 2 Remaining", "Mar 24 - Apr 6 (2 wks)", "Pricing tiers, Razorpay payment backend, Invoice PDF generation, Product file upload UI"),
     ("Phase 3: Business Logic", "Apr 7-20 (2 wks)", "Inventory UI, Payment UI, Invoice UI, Dashboard charts, Reporting APIs, Delivery tracking, Notifications"),
     ("Phase 4: Polish & Launch", "Apr 21-30 (1.5 wks)", "Role-based dashboards, responsive design, testing, UAT, deployment"),

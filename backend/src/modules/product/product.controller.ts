@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import pool from "../../config/db";
+import { parsePagination, buildPaginatedResponse } from "../../utils/pagination";
 
 const PRODUCT_FIELDS = `p.id, p.name, p.slug, p.sku, p.hsn_code, p.isin,
   p.category_id, p.brand_id, p.brand_collection, p.vendor_id,
@@ -14,17 +15,37 @@ const PRODUCT_FIELDS = `p.id, p.name, p.slug, p.sku, p.hsn_code, p.isin,
   p.is_active, p.created_at`;
 
 // GET /api/products
-export const getAll = async (_req: Request, res: Response) => {
+export const getAll = async (req: Request, res: Response) => {
   try {
+    const { search } = req.query;
+    const pag = parsePagination(req);
+    let where = "";
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    if (search) {
+      where = ` WHERE (p.name ILIKE $${paramIdx} OR p.sku ILIKE $${paramIdx})`;
+      params.push(`%${search}%`);
+      paramIdx++;
+    }
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM products p${where}`, params
+    );
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
       `SELECT ${PRODUCT_FIELDS},
               c.name AS category_name, b.name AS brand_name
        FROM products p
        LEFT JOIN categories c ON p.category_id = c.id
        LEFT JOIN brands b ON p.brand_id = b.id
-       ORDER BY p.created_at DESC`
+       ${where}
+       ORDER BY p.created_at DESC
+       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
+      [...params, pag.pageSize, pag.offset]
     );
-    res.json(result.rows);
+    res.json(buildPaginatedResponse(result.rows, total, pag));
   } catch (error: any) {
     console.error("Product getAll error:", error);
     res.status(500).json({ message: error.message });
@@ -34,58 +55,63 @@ export const getAll = async (_req: Request, res: Response) => {
 // GET /api/products/active — public endpoint for buyer storefront
 export const getActive = async (req: Request, res: Response) => {
   try {
-    const { category_id, brand_id, search, limit, min_price, max_price, sort } = req.query;
-    let query = `SELECT ${PRODUCT_FIELDS},
-              c.name AS category_name, b.name AS brand_name
-       FROM products p
-       LEFT JOIN categories c ON p.category_id = c.id
-       LEFT JOIN brands b ON p.brand_id = b.id
-       WHERE p.is_active = true`;
+    const { category_id, brand_id, search, min_price, max_price, sort } = req.query;
+    const pag = parsePagination(req);
+
+    let whereClause = ` WHERE p.is_active = true`;
     const params: any[] = [];
     let paramIdx = 1;
 
     if (category_id) {
-      // Support filtering by parent category (include subcategory products)
-      query += ` AND (p.category_id = $${paramIdx} OR p.category_id IN (SELECT id FROM categories WHERE parent_id = $${paramIdx}))`;
+      whereClause += ` AND (p.category_id = $${paramIdx} OR p.category_id IN (SELECT id FROM categories WHERE parent_id = $${paramIdx}))`;
       params.push(category_id);
       paramIdx++;
     }
     if (brand_id) {
-      query += ` AND p.brand_id = $${paramIdx++}`;
+      whereClause += ` AND p.brand_id = $${paramIdx++}`;
       params.push(brand_id);
     }
     if (min_price) {
-      query += ` AND p.price >= $${paramIdx++}`;
+      whereClause += ` AND p.price >= $${paramIdx++}`;
       params.push(parseFloat(min_price as string));
     }
     if (max_price) {
-      query += ` AND p.price <= $${paramIdx++}`;
+      whereClause += ` AND p.price <= $${paramIdx++}`;
       params.push(parseFloat(max_price as string));
     }
     if (search) {
-      query += ` AND (p.name ILIKE $${paramIdx} OR p.description ILIKE $${paramIdx} OR b.name ILIKE $${paramIdx})`;
+      whereClause += ` AND (p.name ILIKE $${paramIdx} OR p.description ILIKE $${paramIdx} OR b.name ILIKE $${paramIdx})`;
       params.push(`%${search}%`);
       paramIdx++;
     }
 
+    // Count total matching rows
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM products p
+       LEFT JOIN brands b ON p.brand_id = b.id
+       ${whereClause}`,
+      params
+    );
+    const total = parseInt(countResult.rows[0].count);
+
     // Sorting
-    if (sort === "price_asc") {
-      query += ` ORDER BY p.price ASC`;
-    } else if (sort === "price_desc") {
-      query += ` ORDER BY p.price DESC`;
-    } else if (sort === "name_asc") {
-      query += ` ORDER BY p.name ASC`;
-    } else {
-      query += ` ORDER BY p.created_at DESC`;
-    }
+    let orderBy = ` ORDER BY p.created_at DESC`;
+    if (sort === "price_asc") orderBy = ` ORDER BY p.price ASC`;
+    else if (sort === "price_desc") orderBy = ` ORDER BY p.price DESC`;
+    else if (sort === "name_asc") orderBy = ` ORDER BY p.name ASC`;
 
-    if (limit) {
-      query += ` LIMIT $${paramIdx++}`;
-      params.push(parseInt(limit as string));
-    }
-
-    const result = await pool.query(query, params);
-    res.json(result.rows);
+    const result = await pool.query(
+      `SELECT ${PRODUCT_FIELDS},
+              c.name AS category_name, b.name AS brand_name
+       FROM products p
+       LEFT JOIN categories c ON p.category_id = c.id
+       LEFT JOIN brands b ON p.brand_id = b.id
+       ${whereClause}
+       ${orderBy}
+       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
+      [...params, pag.pageSize, pag.offset]
+    );
+    res.json(buildPaginatedResponse(result.rows, total, pag));
   } catch (error: any) {
     console.error("Product getActive error:", error);
     res.status(500).json({ message: error.message });
@@ -319,6 +345,58 @@ export const update = async (req: Request, res: Response) => {
     res.json(result.rows[0]);
   } catch (error: any) {
     console.error("Product update error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/products/low-stock — products with stock below threshold (default 10)
+export const getLowStock = async (req: Request, res: Response) => {
+  try {
+    const threshold = parseInt(req.query.threshold as string) || 10;
+    const pag = parsePagination(req);
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM products WHERE is_active = true AND stock_qty <= $1`,
+      [threshold]
+    );
+    const total = parseInt(countResult.rows[0].count);
+
+    const result = await pool.query(
+      `SELECT p.id, p.name, p.sku, p.stock_qty, p.min_order_qty, p.price, p.image_url,
+              p.vendor_id, v.company_name AS vendor_name,
+              c.name AS category_name, b.name AS brand_name
+       FROM products p
+       LEFT JOIN vendors v ON p.vendor_id = v.id
+       LEFT JOIN categories c ON p.category_id = c.id
+       LEFT JOIN brands b ON p.brand_id = b.id
+       WHERE p.is_active = true AND p.stock_qty <= $1
+       ORDER BY p.stock_qty ASC
+       LIMIT $2 OFFSET $3`,
+      [threshold, pag.pageSize, pag.offset]
+    );
+    res.json(buildPaginatedResponse(result.rows, total, pag));
+  } catch (error: any) {
+    console.error("Product getLowStock error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/products/inventory-summary — stock overview stats
+export const getInventorySummary = async (_req: Request, res: Response) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE is_active = true) AS total_products,
+        COUNT(*) FILTER (WHERE is_active = true AND stock_qty = 0) AS out_of_stock,
+        COUNT(*) FILTER (WHERE is_active = true AND stock_qty > 0 AND stock_qty <= 10) AS low_stock,
+        COUNT(*) FILTER (WHERE is_active = true AND stock_qty > 10) AS in_stock,
+        COALESCE(SUM(stock_qty) FILTER (WHERE is_active = true), 0) AS total_units,
+        COALESCE(SUM(stock_qty * price) FILTER (WHERE is_active = true), 0)::numeric AS total_stock_value
+      FROM products
+    `);
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error("Product getInventorySummary error:", error);
     res.status(500).json({ message: error.message });
   }
 };

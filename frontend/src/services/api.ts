@@ -23,7 +23,13 @@ const processQueue = (error: any, token: string | null) => {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Unwrap paginated responses so .data returns the array directly
+    if (response.data && Array.isArray(response.data.data) && response.data.pagination) {
+      response.data = response.data.data;
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config
 

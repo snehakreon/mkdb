@@ -1,11 +1,20 @@
 import { Response, NextFunction } from "express";
 import { AuthRequest } from "../../middleware/auth.middleware";
 import pool from "../../config/db";
+import { parsePagination, buildPaginatedResponse } from "../../utils/pagination";
 
-// Get cart items with full product details
+// Get cart items with full product details (paginated)
 export const getCart = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user!.userId;
+    const pag = parsePagination(req);
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM cart_items WHERE user_id = $1`,
+      [userId]
+    );
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
       `SELECT ci.id as cart_item_id, ci.quantity, ci.product_id,
               p.name, p.slug, p.price, p.mrp, p.unit, p.sku, p.image_url,
@@ -15,10 +24,11 @@ export const getCart = async (req: AuthRequest, res: Response, next: NextFunctio
        JOIN products p ON p.id = ci.product_id
        LEFT JOIN brands b ON b.id = p.brand_id
        WHERE ci.user_id = $1
-       ORDER BY ci.created_at DESC`,
-      [userId]
+       ORDER BY ci.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, pag.pageSize, pag.offset]
     );
-    res.json(result.rows);
+    res.json(buildPaginatedResponse(result.rows, total, pag));
   } catch (err) {
     next(err);
   }

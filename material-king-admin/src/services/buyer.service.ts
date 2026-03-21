@@ -1,9 +1,13 @@
-import { apiService } from './api.service';
+import { apiService, PaginatedResult } from './api.service';
 import { Buyer } from '../types';
 
 export const buyerService = {
   async getAll(): Promise<Buyer[]> {
     return apiService.getAll<Buyer>('/buyers');
+  },
+
+  async getPaginated(page = 1, pageSize = 20, search = ''): Promise<PaginatedResult<Buyer>> {
+    return apiService.getPaginated<Buyer>('/buyers', { page, pageSize, ...(search && { search }) });
   },
 
   async create(data: any): Promise<Buyer> {

@@ -1,17 +1,35 @@
 import { Request, Response } from "express";
 import pool from "../../config/db";
+import { parsePagination, buildPaginatedResponse } from "../../utils/pagination";
 
 // GET /api/dealers
-export const getAll = async (_req: Request, res: Response) => {
+export const getAll = async (req: Request, res: Response) => {
   try {
+    const { search } = req.query;
+    const pag = parsePagination(req);
+    let where = "";
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    if (search) {
+      where = ` WHERE (company_name ILIKE $${paramIdx} OR contact_name ILIKE $${paramIdx} OR email ILIKE $${paramIdx})`;
+      params.push(`%${search}%`);
+      paramIdx++;
+    }
+
+    const countResult = await pool.query(`SELECT COUNT(*) FROM dealers${where}`, params);
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
       `SELECT id, company_name, contact_name, email, phone, gstin,
               address, city, state, pincode, zone_id,
               is_active, created_at
-       FROM dealers
-       ORDER BY created_at DESC`
+       FROM dealers${where}
+       ORDER BY created_at DESC
+       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
+      [...params, pag.pageSize, pag.offset]
     );
-    res.json(result.rows);
+    res.json(buildPaginatedResponse(result.rows, total, pag));
   } catch (error: any) {
     console.error("Dealer getAll error:", error);
     res.status(500).json({ message: error.message });

@@ -1,8 +1,10 @@
 import express from "express";
+import path from "path";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
 import authRoutes from "./modules/auth/auth.routes";
+import uploadRoutes from "./modules/upload/upload.routes";
 import zoneRoutes from "./modules/zone/zone.routes";
 import categoryRoutes from "./modules/category/category.routes";
 import brandRoutes from "./modules/brand/brand.routes";
@@ -36,6 +38,9 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
+// Serve uploaded files
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/zones", zoneRoutes);
@@ -50,10 +55,42 @@ app.use("/api/addresses", addressRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/coupons", couponRoutes);
 app.use("/api/cart", cartRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // Health check
 app.get("/", (_req, res) => {
   res.json({ status: "Material King API running" });
+});
+
+// Dashboard stats
+app.get("/api/stats", async (_req, res) => {
+  try {
+    const pool = (await import("./config/db")).default;
+    const [orders, vendors, products, dealers, buyers, categories, brands, pending, gmv] = await Promise.all([
+      pool.query("SELECT COUNT(*) FROM orders"),
+      pool.query("SELECT COUNT(*) FROM vendors WHERE is_active = true"),
+      pool.query("SELECT COUNT(*) FROM products WHERE is_active = true"),
+      pool.query("SELECT COUNT(*) FROM dealers WHERE is_active = true"),
+      pool.query("SELECT COUNT(*) FROM buyers"),
+      pool.query("SELECT COUNT(*) FROM categories WHERE is_active = true"),
+      pool.query("SELECT COUNT(*) FROM brands WHERE is_active = true"),
+      pool.query("SELECT COUNT(*) FROM orders WHERE status = 'pending'"),
+      pool.query("SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE status NOT IN ('cancelled')"),
+    ]);
+    res.json({
+      orders: parseInt(orders.rows[0].count),
+      vendors: parseInt(vendors.rows[0].count),
+      products: parseInt(products.rows[0].count),
+      dealers: parseInt(dealers.rows[0].count),
+      buyers: parseInt(buyers.rows[0].count),
+      categories: parseInt(categories.rows[0].count),
+      brands: parseInt(brands.rows[0].count),
+      pending_orders: parseInt(pending.rows[0].count),
+      gmv: parseFloat(gmv.rows[0].total),
+    });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
 });
 
 // DB diagnostic endpoint (remove in production)

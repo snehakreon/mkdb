@@ -21,19 +21,88 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor
+// Response interceptor — auto-refresh expired tokens
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: any) => void }> = [];
+
+const processQueue = (error: any, token: string | null) => {
+  failedQueue.forEach((p) => (error ? p.reject(error) : p.resolve(token!)));
+  failedQueue = [];
+};
+
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      const refreshToken = localStorage.getItem('mk_refresh_token');
+      if (!refreshToken) {
+        localStorage.removeItem('mk_auth_token');
+        localStorage.removeItem('mk_refresh_token');
+        localStorage.removeItem('mk_user');
+        window.location.reload();
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return apiClient(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const { data } = await axios.post(`${API_CONFIG.API_BASE_URL}/auth/refresh`, { refreshToken });
+        localStorage.setItem('mk_auth_token', data.accessToken);
+        localStorage.setItem('mk_refresh_token', data.refreshToken);
+        processQueue(null, data.accessToken);
+        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        return apiClient(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        localStorage.removeItem('mk_auth_token');
+        localStorage.removeItem('mk_refresh_token');
+        localStorage.removeItem('mk_user');
+        window.location.reload();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
     console.error('API Error:', error.response?.data || error.message);
     return Promise.reject(error);
   }
 );
 
+export interface PaginatedResult<T> {
+  data: T[];
+  pagination: { page: number; pageSize: number; total: number; totalPages: number };
+}
+
 export const apiService = {
-  async getAll<T>(endpoint: string): Promise<T[]> {
-    const response = await apiClient.get(endpoint);
+  async getAll<T>(endpoint: string, params?: { page?: number; pageSize?: number; search?: string }): Promise<T[]> {
+    const response = await apiClient.get(endpoint, { params });
+    if (response.data && Array.isArray(response.data.data)) {
+      return response.data.data;
+    }
     return response.data;
+  },
+
+  async getPaginated<T>(endpoint: string, params?: { page?: number; pageSize?: number; search?: string }): Promise<PaginatedResult<T>> {
+    const response = await apiClient.get(endpoint, { params });
+    if (response.data && Array.isArray(response.data.data) && response.data.pagination) {
+      return response.data;
+    }
+    // Fallback for non-paginated endpoints
+    const arr = Array.isArray(response.data) ? response.data : [];
+    return { data: arr, pagination: { page: 1, pageSize: arr.length, total: arr.length, totalPages: 1 } };
   },
 
   async getById<T>(endpoint: string, id: string): Promise<T> {
@@ -53,6 +122,13 @@ export const apiService = {
 
   async delete(endpoint: string, id: string): Promise<void> {
     await apiClient.delete(`${endpoint}/${id}`);
+  },
+
+  async upload(endpoint: string, formData: FormData): Promise<any> {
+    const response = await apiClient.post(endpoint, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
   },
 };
 

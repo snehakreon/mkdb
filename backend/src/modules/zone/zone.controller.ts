@@ -1,13 +1,30 @@
 import { Request, Response } from "express";
 import pool from "../../config/db";
+import { parsePagination, buildPaginatedResponse } from "../../utils/pagination";
 
 // GET /api/zones
-export const getAll = async (_req: Request, res: Response) => {
+export const getAll = async (req: Request, res: Response) => {
   try {
+    const { search } = req.query;
+    const pag = parsePagination(req);
+    let where = "";
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    if (search) {
+      where = ` WHERE (name ILIKE $${paramIdx} OR code ILIKE $${paramIdx})`;
+      params.push(`%${search}%`);
+      paramIdx++;
+    }
+
+    const countResult = await pool.query(`SELECT COUNT(*) FROM zones${where}`, params);
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
-      "SELECT id, name, code, description, is_active, created_at FROM zones ORDER BY name"
+      `SELECT id, name, code, description, is_active, created_at FROM zones${where} ORDER BY name LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
+      [...params, pag.pageSize, pag.offset]
     );
-    res.json(result.rows);
+    res.json(buildPaginatedResponse(result.rows, total, pag));
   } catch (error: any) {
     console.error("Zone getAll error:", error);
     res.status(500).json({ message: error.message });
