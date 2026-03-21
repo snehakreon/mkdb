@@ -42,7 +42,7 @@ export default function PublicFooter() {
             <ul className="space-y-2">
               <li className="text-gray-400 text-sm"><i className="fas fa-phone-alt text-mk-red mr-2"></i>1800-XXX-XXXX</li>
               <li className="text-gray-400 text-sm"><i className="fas fa-envelope text-mk-red mr-2"></i>support@materialking.com</li>
-              <li className="text-gray-400 text-sm"><i className="fas fa-map-marker-alt text-mk-red mr-2"></i>BKC, Mumbai 400051</li>
+              <li className="text-gray-400 text-sm"><i className="fas fa-map-marker-alt text-mk-red mr-2"></i>15th Floor, Atlanta Building, Office No.: 156, 157 & 158, Jamnalal Bajaj Marg, Nariman Point, Mumbai, Maharashtra 400021</li>
             </ul>
             <div className="mt-4">
               <h5 className="text-white text-xs font-semibold mb-2">We Accept</h5>
@@ -58,7 +58,7 @@ export default function PublicFooter() {
       </div>
       <div className="border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-2 text-center">
-          <p className="text-gray-500 text-xs">&copy; 2026 Material King. All rights reserved.</p>
+          <p className="text-gray-500 text-xs">&copy; 2026 Material King. All rights reserved. Developed by <a href="https://kreonsolutions.com/" target="_blank" rel="noopener noreferrer" className="hover:text-mk-red transition-colors">Kreon Solutions</a></p>
           <div className="flex gap-4 text-xs text-gray-500">
             <a href="#" className="hover:text-mk-red">Privacy Policy</a>
             <a href="#" className="hover:text-mk-red">Terms of Service</a>

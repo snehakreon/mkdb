@@ -83,7 +83,7 @@ export default function ContactPage() {
                   <i className="fas fa-map-marker-alt text-mk-red mt-0.5 w-5"></i>
                   <div>
                     <div className="font-semibold text-mk-gray-800">Material King Pvt. Ltd.</div>
-                    <div className="text-mk-gray-600">5th Floor, Trade Center,<br />Bandra Kurla Complex,<br />Mumbai - 400051, Maharashtra</div>
+                    <div className="text-mk-gray-600">15th Floor, Atlanta Building,<br />Office No.: 156, 157 & 158,<br />Jamnalal Bajaj Marg, Nariman Point,<br />Mumbai, Maharashtra 400021</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
@@ -117,7 +117,7 @@ export default function ContactPage() {
                 <div className="text-center text-mk-gray-600">
                   <i className="fas fa-map-marked-alt text-3xl mb-2"></i>
                   <p className="text-sm">Google Map</p>
-                  <p className="text-xs text-mk-gray-300">BKC, Mumbai</p>
+                  <p className="text-xs text-mk-gray-300">Nariman Point, Mumbai</p>
                 </div>
               </div>
             </div>
