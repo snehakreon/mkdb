@@ -1,5 +1,19 @@
 import { PoolClient } from "pg";
 
+const BACK_ORDER_LEAD_DAYS = 18; // 15-20 day range, use 18 as default
+
+export interface ItemFulfillmentInfo {
+  product_id: string;
+  product_name: string;
+  sku: string;
+  quantity_requested: number;
+  quantity_from_stock: number;
+  quantity_back_order: number;
+  in_stock: boolean;
+  estimated_delivery_days: number;
+  estimated_delivery_date: string;
+}
+
 export interface LowStockAlert {
   product_id: string;
   product_name: string;
@@ -8,9 +22,17 @@ export interface LowStockAlert {
   reorder_level: number;
 }
 
+export interface InventoryResult {
+  fulfillment: ItemFulfillmentInfo[];
+  low_stock_alerts: LowStockAlert[];
+  has_back_order: boolean;
+  expected_delivery_date: string; // latest date across all items
+}
+
 /**
  * Decrement product stock_qty and log inventory transaction.
- * Returns low-stock alerts for items that fell below threshold.
+ * Never rejects an order — if stock is insufficient, the shortfall
+ * is marked as back_order with a 15-20 day delivery timeline.
  * Must be called within an active transaction (PoolClient).
  */
 export async function decrementInventory(
@@ -18,13 +40,15 @@ export async function decrementInventory(
   items: Array<{ product_id: string; quantity: number }>,
   orderId: string,
   userId?: string
-): Promise<LowStockAlert[]> {
+): Promise<InventoryResult> {
   const alerts: LowStockAlert[] = [];
+  const fulfillment: ItemFulfillmentInfo[] = [];
+  let latestDeliveryDate = new Date();
 
   for (const item of items) {
-    // Lock the product row and check stock
+    // Lock the product row
     const productResult = await client.query(
-      `SELECT id, name, sku, stock_qty, min_order_qty
+      `SELECT id, name, sku, stock_qty, lead_time_days
        FROM products WHERE id = $1 FOR UPDATE`,
       [item.product_id]
     );
@@ -35,42 +59,89 @@ export async function decrementInventory(
 
     const product = productResult.rows[0];
     const stockBefore = product.stock_qty || 0;
+    const quantityFromStock = Math.min(stockBefore, item.quantity);
+    const quantityBackOrder = item.quantity - quantityFromStock;
+    const stockAfter = stockBefore - quantityFromStock;
 
-    if (stockBefore < item.quantity) {
-      throw new Error(
-        `Insufficient stock for "${product.name}" (SKU: ${product.sku}). Available: ${stockBefore}, Requested: ${item.quantity}`
+    // Calculate delivery estimate
+    const inStock = quantityBackOrder === 0;
+    const leadDays = inStock
+      ? (product.lead_time_days || 3) // in-stock: use product lead time or 3 days
+      : Math.max(product.lead_time_days || BACK_ORDER_LEAD_DAYS, BACK_ORDER_LEAD_DAYS); // back-order: 15-20 days
+
+    const deliveryDate = new Date();
+    deliveryDate.setDate(deliveryDate.getDate() + leadDays);
+
+    if (deliveryDate > latestDeliveryDate) {
+      latestDeliveryDate = deliveryDate;
+    }
+
+    fulfillment.push({
+      product_id: item.product_id,
+      product_name: product.name,
+      sku: product.sku,
+      quantity_requested: item.quantity,
+      quantity_from_stock: quantityFromStock,
+      quantity_back_order: quantityBackOrder,
+      in_stock: inStock,
+      estimated_delivery_days: leadDays,
+      estimated_delivery_date: deliveryDate.toISOString().split("T")[0],
+    });
+
+    // Decrement available stock (only what we have)
+    if (quantityFromStock > 0) {
+      await client.query(
+        `UPDATE products SET stock_qty = $1, updated_at = NOW() WHERE id = $2`,
+        [stockAfter, item.product_id]
+      );
+
+      await client.query(
+        `INSERT INTO inventory_transactions
+           (product_id, transaction_type, quantity_change, quantity_before, quantity_after,
+            reason, reference_type, reference_id, created_by)
+         VALUES ($1, 'reduce', $2, $3, $4, $5, 'order', $6, $7)`,
+        [
+          item.product_id,
+          -quantityFromStock,
+          stockBefore,
+          stockAfter,
+          `Order ${orderId} — ${quantityFromStock} from stock`,
+          orderId,
+          userId || null,
+        ]
       );
     }
 
-    const stockAfter = stockBefore - item.quantity;
+    // Log back-order reservation if any
+    if (quantityBackOrder > 0) {
+      await client.query(
+        `INSERT INTO inventory_transactions
+           (product_id, transaction_type, quantity_change, quantity_before, quantity_after,
+            reason, reference_type, reference_id, created_by)
+         VALUES ($1, 'reserve', $2, $3, $4, $5, 'order', $6, $7)`,
+        [
+          item.product_id,
+          -quantityBackOrder,
+          stockAfter,
+          stockAfter, // stock doesn't change further, it's a back-order
+          `Order ${orderId} — ${quantityBackOrder} on back-order (est. ${leadDays} days)`,
+          orderId,
+          userId || null,
+        ]
+      );
 
-    // Decrement stock on product
-    await client.query(
-      `UPDATE products SET stock_qty = $1, updated_at = NOW() WHERE id = $2`,
-      [stockAfter, item.product_id]
-    );
+      // Update order_items with back-order info
+      await client.query(
+        `UPDATE order_items
+         SET fulfillment_status = 'back_order',
+             quantity_back_order = $1
+         WHERE order_id = $2 AND product_id = $3`,
+        [quantityBackOrder, orderId, item.product_id]
+      );
+    }
 
-    // Log inventory transaction
-    await client.query(
-      `INSERT INTO inventory_transactions
-         (product_id, transaction_type, quantity_change, quantity_before, quantity_after,
-          reason, reference_type, reference_id, created_by)
-       VALUES ($1, 'reduce', $2, $3, $4, $5, 'order', $6, $7)`,
-      [
-        item.product_id,
-        -item.quantity,
-        stockBefore,
-        stockAfter,
-        `Order ${orderId} placed`,
-        orderId,
-        userId || null,
-      ]
-    );
-
-    // Check for low stock (default reorder level: 10)
+    // Check for low stock
     const DEFAULT_REORDER_LEVEL = 10;
-
-    // Try to get reorder level from inventory table
     const invResult = await client.query(
       `SELECT reorder_level FROM inventory WHERE product_id = $1 LIMIT 1`,
       [item.product_id]
@@ -90,11 +161,19 @@ export async function decrementInventory(
     }
   }
 
-  return alerts;
+  const hasBackOrder = fulfillment.some((f) => f.quantity_back_order > 0);
+
+  return {
+    fulfillment,
+    low_stock_alerts: alerts,
+    has_back_order: hasBackOrder,
+    expected_delivery_date: latestDeliveryDate.toISOString().split("T")[0],
+  };
 }
 
 /**
  * Restore inventory when an order is cancelled.
+ * Only restores the quantity_from_stock portion (not back-orders).
  * Must be called within an active transaction (PoolClient).
  */
 export async function restoreInventory(
@@ -102,13 +181,16 @@ export async function restoreInventory(
   orderId: string,
   userId?: string
 ): Promise<void> {
-  // Get order items
   const itemsResult = await client.query(
-    `SELECT product_id, quantity FROM order_items WHERE order_id = $1`,
+    `SELECT product_id, quantity, COALESCE(quantity_back_order, 0) AS quantity_back_order
+     FROM order_items WHERE order_id = $1`,
     [orderId]
   );
 
   for (const item of itemsResult.rows) {
+    const restoreQty = item.quantity - (item.quantity_back_order || 0);
+    if (restoreQty <= 0) continue;
+
     const productResult = await client.query(
       `SELECT stock_qty FROM products WHERE id = $1 FOR UPDATE`,
       [item.product_id]
@@ -117,7 +199,7 @@ export async function restoreInventory(
     if (productResult.rows.length === 0) continue;
 
     const stockBefore = productResult.rows[0].stock_qty || 0;
-    const stockAfter = stockBefore + item.quantity;
+    const stockAfter = stockBefore + restoreQty;
 
     await client.query(
       `UPDATE products SET stock_qty = $1, updated_at = NOW() WHERE id = $2`,
@@ -131,7 +213,7 @@ export async function restoreInventory(
        VALUES ($1, 'add', $2, $3, $4, $5, 'order', $6, $7)`,
       [
         item.product_id,
-        item.quantity,
+        restoreQty,
         stockBefore,
         stockAfter,
         `Order ${orderId} cancelled — stock restored`,

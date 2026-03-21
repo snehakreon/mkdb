@@ -208,14 +208,20 @@ export const create = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Decrement inventory for each item
-    let lowStockAlerts: any[] = [];
+    // Decrement inventory for each item (never rejects — back-orders if needed)
+    let inventoryResult: any = null;
     if (items && items.length > 0) {
-      lowStockAlerts = await decrementInventory(
+      inventoryResult = await decrementInventory(
         client,
         items.map((i: any) => ({ product_id: i.product_id, quantity: i.quantity })),
         order_id,
         userId
+      );
+
+      // Set expected delivery date on the order
+      await client.query(
+        `UPDATE orders SET expected_delivery_date = $1 WHERE id = $2`,
+        [inventoryResult.expected_delivery_date, order_id]
       );
     }
 
@@ -226,10 +232,20 @@ export const create = async (req: AuthRequest, res: Response) => {
 
     await client.query("COMMIT");
 
-    const response: any = orderResult.rows[0];
-    if (lowStockAlerts.length > 0) {
-      response.low_stock_alerts = lowStockAlerts;
-    }
+    // Re-fetch order with updated expected_delivery_date
+    const finalOrder = await pool.query(`SELECT * FROM orders WHERE id = $1`, [order_id]);
+
+    const response: any = {
+      ...finalOrder.rows[0],
+      ...(inventoryResult && {
+        fulfillment: inventoryResult.fulfillment,
+        has_back_order: inventoryResult.has_back_order,
+        expected_delivery_date: inventoryResult.expected_delivery_date,
+      }),
+      ...(inventoryResult?.low_stock_alerts?.length > 0 && {
+        low_stock_alerts: inventoryResult.low_stock_alerts,
+      }),
+    };
     res.status(201).json(response);
   } catch (error: any) {
     await client.query("ROLLBACK");
