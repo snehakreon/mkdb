@@ -1,13 +1,31 @@
 import { Request, Response } from "express";
 import pool from "../../config/db";
+import { getPaginationParams, paginatedResponse } from "../../utils/pagination";
 
 // GET /api/brands
-export const getAll = async (_req: Request, res: Response) => {
+export const getAll = async (req: Request, res: Response) => {
   try {
+    const { page, limit, offset, search } = getPaginationParams(req);
+    const params: any[] = [];
+    let paramIdx = 1;
+    let where = "";
+
+    if (search) {
+      where = ` WHERE name ILIKE $${paramIdx++}`;
+      params.push(`%${search}%`);
+    }
+
+    const countResult = await pool.query(`SELECT COUNT(*) FROM brands${where}`, params);
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
-      "SELECT id, name, slug, logo_url, description, is_active, created_at FROM brands ORDER BY name"
+      `SELECT id, name, slug, logo_url, description, is_active, created_at
+       FROM brands${where}
+       ORDER BY name
+       LIMIT $${paramIdx++} OFFSET $${paramIdx++}`,
+      [...params, limit, offset]
     );
-    res.json(result.rows);
+    res.json(paginatedResponse(result.rows, total, { page, limit, offset }));
   } catch (error: any) {
     console.error("Brand getAll error:", error);
     res.status(500).json({ message: error.message });

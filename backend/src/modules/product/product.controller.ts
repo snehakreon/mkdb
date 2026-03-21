@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import pool from "../../config/db";
+import { getPaginationParams, paginatedResponse } from "../../utils/pagination";
 
 const PRODUCT_FIELDS = `p.id, p.name, p.slug, p.sku, p.hsn_code, p.isin,
   p.category_id, p.brand_id, p.brand_collection, p.vendor_id,
@@ -14,17 +15,37 @@ const PRODUCT_FIELDS = `p.id, p.name, p.slug, p.sku, p.hsn_code, p.isin,
   p.is_active, p.created_at`;
 
 // GET /api/products
-export const getAll = async (_req: Request, res: Response) => {
+export const getAll = async (req: Request, res: Response) => {
   try {
+    const { page, limit, offset, search } = getPaginationParams(req);
+    const params: any[] = [];
+    let paramIdx = 1;
+    let where = "";
+
+    if (search) {
+      where = ` WHERE (p.name ILIKE $${paramIdx} OR p.sku ILIKE $${paramIdx} OR b.name ILIKE $${paramIdx})`;
+      params.push(`%${search}%`);
+      paramIdx++;
+    }
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM products p
+       LEFT JOIN brands b ON p.brand_id = b.id${where}`,
+      params
+    );
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
       `SELECT ${PRODUCT_FIELDS},
               c.name AS category_name, b.name AS brand_name
        FROM products p
        LEFT JOIN categories c ON p.category_id = c.id
-       LEFT JOIN brands b ON p.brand_id = b.id
-       ORDER BY p.created_at DESC`
+       LEFT JOIN brands b ON p.brand_id = b.id${where}
+       ORDER BY p.created_at DESC
+       LIMIT $${paramIdx++} OFFSET $${paramIdx++}`,
+      [...params, limit, offset]
     );
-    res.json(result.rows);
+    res.json(paginatedResponse(result.rows, total, { page, limit, offset }));
   } catch (error: any) {
     console.error("Product getAll error:", error);
     res.status(500).json({ message: error.message });
@@ -79,13 +100,21 @@ export const getActive = async (req: Request, res: Response) => {
       query += ` ORDER BY p.created_at DESC`;
     }
 
-    if (limit) {
-      query += ` LIMIT $${paramIdx++}`;
-      params.push(parseInt(limit as string));
-    }
+    // Count total before pagination
+    const countQuery = query.replace(/SELECT .+? FROM/, "SELECT COUNT(*) FROM");
+    const countResult = await pool.query(countQuery, params);
+    const total = parseInt(countResult.rows[0].count);
+
+    // Pagination
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const pageLimit = Math.min(100, Math.max(1, parseInt(limit as string) || 20));
+    const pageOffset = (page - 1) * pageLimit;
+
+    query += ` LIMIT $${paramIdx++} OFFSET $${paramIdx++}`;
+    params.push(pageLimit, pageOffset);
 
     const result = await pool.query(query, params);
-    res.json(result.rows);
+    res.json(paginatedResponse(result.rows, total, { page, limit: pageLimit, offset: pageOffset }));
   } catch (error: any) {
     console.error("Product getActive error:", error);
     res.status(500).json({ message: error.message });

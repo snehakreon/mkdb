@@ -1,10 +1,38 @@
 import { Request, Response } from "express";
 import { AuthRequest } from "../../middleware/auth.middleware";
 import pool from "../../config/db";
+import { getPaginationParams, paginatedResponse } from "../../utils/pagination";
+import { validateTransition, getNextStatuses } from "../../utils/orderStateMachine";
+import { decrementInventory, restoreInventory } from "../../utils/inventory";
 
 // GET /api/orders (admin: all, buyer: own)
 export const getAll = async (req: Request, res: Response) => {
   try {
+    const { page, limit, offset, search } = getPaginationParams(req);
+    const { status } = req.query;
+    const params: any[] = [];
+    let paramIdx = 1;
+    const conditions: string[] = [];
+
+    if (search) {
+      conditions.push(`(o.order_number ILIKE $${paramIdx} OR b.company_name ILIKE $${paramIdx})`);
+      params.push(`%${search}%`);
+      paramIdx++;
+    }
+    if (status) {
+      conditions.push(`o.status = $${paramIdx++}`);
+      params.push(status);
+    }
+
+    const where = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM orders o
+       LEFT JOIN buyers b ON o.buyer_id = b.id${where}`,
+      params
+    );
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
       `SELECT o.id, o.order_number, o.status, o.payment_method, o.payment_status,
               o.total_amount, o.shipping_address, o.notes, o.created_at, o.updated_at,
@@ -15,10 +43,12 @@ export const getAll = async (req: Request, res: Response) => {
        FROM orders o
        LEFT JOIN buyers b ON o.buyer_id = b.id
        LEFT JOIN dealers d ON o.dealer_id = d.id
-       LEFT JOIN vendors v ON o.vendor_id = v.id
-       ORDER BY o.created_at DESC`
+       LEFT JOIN vendors v ON o.vendor_id = v.id${where}
+       ORDER BY o.created_at DESC
+       LIMIT $${paramIdx++} OFFSET $${paramIdx++}`,
+      [...params, limit, offset]
     );
-    res.json(result.rows);
+    res.json(paginatedResponse(result.rows, total, { page, limit, offset }));
   } catch (error: any) {
     console.error("Order getAll error:", error);
     res.status(500).json({ message: error.message });
@@ -178,13 +208,29 @@ export const create = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Decrement inventory for each item
+    let lowStockAlerts: any[] = [];
+    if (items && items.length > 0) {
+      lowStockAlerts = await decrementInventory(
+        client,
+        items.map((i: any) => ({ product_id: i.product_id, quantity: i.quantity })),
+        order_id,
+        userId
+      );
+    }
+
     // Clear the user's cart after successful order
     if (userId) {
       await client.query(`DELETE FROM cart_items WHERE user_id = $1`, [userId]);
     }
 
     await client.query("COMMIT");
-    res.status(201).json(orderResult.rows[0]);
+
+    const response: any = orderResult.rows[0];
+    if (lowStockAlerts.length > 0) {
+      response.low_stock_alerts = lowStockAlerts;
+    }
+    res.status(201).json(response);
   } catch (error: any) {
     await client.query("ROLLBACK");
     console.error("Order create error:", error);
@@ -194,13 +240,42 @@ export const create = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// PUT /api/orders/:id
-export const update = async (req: Request, res: Response) => {
+// PUT /api/orders/:id (update fields — status change uses state machine)
+export const update = async (req: AuthRequest, res: Response) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
     const { status, total_amount, shipping_address, notes, vendor_id, payment_status } = req.body;
 
-    const result = await pool.query(
+    await client.query("BEGIN");
+
+    // If status change requested, validate via state machine
+    if (status) {
+      const currentResult = await client.query(
+        "SELECT status FROM orders WHERE id = $1 FOR UPDATE",
+        [id]
+      );
+      if (currentResult.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const currentStatus = currentResult.rows[0].status;
+      const validation = validateTransition(currentStatus, status);
+      if (!validation.valid) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({ message: validation.message });
+      }
+
+      // Log status change in order_status_history
+      await client.query(
+        `INSERT INTO order_status_history (order_id, from_status, to_status, changed_by, notes)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [id, currentStatus, status, req.user?.userId || null, notes || null]
+      );
+    }
+
+    const result = await client.query(
       `UPDATE orders SET
         status = COALESCE($1, status),
         total_amount = COALESCE($2, total_amount),
@@ -214,31 +289,137 @@ export const update = async (req: Request, res: Response) => {
       [status, total_amount, shipping_address, notes, vendor_id, payment_status, id]
     );
     if (result.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ message: "Order not found" });
     }
+
+    await client.query("COMMIT");
     res.json(result.rows[0]);
   } catch (error: any) {
+    await client.query("ROLLBACK");
     console.error("Order update error:", error);
+    res.status(500).json({ message: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+// POST /api/orders/:id/transition — dedicated status transition endpoint
+export const transitionStatus = async (req: AuthRequest, res: Response) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { status, notes } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ message: "Target status is required" });
+    }
+
+    await client.query("BEGIN");
+
+    const currentResult = await client.query(
+      "SELECT id, order_number, status FROM orders WHERE id = $1 FOR UPDATE",
+      [id]
+    );
+    if (currentResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    const order = currentResult.rows[0];
+    const validation = validateTransition(order.status, status);
+    if (!validation.valid) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        message: validation.message,
+        current_status: order.status,
+        allowed_transitions: getNextStatuses(order.status),
+      });
+    }
+
+    // Log the transition
+    await client.query(
+      `INSERT INTO order_status_history (order_id, from_status, to_status, changed_by, notes)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [id, order.status, status, req.user?.userId || null, notes || null]
+    );
+
+    const result = await client.query(
+      `UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [status, id]
+    );
+
+    await client.query("COMMIT");
+    res.json({
+      ...result.rows[0],
+      previous_status: order.status,
+      allowed_transitions: getNextStatuses(status),
+    });
+  } catch (error: any) {
+    await client.query("ROLLBACK");
+    console.error("Order transition error:", error);
+    res.status(500).json({ message: error.message });
+  } finally {
+    client.release();
+  }
+};
+
+// GET /api/orders/:id/history — get status change history
+export const getStatusHistory = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT osh.id, osh.from_status, osh.to_status, osh.notes, osh.created_at,
+              u.email AS changed_by_email
+       FROM order_status_history osh
+       LEFT JOIN users u ON osh.changed_by = u.id
+       WHERE osh.order_id = $1
+       ORDER BY osh.created_at ASC`,
+      [id]
+    );
+    res.json(result.rows);
+  } catch (error: any) {
+    console.error("Order history error:", error);
     res.status(500).json({ message: error.message });
   }
 };
 
-// DELETE /api/orders/:id (cancel order)
+// DELETE /api/orders/:id (cancel order + restore inventory)
 export const remove = async (req: Request, res: Response) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
-    const result = await pool.query(
+
+    await client.query("BEGIN");
+
+    const result = await client.query(
       `UPDATE orders SET status = 'cancelled', updated_at = NOW()
        WHERE id = $1 AND status NOT IN ('delivered', 'cancelled')
-       RETURNING id, order_number`,
+       RETURNING id, order_number, status`,
       [id]
     );
     if (result.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ message: "Order not found or cannot be cancelled" });
     }
-    res.json({ message: "Order cancelled", order: result.rows[0] });
+
+    // Restore inventory for cancelled order
+    await restoreInventory(client, id);
+
+    // Log cancellation in history
+    await client.query(
+      `INSERT INTO order_status_history (order_id, from_status, to_status, notes)
+       VALUES ($1, $2, 'cancelled', 'Order cancelled')`,
+      [id, result.rows[0].status === "cancelled" ? "pending" : result.rows[0].status]
+    );
+
+    await client.query("COMMIT");
+    res.json({ message: "Order cancelled, inventory restored", order: result.rows[0] });
   } catch (error: any) {
+    await client.query("ROLLBACK");
     console.error("Order cancel error:", error);
     res.status(500).json({ message: error.message });
+  } finally {
+    client.release();
   }
 };
