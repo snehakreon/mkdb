@@ -46,21 +46,26 @@ export default function App() {
         setIsAuthenticated(true);
       } catch {
         localStorage.removeItem('mk_auth_token');
+        localStorage.removeItem('mk_refresh_token');
         localStorage.removeItem('mk_user');
       }
     }
     setIsLoading(false);
   }, []);
 
-  const handleLogin = (token: string, userData: AuthUser) => {
+  const handleLogin = (token: string, userData: AuthUser, refreshToken?: string) => {
     localStorage.setItem('mk_auth_token', token);
     localStorage.setItem('mk_user', JSON.stringify(userData));
+    if (refreshToken) {
+      localStorage.setItem('mk_refresh_token', refreshToken);
+    }
     setUser(userData);
     setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('mk_auth_token');
+    localStorage.removeItem('mk_refresh_token');
     localStorage.removeItem('mk_user');
     setUser(null);
     setIsAuthenticated(false);

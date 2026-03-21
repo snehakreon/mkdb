@@ -10,7 +10,7 @@ interface AuthUser {
 }
 
 interface Props {
-  onLogin: (token: string, userData: AuthUser) => void;
+  onLogin: (token: string, userData: AuthUser, refreshToken?: string) => void;
 }
 
 export default function LoginPage({ onLogin }: Props) {
@@ -52,7 +52,7 @@ export default function LoginPage({ onLogin }: Props) {
         roles: data.user.roles || [],
       };
 
-      onLogin(data.accessToken, userData);
+      onLogin(data.accessToken, userData, data.refreshToken);
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err?.message || 'Unable to connect to server. Please try again.');
