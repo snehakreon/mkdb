@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import pool from "../../config/db";
+import { getPaginationParams, paginatedResponse } from "../../utils/pagination";
 
 // Validate a coupon code
 export const validate = async (req: Request, res: Response, next: NextFunction) => {
@@ -64,10 +65,36 @@ export const validate = async (req: Request, res: Response, next: NextFunction) 
 };
 
 // Get all coupons (admin)
-export const getAll = async (_req: Request, res: Response, next: NextFunction) => {
+export const getAll = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const result = await pool.query("SELECT * FROM coupons ORDER BY created_at DESC");
-    res.json(result.rows);
+    const { page, limit, offset, search } = getPaginationParams(req);
+
+    const conditions: string[] = [];
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    if (search) {
+      conditions.push(`(code ILIKE $${paramIdx} OR description ILIKE $${paramIdx})`);
+      params.push(`%${search}%`);
+      paramIdx++;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM coupons ${whereClause}`,
+      params
+    );
+    const total = parseInt(countResult.rows[0].count);
+
+    const result = await pool.query(
+      `SELECT * FROM coupons ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
+      [...params, limit, offset]
+    );
+
+    res.json(paginatedResponse(result.rows, total, { page, limit, offset }));
   } catch (err) {
     next(err);
   }

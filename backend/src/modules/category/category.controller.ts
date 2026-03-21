@@ -1,13 +1,39 @@
 import { Request, Response } from "express";
 import pool from "../../config/db";
+import { getPaginationParams, paginatedResponse } from "../../utils/pagination";
 
 // GET /api/categories
-export const getAll = async (_req: Request, res: Response) => {
+export const getAll = async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(
-      "SELECT id, name, slug, description, parent_id, image_url, is_active, sort_order, created_at FROM categories ORDER BY name"
+    const { page, limit, offset, search } = getPaginationParams(req);
+
+    const conditions: string[] = [];
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    if (search) {
+      conditions.push(`(c.name ILIKE $${paramIdx} OR c.slug ILIKE $${paramIdx})`);
+      params.push(`%${search}%`);
+      paramIdx++;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM categories c ${whereClause}`,
+      params
     );
-    res.json(result.rows);
+    const total = parseInt(countResult.rows[0].count);
+
+    const result = await pool.query(
+      `SELECT id, name, slug, description, parent_id, image_url, is_active, sort_order, created_at
+       FROM categories c ${whereClause}
+       ORDER BY name
+       LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`,
+      [...params, limit, offset]
+    );
+
+    res.json(paginatedResponse(result.rows, total, { page, limit, offset }));
   } catch (error: any) {
     console.error("Category getAll error:", error);
     res.status(500).json({ message: error.message });

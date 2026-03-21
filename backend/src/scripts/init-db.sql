@@ -245,6 +245,19 @@ CREATE TABLE IF NOT EXISTS order_items (
 );
 
 -- ============================================================
+-- ORDER STATUS HISTORY (audit trail for status transitions)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS order_status_history (
+  id          SERIAL PRIMARY KEY,
+  order_id    INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  from_status VARCHAR(30),
+  to_status   VARCHAR(30) NOT NULL,
+  changed_by  UUID REFERENCES users(id) ON DELETE SET NULL,
+  notes       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
 -- CART ITEMS (persistent cart per user)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS cart_items (
@@ -356,6 +369,7 @@ CREATE INDEX IF NOT EXISTS idx_buyer_addresses_user ON buyer_addresses(user_id);
 CREATE INDEX IF NOT EXISTS idx_wishlists_user ON wishlists(user_id);
 CREATE INDEX IF NOT EXISTS idx_wishlists_product ON wishlists(product_id);
 CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons(code);
+CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON order_status_history(order_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory(product_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_transactions_product ON inventory_transactions(product_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_transactions_ref ON inventory_transactions(reference_type, reference_id);

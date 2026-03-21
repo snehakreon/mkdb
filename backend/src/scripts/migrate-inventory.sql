@@ -34,7 +34,19 @@ CREATE TABLE IF NOT EXISTS inventory_transactions (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Order status history (audit trail for state machine transitions)
+CREATE TABLE IF NOT EXISTS order_status_history (
+  id          SERIAL PRIMARY KEY,
+  order_id    INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  from_status VARCHAR(30),
+  to_status   VARCHAR(30) NOT NULL,
+  changed_by  UUID REFERENCES users(id) ON DELETE SET NULL,
+  notes       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Indexes
+CREATE INDEX IF NOT EXISTS idx_order_status_history_order ON order_status_history(order_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory(product_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_transactions_product ON inventory_transactions(product_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_transactions_ref ON inventory_transactions(reference_type, reference_id);
