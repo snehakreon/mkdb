@@ -9,12 +9,19 @@ import { AuthRequest } from "../../middleware/auth.middleware";
 // POST /api/auth/register
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, phone, password, firstName, lastName, userType } = req.body;
+    const { email, password, firstName, lastName, userType } = req.body;
+    const phone = req.body.phone || null;
 
     // Check if user already exists
+    const conditions = ["email = $1"];
+    const params: any[] = [email];
+    if (phone) {
+      conditions.push("phone = $2");
+      params.push(phone);
+    }
     const existing = await pool.query(
-      "SELECT id FROM users WHERE email = $1 OR phone = $2",
-      [email, phone]
+      `SELECT id FROM users WHERE ${conditions.join(" OR ")}`,
+      params
     );
     if (existing.rows.length > 0) {
       return res.status(409).json({ message: "User with this email or phone already exists" });
