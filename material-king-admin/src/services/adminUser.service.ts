@@ -15,17 +15,21 @@ export const adminUserService = {
   },
 
   async create(data: Record<string, any>): Promise<AdminUser> {
+    const body = { ...data };
+    if (!body.phone) body.phone = null;
     if (API_CONFIG.USE_REAL_API) {
-      return apiService.create<AdminUser>('/admin-users', data);
+      return apiService.create<AdminUser>('/admin-users', body);
     }
-    return Promise.resolve({ ...data, id: String(Date.now()) } as AdminUser);
+    return Promise.resolve({ ...body, id: String(Date.now()) } as AdminUser);
   },
 
   async update(id: string, data: Record<string, any>): Promise<AdminUser> {
+    const body = { ...data };
+    if (!body.phone) body.phone = null;
     if (API_CONFIG.USE_REAL_API) {
-      return apiService.update<AdminUser>('/admin-users', id, data);
+      return apiService.update<AdminUser>('/admin-users', id, body);
     }
-    return Promise.resolve({ ...data, id } as AdminUser);
+    return Promise.resolve({ ...body, id } as AdminUser);
   },
 
   async delete(id: string): Promise<void> {
