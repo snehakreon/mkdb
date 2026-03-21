@@ -31,9 +31,16 @@ export const getAll = async (req: Request, res: Response) => {
   }
 };
 
-// GET /api/categories/active — public endpoint with product counts
-export const getActive = async (_req: Request, res: Response) => {
+// GET /api/categories/active — public endpoint with product counts (paginated)
+export const getActive = async (req: Request, res: Response) => {
   try {
+    const pag = parsePagination(req, 50);
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM categories WHERE is_active = true`
+    );
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
       `SELECT c.id, c.name, c.slug, c.description, c.parent_id, c.image_url, c.sort_order,
               COUNT(p.id) FILTER (WHERE p.is_active = true) AS product_count
@@ -41,9 +48,11 @@ export const getActive = async (_req: Request, res: Response) => {
        LEFT JOIN products p ON p.category_id = c.id
        WHERE c.is_active = true
        GROUP BY c.id
-       ORDER BY c.sort_order, c.name`
+       ORDER BY c.sort_order, c.name
+       LIMIT $1 OFFSET $2`,
+      [pag.pageSize, pag.offset]
     );
-    res.json(result.rows);
+    res.json(buildPaginatedResponse(result.rows, total, pag));
   } catch (error: any) {
     console.error("Category getActive error:", error);
     res.status(500).json({ message: error.message });

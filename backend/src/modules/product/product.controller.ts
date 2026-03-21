@@ -349,6 +349,58 @@ export const update = async (req: Request, res: Response) => {
   }
 };
 
+// GET /api/products/low-stock — products with stock below threshold (default 10)
+export const getLowStock = async (req: Request, res: Response) => {
+  try {
+    const threshold = parseInt(req.query.threshold as string) || 10;
+    const pag = parsePagination(req);
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM products WHERE is_active = true AND stock_qty <= $1`,
+      [threshold]
+    );
+    const total = parseInt(countResult.rows[0].count);
+
+    const result = await pool.query(
+      `SELECT p.id, p.name, p.sku, p.stock_qty, p.min_order_qty, p.price, p.image_url,
+              p.vendor_id, v.company_name AS vendor_name,
+              c.name AS category_name, b.name AS brand_name
+       FROM products p
+       LEFT JOIN vendors v ON p.vendor_id = v.id
+       LEFT JOIN categories c ON p.category_id = c.id
+       LEFT JOIN brands b ON p.brand_id = b.id
+       WHERE p.is_active = true AND p.stock_qty <= $1
+       ORDER BY p.stock_qty ASC
+       LIMIT $2 OFFSET $3`,
+      [threshold, pag.pageSize, pag.offset]
+    );
+    res.json(buildPaginatedResponse(result.rows, total, pag));
+  } catch (error: any) {
+    console.error("Product getLowStock error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/products/inventory-summary — stock overview stats
+export const getInventorySummary = async (_req: Request, res: Response) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE is_active = true) AS total_products,
+        COUNT(*) FILTER (WHERE is_active = true AND stock_qty = 0) AS out_of_stock,
+        COUNT(*) FILTER (WHERE is_active = true AND stock_qty > 0 AND stock_qty <= 10) AS low_stock,
+        COUNT(*) FILTER (WHERE is_active = true AND stock_qty > 10) AS in_stock,
+        COALESCE(SUM(stock_qty) FILTER (WHERE is_active = true), 0) AS total_units,
+        COALESCE(SUM(stock_qty * price) FILTER (WHERE is_active = true), 0)::numeric AS total_stock_value
+      FROM products
+    `);
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error("Product getInventorySummary error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // DELETE /api/products/:id (soft delete)
 export const remove = async (req: Request, res: Response) => {
   try {

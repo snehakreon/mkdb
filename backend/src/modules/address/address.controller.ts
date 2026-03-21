@@ -1,19 +1,30 @@
 import { Response } from "express";
 import pool from "../../config/db";
 import { AuthRequest } from "../../middleware/auth.middleware";
+import { parsePagination, buildPaginatedResponse } from "../../utils/pagination";
 
-// GET /api/addresses — list addresses for logged-in user
+// GET /api/addresses — list addresses for logged-in user (paginated)
 export const getAll = async (req: AuthRequest, res: Response) => {
   try {
+    const userId = req.user!.userId;
+    const pag = parsePagination(req);
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM buyer_addresses WHERE user_id = $1`,
+      [userId]
+    );
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
       `SELECT id, label, full_name, phone, address_line1, address_line2,
               city, state, pincode, is_default, created_at
        FROM buyer_addresses
        WHERE user_id = $1
-       ORDER BY is_default DESC, created_at DESC`,
-      [req.user!.userId]
+       ORDER BY is_default DESC, created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, pag.pageSize, pag.offset]
     );
-    res.json(result.rows);
+    res.json(buildPaginatedResponse(result.rows, total, pag));
   } catch (error: any) {
     console.error("Address getAll error:", error);
     res.status(500).json({ message: error.message });

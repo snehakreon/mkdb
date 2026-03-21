@@ -137,15 +137,23 @@ export const remove = async (req: Request, res: Response) => {
   }
 };
 
-// GET /api/buyers/:id/projects — list projects for a buyer
+// GET /api/buyers/:id/projects — list projects for a buyer (paginated)
 export const getProjects = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(
-      `SELECT * FROM projects WHERE buyer_id = $1 AND is_active = true ORDER BY created_at DESC`,
+    const pag = parsePagination(req);
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM projects WHERE buyer_id = $1 AND is_active = true`,
       [id]
     );
-    res.json(result.rows);
+    const total = parseInt(countResult.rows[0].count);
+
+    const result = await pool.query(
+      `SELECT * FROM projects WHERE buyer_id = $1 AND is_active = true ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+      [id, pag.pageSize, pag.offset]
+    );
+    res.json(buildPaginatedResponse(result.rows, total, pag));
   } catch (error: any) {
     console.error("Buyer getProjects error:", error);
     res.status(500).json({ message: error.message });
