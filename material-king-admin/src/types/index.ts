@@ -45,8 +45,11 @@ export interface Product {
   name: string;
   slug: string;
   sku?: string;
+  hsn_code?: string;
+  isin?: string;
   category_id?: string;
   brand_id?: string;
+  brand_collection?: string;
   vendor_id?: string;
   description?: string;
   unit?: string;
@@ -57,7 +60,33 @@ export interface Product {
   image_url?: string;
   images?: any[];
   specifications?: Record<string, any>;
+  // Dimensions
+  length_mm?: number;
+  breadth_mm?: number;
+  width_mm?: number;
+  thickness_mm?: number;
+  weight_kg?: number;
+  // Box dimensions
+  box_length_mm?: number;
+  box_breadth_mm?: number;
+  box_width_mm?: number;
+  box_weight_kg?: number;
+  // Attributes
+  colour?: string;
+  grade?: string;
+  material?: string;
+  calibration?: string;
+  certification?: string;
+  termite_resistance?: string;
+  warranty?: string;
+  country_of_origin?: string;
+  customer_care_details?: string;
+  tech_sheet_url?: string;
+  manufactured_by?: string;
+  packaged_by?: string;
+  lead_time_days?: number;
   is_active: boolean;
+  created_at?: string;
   // Joined fields
   category_name?: string;
   brand_name?: string;

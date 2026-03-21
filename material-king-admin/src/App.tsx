@@ -638,22 +638,31 @@ function ProductsModule() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
-  const [formData, setFormData] = useState({
-    name: '', sku: '', category_id: '', brand_id: '', description: '',
-    unit: 'piece', price: '', mrp: '', stock_qty: '', min_order_qty: '1',
-    specifications: '{}'
-  });
+
+  const emptyForm = {
+    name: '', sku: '', hsn_code: '', isin: '', category_id: '', brand_id: '', brand_collection: '',
+    vendor_id: '', description: '', unit: 'piece', price: '', mrp: '', stock_qty: '', min_order_qty: '1',
+    image_url: '', specifications: '{}',
+    length_mm: '', breadth_mm: '', width_mm: '', thickness_mm: '', weight_kg: '',
+    box_length_mm: '', box_breadth_mm: '', box_width_mm: '', box_weight_kg: '',
+    colour: '', grade: '', material: '', calibration: '', certification: '',
+    termite_resistance: '', warranty: '', country_of_origin: 'India',
+    customer_care_details: '', tech_sheet_url: '',
+    manufactured_by: '', packaged_by: '', lead_time_days: '',
+  };
+  const [formData, setFormData] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
     try {
-      const [prodData, catData, brandData] = await Promise.all([
-        productService.getAll(), categoryService.getAll(), brandService.getAll()
+      const [prodData, catData, brandData, vendorData] = await Promise.all([
+        productService.getAll(), categoryService.getAll(), brandService.getAll(), vendorService.getAll()
       ]);
-      setProducts(prodData); setCategories(catData); setBrands(brandData);
+      setProducts(prodData); setCategories(catData); setBrands(brandData); setVendors(vendorData);
     } catch (err) { console.error('Failed to load products:', err); }
     finally { setLoading(false); }
   };
@@ -662,22 +671,36 @@ function ProductsModule() {
 
   const handleAdd = () => {
     setEditingItem(null);
-    setFormData({ name: '', sku: '', category_id: '', brand_id: '', description: '', unit: 'piece', price: '', mrp: '', stock_qty: '', min_order_qty: '1', specifications: '{}' });
+    setFormData({ ...emptyForm });
     setShowModal(true);
   };
 
   const handleEdit = (item: Product) => {
     setEditingItem(item);
     setFormData({
-      name: item.name, sku: item.sku || '',
-      category_id: item.category_id || '', brand_id: item.brand_id || '',
-      description: item.description || '', unit: item.unit || 'piece',
+      name: item.name, sku: item.sku || '', hsn_code: item.hsn_code || '', isin: item.isin || '',
+      category_id: item.category_id || '', brand_id: item.brand_id || '', brand_collection: item.brand_collection || '',
+      vendor_id: item.vendor_id || '', description: item.description || '', unit: item.unit || 'piece',
       price: String(item.price || ''), mrp: String(item.mrp || ''),
       stock_qty: String(item.stock_qty || ''), min_order_qty: String(item.min_order_qty || '1'),
-      specifications: JSON.stringify(item.specifications || {})
+      image_url: item.image_url || '', specifications: JSON.stringify(item.specifications || {}),
+      length_mm: String(item.length_mm || ''), breadth_mm: String(item.breadth_mm || ''),
+      width_mm: String(item.width_mm || ''), thickness_mm: String(item.thickness_mm || ''),
+      weight_kg: String(item.weight_kg || ''),
+      box_length_mm: String(item.box_length_mm || ''), box_breadth_mm: String(item.box_breadth_mm || ''),
+      box_width_mm: String(item.box_width_mm || ''), box_weight_kg: String(item.box_weight_kg || ''),
+      colour: item.colour || '', grade: item.grade || '', material: item.material || '',
+      calibration: item.calibration || '', certification: item.certification || '',
+      termite_resistance: item.termite_resistance || '', warranty: item.warranty || '',
+      country_of_origin: item.country_of_origin || 'India',
+      customer_care_details: item.customer_care_details || '', tech_sheet_url: item.tech_sheet_url || '',
+      manufactured_by: item.manufactured_by || '', packaged_by: item.packaged_by || '',
+      lead_time_days: String(item.lead_time_days || ''),
     });
     setShowModal(true);
   };
+
+  const numOrNull = (v: string) => v ? Number(v) : null;
 
   const handleSave = async () => {
     setSaving(true);
@@ -685,11 +708,29 @@ function ProductsModule() {
       const payload: any = {
         ...formData,
         price: formData.price ? Number(formData.price) : 0,
-        mrp: formData.mrp ? Number(formData.mrp) : null,
+        mrp: numOrNull(formData.mrp),
         stock_qty: formData.stock_qty ? Number(formData.stock_qty) : 0,
         min_order_qty: formData.min_order_qty ? Number(formData.min_order_qty) : 1,
         brand_id: formData.brand_id || null,
         category_id: formData.category_id || null,
+        vendor_id: formData.vendor_id || null,
+        image_url: formData.image_url || null,
+        hsn_code: formData.hsn_code || null,
+        isin: formData.isin || null,
+        brand_collection: formData.brand_collection || null,
+        length_mm: numOrNull(formData.length_mm), breadth_mm: numOrNull(formData.breadth_mm),
+        width_mm: numOrNull(formData.width_mm), thickness_mm: numOrNull(formData.thickness_mm),
+        weight_kg: numOrNull(formData.weight_kg),
+        box_length_mm: numOrNull(formData.box_length_mm), box_breadth_mm: numOrNull(formData.box_breadth_mm),
+        box_width_mm: numOrNull(formData.box_width_mm), box_weight_kg: numOrNull(formData.box_weight_kg),
+        lead_time_days: numOrNull(formData.lead_time_days),
+        colour: formData.colour || null, grade: formData.grade || null,
+        material: formData.material || null, calibration: formData.calibration || null,
+        certification: formData.certification || null, termite_resistance: formData.termite_resistance || null,
+        warranty: formData.warranty || null, country_of_origin: formData.country_of_origin || 'India',
+        customer_care_details: formData.customer_care_details || null,
+        tech_sheet_url: formData.tech_sheet_url || null,
+        manufactured_by: formData.manufactured_by || null, packaged_by: formData.packaged_by || null,
       };
       try { payload.specifications = JSON.parse(formData.specifications); } catch { payload.specifications = {}; }
       if (editingItem) { await productService.update(editingItem.id, payload); }
@@ -716,25 +757,34 @@ function ProductsModule() {
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
         {products.length === 0 ? <p className="text-gray-500 text-center py-8">No products found. Add your first product.</p> : (
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50"><tr>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Image</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">SKU</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Product Name</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">HSN</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Category</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Brand</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Price</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">MRP</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Stock</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Grade</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
             </tr></thead>
             <tbody>{products.map(product => (
               <tr key={product.id} className="border-t hover:bg-gray-50">
+                <td className="px-4 py-4">{product.image_url ? <img src={product.image_url} alt={product.name} className="w-10 h-10 object-cover rounded" /> : <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center"><Package className="w-5 h-5 text-gray-400" /></div>}</td>
                 <td className="px-4 py-4 font-mono text-sm">{product.sku || '-'}</td>
                 <td className="px-4 py-4 font-bold">{product.name}</td>
+                <td className="px-4 py-4 text-sm font-mono">{product.hsn_code || '-'}</td>
                 <td className="px-4 py-4 text-sm">{product.category_name || '-'}</td>
                 <td className="px-4 py-4 text-sm">{product.brand_name || '-'}</td>
                 <td className="px-4 py-4 text-sm font-bold text-mk-red">{product.price ? `₹${Number(product.price).toLocaleString()}` : '-'}</td>
+                <td className="px-4 py-4 text-sm">{product.mrp ? `₹${Number(product.mrp).toLocaleString()}` : '-'}</td>
                 <td className="px-4 py-4 text-sm">{product.stock_qty}</td>
+                <td className="px-4 py-4 text-sm">{product.grade || '-'}</td>
                 <td className="px-4 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${product.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{product.is_active ? 'Active' : 'Inactive'}</span></td>
                 <td className="px-4 py-4"><div className="flex gap-2">
                   <button onClick={() => handleEdit(product)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
@@ -743,16 +793,23 @@ function ProductsModule() {
               </tr>
             ))}</tbody>
           </table>
+          </div>
         )}
       </div>
       {showModal && (
         <Modal title={editingItem ? 'Edit Product' : 'Add Product'} onClose={() => setShowModal(false)}>
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+            {/* Basic Info */}
+            <h3 className="text-sm font-bold text-gray-500 uppercase border-b pb-1">Basic Info</h3>
             <div className="grid grid-cols-2 gap-4">
               <div><label className="block text-sm font-bold mb-2">Product Name *</label><input type="text" className="input-field" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Century 18mm BWP Plywood" /></div>
               <div><label className="block text-sm font-bold mb-2">SKU</label><input type="text" className="input-field" value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value })} placeholder="PLY-CEN-18MM" /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">HSN Code</label><input type="text" className="input-field" value={formData.hsn_code} onChange={e => setFormData({ ...formData, hsn_code: e.target.value })} placeholder="44129990" /></div>
+              <div><label className="block text-sm font-bold mb-2">ISIN</label><input type="text" className="input-field" value={formData.isin} onChange={e => setFormData({ ...formData, isin: e.target.value })} placeholder="" /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
               <div><label className="block text-sm font-bold mb-2">Category</label>
                 <select className="input-field" value={formData.category_id} onChange={e => setFormData({ ...formData, category_id: e.target.value })}>
                   <option value="">Select Category</option>
@@ -765,8 +822,21 @@ function ProductsModule() {
                   {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
               </div>
+              <div><label className="block text-sm font-bold mb-2">Vendor</label>
+                <select className="input-field" value={formData.vendor_id} onChange={e => setFormData({ ...formData, vendor_id: e.target.value })}>
+                  <option value="">Select Vendor</option>
+                  {vendors.map(v => <option key={v.id} value={v.id}>{v.company_name}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Brand Collection</label><input type="text" className="input-field" value={formData.brand_collection} onChange={e => setFormData({ ...formData, brand_collection: e.target.value })} placeholder="Premium" /></div>
+              <div><label className="block text-sm font-bold mb-2">Image URL</label><input type="text" className="input-field" value={formData.image_url} onChange={e => setFormData({ ...formData, image_url: e.target.value })} placeholder="https://..." /></div>
             </div>
             <div><label className="block text-sm font-bold mb-2">Description</label><textarea className="input-field" rows={2} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Product description" /></div>
+
+            {/* Pricing & Inventory */}
+            <h3 className="text-sm font-bold text-gray-500 uppercase border-b pb-1 mt-4">Pricing & Inventory</h3>
             <div className="grid grid-cols-3 gap-4">
               <div><label className="block text-sm font-bold mb-2">Price (₹) *</label><input type="number" step="0.01" className="input-field" value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} placeholder="2500" /></div>
               <div><label className="block text-sm font-bold mb-2">MRP (₹)</label><input type="number" step="0.01" className="input-field" value={formData.mrp} onChange={e => setFormData({ ...formData, mrp: e.target.value })} placeholder="3000" /></div>
@@ -785,10 +855,61 @@ function ProductsModule() {
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div><label className="block text-sm font-bold mb-2">Stock Qty</label><input type="number" className="input-field" value={formData.stock_qty} onChange={e => setFormData({ ...formData, stock_qty: e.target.value })} placeholder="100" /></div>
               <div><label className="block text-sm font-bold mb-2">Min Order Qty</label><input type="number" className="input-field" value={formData.min_order_qty} onChange={e => setFormData({ ...formData, min_order_qty: e.target.value })} placeholder="1" /></div>
+              <div><label className="block text-sm font-bold mb-2">Lead Time (days)</label><input type="number" className="input-field" value={formData.lead_time_days} onChange={e => setFormData({ ...formData, lead_time_days: e.target.value })} placeholder="7" /></div>
             </div>
+
+            {/* Product Dimensions */}
+            <h3 className="text-sm font-bold text-gray-500 uppercase border-b pb-1 mt-4">Product Dimensions</h3>
+            <div className="grid grid-cols-5 gap-3">
+              <div><label className="block text-xs font-bold mb-1">Length (mm)</label><input type="number" step="0.01" className="input-field" value={formData.length_mm} onChange={e => setFormData({ ...formData, length_mm: e.target.value })} /></div>
+              <div><label className="block text-xs font-bold mb-1">Breadth (mm)</label><input type="number" step="0.01" className="input-field" value={formData.breadth_mm} onChange={e => setFormData({ ...formData, breadth_mm: e.target.value })} /></div>
+              <div><label className="block text-xs font-bold mb-1">Width (mm)</label><input type="number" step="0.01" className="input-field" value={formData.width_mm} onChange={e => setFormData({ ...formData, width_mm: e.target.value })} /></div>
+              <div><label className="block text-xs font-bold mb-1">Thickness (mm)</label><input type="number" step="0.01" className="input-field" value={formData.thickness_mm} onChange={e => setFormData({ ...formData, thickness_mm: e.target.value })} /></div>
+              <div><label className="block text-xs font-bold mb-1">Weight (kg)</label><input type="number" step="0.01" className="input-field" value={formData.weight_kg} onChange={e => setFormData({ ...formData, weight_kg: e.target.value })} /></div>
+            </div>
+
+            {/* Box Dimensions */}
+            <h3 className="text-sm font-bold text-gray-500 uppercase border-b pb-1 mt-4">Box / Packaging Dimensions</h3>
+            <div className="grid grid-cols-4 gap-3">
+              <div><label className="block text-xs font-bold mb-1">Box Length (mm)</label><input type="number" step="0.01" className="input-field" value={formData.box_length_mm} onChange={e => setFormData({ ...formData, box_length_mm: e.target.value })} /></div>
+              <div><label className="block text-xs font-bold mb-1">Box Breadth (mm)</label><input type="number" step="0.01" className="input-field" value={formData.box_breadth_mm} onChange={e => setFormData({ ...formData, box_breadth_mm: e.target.value })} /></div>
+              <div><label className="block text-xs font-bold mb-1">Box Width (mm)</label><input type="number" step="0.01" className="input-field" value={formData.box_width_mm} onChange={e => setFormData({ ...formData, box_width_mm: e.target.value })} /></div>
+              <div><label className="block text-xs font-bold mb-1">Box Weight (kg)</label><input type="number" step="0.01" className="input-field" value={formData.box_weight_kg} onChange={e => setFormData({ ...formData, box_weight_kg: e.target.value })} /></div>
+            </div>
+
+            {/* Attributes */}
+            <h3 className="text-sm font-bold text-gray-500 uppercase border-b pb-1 mt-4">Attributes</h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Colour</label><input type="text" className="input-field" value={formData.colour} onChange={e => setFormData({ ...formData, colour: e.target.value })} placeholder="Natural" /></div>
+              <div><label className="block text-sm font-bold mb-2">Grade</label><input type="text" className="input-field" value={formData.grade} onChange={e => setFormData({ ...formData, grade: e.target.value })} placeholder="BWP / MR / BWR" /></div>
+              <div><label className="block text-sm font-bold mb-2">Material</label><input type="text" className="input-field" value={formData.material} onChange={e => setFormData({ ...formData, material: e.target.value })} placeholder="Hardwood" /></div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Calibration</label><input type="text" className="input-field" value={formData.calibration} onChange={e => setFormData({ ...formData, calibration: e.target.value })} /></div>
+              <div><label className="block text-sm font-bold mb-2">Certification</label><input type="text" className="input-field" value={formData.certification} onChange={e => setFormData({ ...formData, certification: e.target.value })} placeholder="ISI / ISO" /></div>
+              <div><label className="block text-sm font-bold mb-2">Termite Resistance</label><input type="text" className="input-field" value={formData.termite_resistance} onChange={e => setFormData({ ...formData, termite_resistance: e.target.value })} placeholder="Yes / No" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Warranty</label><input type="text" className="input-field" value={formData.warranty} onChange={e => setFormData({ ...formData, warranty: e.target.value })} placeholder="25 Years" /></div>
+              <div><label className="block text-sm font-bold mb-2">Country of Origin</label><input type="text" className="input-field" value={formData.country_of_origin} onChange={e => setFormData({ ...formData, country_of_origin: e.target.value })} placeholder="India" /></div>
+            </div>
+
+            {/* Manufacturer Info */}
+            <h3 className="text-sm font-bold text-gray-500 uppercase border-b pb-1 mt-4">Manufacturer Info</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Manufactured By</label><input type="text" className="input-field" value={formData.manufactured_by} onChange={e => setFormData({ ...formData, manufactured_by: e.target.value })} /></div>
+              <div><label className="block text-sm font-bold mb-2">Packaged By</label><input type="text" className="input-field" value={formData.packaged_by} onChange={e => setFormData({ ...formData, packaged_by: e.target.value })} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Customer Care Details</label><input type="text" className="input-field" value={formData.customer_care_details} onChange={e => setFormData({ ...formData, customer_care_details: e.target.value })} /></div>
+              <div><label className="block text-sm font-bold mb-2">Tech Sheet URL</label><input type="text" className="input-field" value={formData.tech_sheet_url} onChange={e => setFormData({ ...formData, tech_sheet_url: e.target.value })} placeholder="https://..." /></div>
+            </div>
+
+            {/* Specifications JSON */}
+            <h3 className="text-sm font-bold text-gray-500 uppercase border-b pb-1 mt-4">Specifications</h3>
             <div><label className="block text-sm font-bold mb-2">Specifications (JSON)</label><textarea className="input-field font-mono text-sm" rows={3} value={formData.specifications} onChange={e => setFormData({ ...formData, specifications: e.target.value })} placeholder='{"thickness": "18mm", "grade": "BWP"}' /></div>
           </div>
           <div className="flex gap-3 mt-6">
