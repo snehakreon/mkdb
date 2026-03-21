@@ -226,18 +226,22 @@ CREATE TABLE IF NOT EXISTS orders (
   total_amount    NUMERIC(14,2) NOT NULL DEFAULT 0,
   shipping_address TEXT,
   notes           TEXT,
+  expected_delivery_date DATE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS order_items (
-  id          SERIAL PRIMARY KEY,
-  order_id    INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
-  product_id  INT REFERENCES products(id) ON DELETE SET NULL,
-  quantity    INT NOT NULL DEFAULT 1,
-  unit_price  NUMERIC(12,2) NOT NULL,
-  total_price NUMERIC(12,2) NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id                  SERIAL PRIMARY KEY,
+  order_id            INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  product_id          INT REFERENCES products(id) ON DELETE SET NULL,
+  quantity            INT NOT NULL DEFAULT 1,
+  unit_price          NUMERIC(12,2) NOT NULL,
+  total_price         NUMERIC(12,2) NOT NULL,
+  fulfillment_status  VARCHAR(30) DEFAULT 'in_stock'
+                      CHECK (fulfillment_status IN ('in_stock','back_order')),
+  quantity_back_order INT DEFAULT 0,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================
@@ -307,6 +311,36 @@ CREATE TABLE IF NOT EXISTS wishlists (
 );
 
 -- ============================================================
+-- INVENTORY (reorder levels per product)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS inventory (
+  id            SERIAL PRIMARY KEY,
+  product_id    INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  reorder_level INT NOT NULL DEFAULT 10,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(product_id)
+);
+
+-- ============================================================
+-- INVENTORY TRANSACTIONS (stock movement log)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS inventory_transactions (
+  id              SERIAL PRIMARY KEY,
+  product_id      INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  transaction_type VARCHAR(30) NOT NULL
+                  CHECK (transaction_type IN ('add','reduce','reserve','adjust')),
+  quantity_change  INT NOT NULL,
+  quantity_before  INT NOT NULL,
+  quantity_after   INT NOT NULL,
+  reason          TEXT,
+  reference_type  VARCHAR(30),
+  reference_id    VARCHAR(50),
+  created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
 -- INDEXES
 -- ============================================================
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -322,3 +356,6 @@ CREATE INDEX IF NOT EXISTS idx_buyer_addresses_user ON buyer_addresses(user_id);
 CREATE INDEX IF NOT EXISTS idx_wishlists_user ON wishlists(user_id);
 CREATE INDEX IF NOT EXISTS idx_wishlists_product ON wishlists(product_id);
 CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons(code);
+CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory(product_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_transactions_product ON inventory_transactions(product_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_transactions_ref ON inventory_transactions(reference_type, reference_id);
