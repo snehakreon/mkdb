@@ -47,6 +47,27 @@ export const register = async (req: Request, res: Response) => {
       [userId, role]
     );
 
+    // Create corresponding record in the entity table
+    if (type === "buyer") {
+      await pool.query(
+        `INSERT INTO buyers (user_id, company_name, contact_name, email, phone, is_active)
+         VALUES ($1, $2, $3, $4, $5, true)`,
+        [userId, `${firstName} ${lastName}`, `${firstName} ${lastName}`, email, phone]
+      );
+    } else if (type === "vendor") {
+      await pool.query(
+        `INSERT INTO vendors (user_id, company_name, contact_name, email, phone, is_active, is_verified)
+         VALUES ($1, $2, $3, $4, $5, true, false)`,
+        [userId, `${firstName} ${lastName}`, `${firstName} ${lastName}`, email, phone]
+      );
+    } else if (type === "dealer") {
+      await pool.query(
+        `INSERT INTO dealers (user_id, company_name, contact_name, email, phone, is_active)
+         VALUES ($1, $2, $3, $4, $5, true)`,
+        [userId, `${firstName} ${lastName}`, `${firstName} ${lastName}`, email, phone]
+      );
+    }
+
     const tokens = generateTokens(userId);
 
     // Save session
