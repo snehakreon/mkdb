@@ -30,7 +30,8 @@ export default function AdminLayout() {
       <aside className={`${sidebarOpen ? "w-64" : "w-16"} bg-white border-r border-gray-200 transition-all duration-200 flex flex-col`}>
         {/* Logo */}
         <div className="h-16 flex items-center px-4 border-b border-gray-200">
-          {sidebarOpen && <h1 className="text-lg font-bold text-primary-700">Material King</h1>}
+          <img src="/logo.png" alt="Material King" className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+          {sidebarOpen && <h1 className="text-lg font-bold text-primary-700 ml-2">Material King</h1>}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="ml-auto text-gray-500 hover:text-gray-700 p-1"

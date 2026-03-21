@@ -79,9 +79,7 @@ export default function PublicHeader() {
           </button>
 
           <Link to="/" className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-            <div className="w-9 h-9 md:w-11 md:h-11 bg-mk-gray rounded-full flex items-center justify-center border-2 border-mk-red">
-              <span className="text-white font-extrabold text-xs md:text-sm">MK</span>
-            </div>
+            <img src="/logo.png" alt="Material King" className="w-9 h-9 md:w-11 md:h-11 rounded-full object-cover" />
             <div className="leading-tight hidden sm:block">
               <div className="text-lg font-extrabold text-mk-gray tracking-wide">MATERIAL <span className="text-mk-red">KING</span></div>
               <div className="text-[10px] text-mk-gray-600 tracking-widest uppercase">Building Materials Marketplace</div>

@@ -7,9 +7,7 @@ export default function PublicFooter() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-mk-gray rounded-full flex items-center justify-center border-2 border-mk-red">
-                <span className="text-white font-extrabold text-xs">MK</span>
-              </div>
+              <img src="/logo.png" alt="Material King" className="w-10 h-10 rounded-full object-cover" />
               <div className="text-white font-extrabold tracking-wide">MATERIAL <span className="text-mk-red">KING</span></div>
             </div>
             <p className="text-gray-400 text-sm leading-relaxed">India's leading B2B marketplace for building materials. Best prices from 500+ verified vendors.</p>

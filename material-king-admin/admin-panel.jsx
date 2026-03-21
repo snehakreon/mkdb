@@ -141,10 +141,7 @@ function Header() {
       <div className="flex items-center gap-4">
         {/* Material King Logo */}
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-[#4D4D4D] border-2 border-[#ED1C24] flex items-center justify-center relative">
-            <span className="text-white font-bold text-sm tracking-wider">MK</span>
-            <div className="absolute w-0.5 h-12 bg-white left-1/2 -translate-x-1/2"></div>
-          </div>
+          <img src="/logo.png" alt="Material King" className="w-12 h-12 rounded-full object-cover" />
           <div>
             <h1 className="text-xl font-bold text-[#4D4D4D] tracking-wider">MATERIAL KING</h1>
             <p className="text-xs text-gray-500">Admin Portal</p>

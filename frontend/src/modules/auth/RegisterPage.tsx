@@ -46,9 +46,7 @@ export default function RegisterPage() {
       <header className="bg-white shadow-sm border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-mk-gray rounded-full flex items-center justify-center border-2 border-mk-red">
-              <span className="text-white font-extrabold text-sm">MK</span>
-            </div>
+            <img src="/logo.png" alt="Material King" className="w-11 h-11 rounded-full object-cover" />
             <div className="leading-tight">
               <div className="text-lg font-extrabold text-mk-gray tracking-wide">MATERIAL <span className="text-mk-red">KING</span></div>
               <div className="text-[10px] text-mk-gray-600 tracking-widest uppercase">Building Materials Marketplace</div>
@@ -67,9 +65,7 @@ export default function RegisterPage() {
           <div className="login-bg p-10 lg:p-12 text-white lg:col-span-2 hidden lg:flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-3 mb-8">
-                <div className="w-12 h-12 bg-white/10 rounded-full flex items-center justify-center border-2 border-mk-red">
-                  <span className="text-white font-extrabold">MK</span>
-                </div>
+                <img src="/logo.png" alt="Material King" className="w-12 h-12 rounded-full object-cover" />
                 <span className="text-xl font-extrabold">MATERIAL KING</span>
               </div>
               <h2 className="text-2xl font-extrabold leading-tight mb-4">Join 10,000+ businesses on India's largest B2B materials platform</h2>

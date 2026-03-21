@@ -67,9 +67,7 @@ export default function LoginPage({ onLogin }: Props) {
         {/* Header with Logo */}
         <div className="bg-mk-red p-8 text-center">
           <div className="flex justify-center mb-4">
-            <div className="w-20 h-20 rounded-full bg-white border-4 border-white flex items-center justify-center relative shadow-lg">
-              <span className="text-mk-red font-bold text-2xl">MK</span>
-            </div>
+            <img src="/logo.png" alt="Material King" className="w-20 h-20 rounded-full object-cover shadow-lg" />
           </div>
           <h1 className="text-2xl font-bold text-white">MATERIAL KING</h1>
           <p className="text-red-100 text-sm mt-1">Admin Portal</p>
