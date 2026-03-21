@@ -23,7 +23,16 @@ const processQueue = (error: any, token: string | null) => {
 }
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Auto-unwrap paginated responses: { data: [...], pagination: {...} } → [...]
+    // so existing code using response.data still gets an array
+    const body = response.data;
+    if (body && !Array.isArray(body) && Array.isArray(body.data) && body.pagination) {
+      response.data = body.data;
+      response.headers['x-pagination'] = JSON.stringify(body.pagination);
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config
 

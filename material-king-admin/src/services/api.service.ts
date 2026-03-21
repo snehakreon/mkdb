@@ -31,9 +31,11 @@ apiClient.interceptors.response.use(
 );
 
 export const apiService = {
-  async getAll<T>(endpoint: string): Promise<T[]> {
-    const response = await apiClient.get(endpoint);
-    return response.data;
+  async getAll<T>(endpoint: string, params?: Record<string, any>): Promise<T[]> {
+    const response = await apiClient.get(endpoint, { params });
+    const body = response.data;
+    // Support paginated responses: { data: [...], pagination: {...} }
+    return Array.isArray(body) ? body : body.data;
   },
 
   async getById<T>(endpoint: string, id: string): Promise<T> {
