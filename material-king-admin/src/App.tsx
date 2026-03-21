@@ -10,6 +10,7 @@ import { dealerService } from './services/dealer.service';
 import { orderService } from './services/order.service';
 import { buyerService } from './services/buyer.service';
 import { Zone, Vendor, Category, Brand, Product, Order, Dealer, Buyer } from './types';
+import { INDIAN_STATES } from './constants/indianStates';
 // API_CONFIG imported via services
 
 // ============================================================================
@@ -343,22 +344,26 @@ function ZonesModule() {
 // ============================================================================
 function VendorsModule() {
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
-  const [formData, setFormData] = useState({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '' });
+  const [formData, setFormData] = useState({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '', zone_id: '' });
   const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
-    try { const data = await vendorService.getAll(); setVendors(data); }
+    try {
+      const [vendorData, zoneData] = await Promise.all([vendorService.getAll(), zoneService.getAll()]);
+      setVendors(vendorData); setZones(zoneData);
+    }
     catch (err) { console.error('Failed to load vendors:', err); }
     finally { setLoading(false); }
   };
 
   useEffect(() => { loadData(); }, []);
 
-  const handleAdd = () => { setEditingVendor(null); setFormData({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '' }); setShowModal(true); };
-  const handleEdit = (vendor: Vendor) => { setEditingVendor(vendor); setFormData({ company_name: vendor.company_name, contact_name: vendor.contact_name || '', email: vendor.email || '', phone: vendor.phone || '', gstin: vendor.gstin || '', address: vendor.address || '', city: vendor.city || '', state: vendor.state || '', pincode: vendor.pincode || '' }); setShowModal(true); };
+  const handleAdd = () => { setEditingVendor(null); setFormData({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '', zone_id: '' }); setShowModal(true); };
+  const handleEdit = (vendor: Vendor) => { setEditingVendor(vendor); setFormData({ company_name: vendor.company_name, contact_name: vendor.contact_name || '', email: vendor.email || '', phone: vendor.phone || '', gstin: vendor.gstin || '', address: vendor.address || '', city: vendor.city || '', state: vendor.state || '', pincode: vendor.pincode || '', zone_id: (vendor as any).zone_id ? String((vendor as any).zone_id) : '' }); setShowModal(true); };
 
   const handleSave = async () => {
     setSaving(true);
@@ -393,6 +398,7 @@ function VendorsModule() {
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Contact</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">GSTIN</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">City</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Zone</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
             </tr></thead>
@@ -402,6 +408,7 @@ function VendorsModule() {
                 <td className="px-6 py-4 text-sm">{vendor.contact_name || '-'}<br/><span className="text-gray-400">{vendor.phone || ''}</span></td>
                 <td className="px-6 py-4 font-mono text-sm">{vendor.gstin || '-'}</td>
                 <td className="px-6 py-4 text-sm">{vendor.city || '-'}</td>
+                <td className="px-6 py-4 text-sm">{(vendor as any).zone_name || '-'}</td>
                 <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${vendor.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{vendor.is_active ? 'Active' : 'Inactive'}</span></td>
                 <td className="px-6 py-4"><div className="flex gap-2">
                   <button onClick={() => handleEdit(vendor)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
@@ -427,8 +434,19 @@ function VendorsModule() {
             <div><label className="block text-sm font-bold mb-2">Address</label><input type="text" className="input-field" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} placeholder="Full address" /></div>
             <div className="grid grid-cols-3 gap-4">
               <div><label className="block text-sm font-bold mb-2">City</label><input type="text" className="input-field" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} placeholder="Mumbai" /></div>
-              <div><label className="block text-sm font-bold mb-2">State</label><input type="text" className="input-field" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value })} placeholder="Maharashtra" /></div>
+              <div><label className="block text-sm font-bold mb-2">State</label>
+                <select className="input-field" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value })}>
+                  <option value="">Select State</option>
+                  {INDIAN_STATES.map(s => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
+                </select>
+              </div>
               <div><label className="block text-sm font-bold mb-2">Pincode</label><input type="text" className="input-field" value={formData.pincode} onChange={e => setFormData({ ...formData, pincode: e.target.value })} placeholder="400001" /></div>
+            </div>
+            <div><label className="block text-sm font-bold mb-2">Zone</label>
+              <select className="input-field" value={formData.zone_id} onChange={e => setFormData({ ...formData, zone_id: e.target.value })}>
+                <option value="">Select Zone</option>
+                {zones.filter(z => z.is_active).map(z => <option key={z.id} value={z.id}>{z.name} ({z.code})</option>)}
+              </select>
             </div>
           </div>
           <div className="flex gap-3 mt-6">
@@ -755,10 +773,15 @@ function ProductsModule() {
               <div><label className="block text-sm font-bold mb-2">Unit</label>
                 <select className="input-field" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })}>
                   <option value="piece">Piece</option>
+                  <option value="sq.mm">sq.mm</option>
+                  <option value="mm">mm</option>
                   <option value="kg">Kg</option>
-                  <option value="sqft">Sq Ft</option>
-                  <option value="bag">Bag</option>
                   <option value="box">Box</option>
+                  <option value="bundle">Bundle</option>
+                  <option value="set">Set</option>
+                  <option value="litre">Litre</option>
+                  <option value="bag">Bag</option>
+                  <option value="sqft">Sq Ft</option>
                 </select>
               </div>
             </div>
@@ -883,7 +906,12 @@ function DealersModule() {
             <div><label className="block text-sm font-bold mb-2">Address</label><input type="text" className="input-field" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} placeholder="Full address" /></div>
             <div className="grid grid-cols-3 gap-4">
               <div><label className="block text-sm font-bold mb-2">City</label><input type="text" className="input-field" value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} placeholder="Mumbai" /></div>
-              <div><label className="block text-sm font-bold mb-2">State</label><input type="text" className="input-field" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value })} placeholder="Maharashtra" /></div>
+              <div><label className="block text-sm font-bold mb-2">State</label>
+                <select className="input-field" value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value })}>
+                  <option value="">Select State</option>
+                  {INDIAN_STATES.map(s => <option key={s.code} value={s.code}>{s.name} ({s.code})</option>)}
+                </select>
+              </div>
               <div><label className="block text-sm font-bold mb-2">Pincode</label><input type="text" className="input-field" value={formData.pincode} onChange={e => setFormData({ ...formData, pincode: e.target.value })} placeholder="400001" /></div>
             </div>
           </div>

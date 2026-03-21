@@ -11,20 +11,25 @@ export const getAll = async (req: Request, res: Response) => {
     let where = "";
 
     if (search) {
-      where = ` WHERE (company_name ILIKE $${paramIdx} OR contact_name ILIKE $${paramIdx} OR email ILIKE $${paramIdx})`;
+      where = ` WHERE (v.company_name ILIKE $${paramIdx} OR v.contact_name ILIKE $${paramIdx} OR v.email ILIKE $${paramIdx})`;
       params.push(`%${search}%`);
       paramIdx++;
     }
 
-    const countResult = await pool.query(`SELECT COUNT(*) FROM vendors${where}`, params);
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM vendors v${where}`, params
+    );
     const total = parseInt(countResult.rows[0].count);
 
     const result = await pool.query(
-      `SELECT id, company_name, contact_name, email, phone, gstin,
-              address, city, state, pincode, zone_id,
-              is_verified, is_active, created_at
-       FROM vendors${where}
-       ORDER BY created_at DESC
+      `SELECT v.id, v.company_name, v.contact_name, v.email, v.phone, v.gstin,
+              v.address, v.city, v.state, v.pincode, v.zone_id,
+              z.name AS zone_name,
+              v.is_verified, v.is_active, v.created_at
+       FROM vendors v
+       LEFT JOIN zones z ON v.zone_id = z.id
+       ${where}
+       ORDER BY v.created_at DESC
        LIMIT $${paramIdx++} OFFSET $${paramIdx++}`,
       [...params, limit, offset]
     );
@@ -61,16 +66,16 @@ export const create = async (req: Request, res: Response) => {
   try {
     const {
       company_name, contact_name, email, phone, gstin,
-      address, city, state, pincode,
+      address, city, state, pincode, zone_id,
     } = req.body;
 
     const result = await pool.query(
       `INSERT INTO vendors (company_name, contact_name, email, phone, gstin,
-                            address, city, state, pincode, is_verified, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false, true)
+                            address, city, state, pincode, zone_id, is_verified, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, false, true)
        RETURNING *`,
       [company_name, contact_name || null, email || null, phone || null, gstin || null,
-       address || null, city || null, state || null, pincode || null]
+       address || null, city || null, state || null, pincode || null, zone_id || null]
     );
 
     res.status(201).json(result.rows[0]);
@@ -89,7 +94,7 @@ export const update = async (req: Request, res: Response) => {
     const { id } = req.params;
     const {
       company_name, contact_name, email, phone, gstin,
-      address, city, state, pincode, is_verified, is_active,
+      address, city, state, pincode, zone_id, is_verified, is_active,
     } = req.body;
 
     const result = await pool.query(
@@ -103,13 +108,14 @@ export const update = async (req: Request, res: Response) => {
         city = COALESCE($7, city),
         state = COALESCE($8, state),
         pincode = COALESCE($9, pincode),
-        is_verified = COALESCE($10, is_verified),
-        is_active = COALESCE($11, is_active),
+        zone_id = $10,
+        is_verified = COALESCE($11, is_verified),
+        is_active = COALESCE($12, is_active),
         updated_at = NOW()
-       WHERE id = $12
+       WHERE id = $13
        RETURNING *`,
       [company_name, contact_name, email, phone, gstin,
-       address, city, state, pincode, is_verified, is_active, id]
+       address, city, state, pincode, zone_id || null, is_verified, is_active, id]
     );
 
     if (result.rows.length === 0) {

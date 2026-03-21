@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { vendorService } from "../../services/vendor.service"
+import { zoneService } from "../../services/zone.service"
 import DataTable from "../../components/ui/DataTable"
 import FormModal from "../../components/ui/FormModal"
 import FormField from "../../components/ui/FormField"
@@ -8,11 +9,12 @@ import { STATE_OPTIONS } from "../../constants/indianStates"
 
 const emptyForm = {
   company_name: "", contact_name: "", email: "", phone: "", gstin: "",
-  address: "", city: "", state: "", pincode: "",
+  address: "", city: "", state: "", pincode: "", zone_id: "",
 }
 
 export default function VendorsPage() {
   const [vendors, setVendors] = useState<any[]>([])
+  const [zones, setZones] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -21,7 +23,11 @@ export default function VendorsPage() {
 
   const fetchData = async () => {
     setLoading(true)
-    try { setVendors((await vendorService.getAll()).data) } catch { /* empty */ }
+    try {
+      const [vRes, zRes] = await Promise.all([vendorService.getAll(), zoneService.getAll()])
+      setVendors(vRes.data)
+      setZones(zRes.data)
+    } catch { /* empty */ }
     setLoading(false)
   }
 
@@ -34,6 +40,7 @@ export default function VendorsPage() {
       company_name: row.company_name || "", contact_name: row.contact_name || "",
       email: row.email || "", phone: row.phone || "", gstin: row.gstin || "",
       address: row.address || "", city: row.city || "", state: row.state || "", pincode: row.pincode || "",
+      zone_id: row.zone_id ? String(row.zone_id) : "",
     })
     setEditId(row.id); setModalOpen(true)
   }
@@ -59,6 +66,7 @@ export default function VendorsPage() {
     { key: "gstin", label: "GSTIN" },
     { key: "phone", label: "Phone" },
     { key: "state", label: "State" },
+    { key: "zone_name", label: "Zone" },
     { key: "is_verified", label: "Verified", render: (v: boolean) => <StatusBadge status={v ? "Verified" : "Pending"} /> },
   ]
 
@@ -85,6 +93,8 @@ export default function VendorsPage() {
           <FormField label="State" name="state" value={form.state} onChange={handleChange} options={STATE_OPTIONS} />
           <FormField label="Pincode" name="pincode" value={form.pincode} onChange={handleChange} />
         </div>
+        <FormField label="Zone" name="zone_id" value={form.zone_id} onChange={handleChange}
+          options={zones.filter((z: any) => z.is_active).map((z: any) => ({ value: String(z.id), label: `${z.name} (${z.code})` }))} />
       </FormModal>
     </div>
   )
