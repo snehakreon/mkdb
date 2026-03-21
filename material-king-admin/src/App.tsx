@@ -1434,7 +1434,7 @@ function CouponsModule() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
-  const [formData, setFormData] = useState({ code: '', description: '', discount_type: 'percentage', discount_value: '', min_order_amount: '', max_discount: '', usage_limit: '', valid_from: '', valid_until: '' });
+  const [formData, setFormData] = useState({ code: '', description: '', discount_type: 'percentage', discount_value: '', min_order_amount: '', max_discount: '', usage_limit: '', valid_from: '', valid_until: '', is_active: true as boolean });
   const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
@@ -1445,15 +1445,16 @@ function CouponsModule() {
 
   useEffect(() => { loadData(); }, []);
 
-  const handleAdd = () => { setEditingCoupon(null); setFormData({ code: '', description: '', discount_type: 'percentage', discount_value: '', min_order_amount: '', max_discount: '', usage_limit: '', valid_from: '', valid_until: '' }); setShowModal(true); };
+  const handleAdd = () => { setEditingCoupon(null); setFormData({ code: '', description: '', discount_type: 'percentage', discount_value: '', min_order_amount: '', max_discount: '', usage_limit: '', valid_from: '', valid_until: '', is_active: true }); setShowModal(true); };
   const handleEdit = (c: Coupon) => {
     setEditingCoupon(c);
     setFormData({
       code: c.code || '', description: c.description || '', discount_type: c.discount_type || 'percentage',
-      discount_value: String(c.discount_value || ''), min_order_amount: String(c.min_order_amount || ''),
-      max_discount: String(c.max_discount || ''), usage_limit: String(c.usage_limit || ''),
+      discount_value: String(c.discount_value ?? ''), min_order_amount: String(c.min_order_amount ?? ''),
+      max_discount: String(c.max_discount ?? ''), usage_limit: String(c.usage_limit ?? ''),
       valid_from: c.valid_from ? String(c.valid_from).slice(0, 10) : '',
       valid_until: c.valid_until ? String(c.valid_until).slice(0, 10) : '',
+      is_active: c.is_active !== false,
     });
     setShowModal(true);
   };
@@ -1533,6 +1534,9 @@ function CouponsModule() {
             <div><label className="block text-sm font-bold mb-2">Usage Limit</label><input type="number" className="input-field" value={formData.usage_limit} onChange={e => setFormData({ ...formData, usage_limit: e.target.value })} placeholder="Unlimited" /></div>
             <div><label className="block text-sm font-bold mb-2">Valid From</label><input type="date" className="input-field" value={formData.valid_from} onChange={e => setFormData({ ...formData, valid_from: e.target.value })} /></div>
             <div><label className="block text-sm font-bold mb-2">Valid Until</label><input type="date" className="input-field" value={formData.valid_until} onChange={e => setFormData({ ...formData, valid_until: e.target.value })} /></div>
+            {editingCoupon && (
+              <div className="col-span-2"><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="w-5 h-5 accent-mk-red" /><span className="text-sm font-bold">Active</span></label></div>
+            )}
           </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
@@ -1552,7 +1556,7 @@ function AdminUsersModule() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
-  const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '' });
+  const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '', is_active: true as boolean });
   const [saving, setSaving] = useState(false);
 
   const loadData = async () => {
@@ -1563,10 +1567,10 @@ function AdminUsersModule() {
 
   useEffect(() => { loadData(); }, []);
 
-  const handleAdd = () => { setEditingUser(null); setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '' }); setShowModal(true); };
+  const handleAdd = () => { setEditingUser(null); setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', is_active: true }); setShowModal(true); };
   const handleEdit = (u: AdminUser) => {
     setEditingUser(u);
-    setFormData({ firstName: u.first_name || '', lastName: u.last_name || '', email: u.email || '', phone: u.phone || '', password: '' });
+    setFormData({ firstName: u.first_name || '', lastName: u.last_name || '', email: u.email || '', phone: u.phone || '', password: '', is_active: u.is_active !== false });
     setShowModal(true);
   };
 
@@ -1636,6 +1640,9 @@ function AdminUsersModule() {
             <div><label className="block text-sm font-bold mb-2">Email *</label><input type="email" className="input-field" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
             <div><label className="block text-sm font-bold mb-2">Phone</label><input type="text" className="input-field" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} /></div>
             <div><label className="block text-sm font-bold mb-2">{editingUser ? 'New Password (leave blank to keep)' : 'Password *'}</label><input type="password" className="input-field" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} /></div>
+            {editingUser && (
+              <div><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="w-5 h-5 accent-mk-red" /><span className="text-sm font-bold">Active</span></label></div>
+            )}
           </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
