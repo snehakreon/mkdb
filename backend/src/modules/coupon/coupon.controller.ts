@@ -104,10 +104,12 @@ export const getAll = async (req: Request, res: Response, next: NextFunction) =>
 export const create = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { code, description, discount_type, discount_value, min_order_amount, max_discount, usage_limit, valid_from, valid_until } = req.body;
+    const toNum = (v: any) => (v === "" || v === null || v === undefined) ? null : Number(v);
+    const toDate = (v: any) => (v === "" || v === null || v === undefined) ? null : v;
     const result = await pool.query(
       `INSERT INTO coupons (code, description, discount_type, discount_value, min_order_amount, max_discount, usage_limit, valid_from, valid_until)
        VALUES (UPPER($1), $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [code, description, discount_type || "percentage", discount_value, min_order_amount || 0, max_discount, usage_limit, valid_from || new Date(), valid_until]
+      [code, description || null, discount_type || "percentage", toNum(discount_value), toNum(min_order_amount) ?? 0, toNum(max_discount), toNum(usage_limit), toDate(valid_from) || new Date(), toDate(valid_until)]
     );
     res.status(201).json(result.rows[0]);
   } catch (err: any) {
@@ -121,15 +123,18 @@ export const update = async (req: Request, res: Response, next: NextFunction) =>
   try {
     const { id } = req.params;
     const { code, description, discount_type, discount_value, min_order_amount, max_discount, usage_limit, is_active, valid_from, valid_until } = req.body;
+    const toNum = (v: any) => (v === "" || v === null || v === undefined) ? null : Number(v);
+    const toDate = (v: any) => (v === "" || v === null || v === undefined) ? null : v;
     const result = await pool.query(
       `UPDATE coupons SET code=UPPER($1), description=$2, discount_type=$3, discount_value=$4,
        min_order_amount=$5, max_discount=$6, usage_limit=$7, is_active=$8, valid_from=$9, valid_until=$10, updated_at=NOW()
        WHERE id=$11 RETURNING *`,
-      [code, description, discount_type, discount_value, min_order_amount, max_discount, usage_limit, is_active, valid_from, valid_until, id]
+      [code, description || null, discount_type, toNum(discount_value), toNum(min_order_amount) ?? 0, toNum(max_discount), toNum(usage_limit), is_active ?? true, toDate(valid_from), toDate(valid_until), id]
     );
     if (result.rows.length === 0) return res.status(404).json({ message: "Coupon not found" });
     res.json(result.rows[0]);
-  } catch (err) {
+  } catch (err: any) {
+    if (err.code === "23505") return res.status(409).json({ message: "Coupon code already exists" });
     next(err);
   }
 };
