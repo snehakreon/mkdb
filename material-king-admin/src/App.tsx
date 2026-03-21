@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, CreditCard, ShoppingCart, AlertCircle, Bell, Edit2, Trash2, Plus, X, LogOut } from 'lucide-react';
+import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, CreditCard, ShoppingCart, AlertCircle, Bell, Edit2, Trash2, Plus, X, LogOut, Ticket, UserCog } from 'lucide-react';
 import LoginPage from './auth/LoginPage';
 import { zoneService } from './services/zone.service';
 import { vendorService } from './services/vendor.service';
@@ -9,7 +9,9 @@ import { productService } from './services/product.service';
 import { dealerService } from './services/dealer.service';
 import { orderService } from './services/order.service';
 import { buyerService } from './services/buyer.service';
-import { Zone, Vendor, Category, Brand, Product, Order, Dealer, Buyer } from './types';
+import { Zone, Vendor, Category, Brand, Product, Order, Dealer, Buyer, Coupon, AdminUser } from './types';
+import { couponService } from './services/coupon.service';
+import { adminUserService } from './services/adminUser.service';
 import { INDIAN_STATES } from './constants/indianStates';
 // API_CONFIG imported via services
 
@@ -167,6 +169,8 @@ function Sidebar({ currentModule, setCurrentModule, isOpen }: any) {
     { id: 'dealers', label: 'Dealers', icon: Users },
     { id: 'buyers', label: 'Buyers', icon: CreditCard },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
+    { id: 'coupons', label: 'Coupons', icon: Ticket },
+    { id: 'admin-users', label: 'Admin Users', icon: UserCog },
   ];
 
   return (
@@ -205,6 +209,8 @@ function ModuleRenderer({ module }: { module: string }) {
     dealers: <DealersModule />,
     buyers: <BuyersModule />,
     orders: <OrdersModule />,
+    coupons: <CouponsModule />,
+    'admin-users': <AdminUsersModule />,
   };
 
   return modules[module] || <DashboardModule />;
@@ -1413,6 +1419,227 @@ function OrdersModule() {
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
             <button onClick={handleUpdateOrder} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Update Order'}</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// COUPONS MODULE - API-BACKED CRUD
+// ============================================================================
+function CouponsModule() {
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
+  const [formData, setFormData] = useState({ code: '', description: '', discount_type: 'percentage', discount_value: '', min_order_amount: '', max_discount: '', usage_limit: '', valid_from: '', valid_until: '' });
+  const [saving, setSaving] = useState(false);
+
+  const loadData = async () => {
+    try { const data = await couponService.getAll(); setCoupons(data); }
+    catch (err) { console.error('Failed to load coupons:', err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdd = () => { setEditingCoupon(null); setFormData({ code: '', description: '', discount_type: 'percentage', discount_value: '', min_order_amount: '', max_discount: '', usage_limit: '', valid_from: '', valid_until: '' }); setShowModal(true); };
+  const handleEdit = (c: Coupon) => {
+    setEditingCoupon(c);
+    setFormData({
+      code: c.code || '', description: c.description || '', discount_type: c.discount_type || 'percentage',
+      discount_value: String(c.discount_value || ''), min_order_amount: String(c.min_order_amount || ''),
+      max_discount: String(c.max_discount || ''), usage_limit: String(c.usage_limit || ''),
+      valid_from: c.valid_from ? String(c.valid_from).slice(0, 10) : '',
+      valid_until: c.valid_until ? String(c.valid_until).slice(0, 10) : '',
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (editingCoupon) { await couponService.update(editingCoupon.id, formData); }
+      else { await couponService.create(formData); }
+      await loadData(); setShowModal(false);
+    } catch (err) { console.error('Save coupon error:', err); alert('Failed to save coupon.'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Delete this coupon?')) {
+      try { await couponService.delete(id); await loadData(); }
+      catch (err) { console.error('Delete coupon error:', err); alert('Failed to delete coupon.'); }
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-mk-gray">Coupons</h1>
+        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Coupon</button>
+      </div>
+      <div className="bg-white rounded-xl shadow-md p-6">
+        {coupons.length === 0 ? <p className="text-gray-500 text-center py-8">No coupons found. Add your first coupon.</p> : (
+          <table className="w-full">
+            <thead className="bg-gray-50"><tr>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Code</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Description</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Type</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Value</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Min Order</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Usage</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Valid Until</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
+              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
+            </tr></thead>
+            <tbody>{coupons.map(c => (
+              <tr key={c.id} className="border-t hover:bg-gray-50">
+                <td className="px-4 py-4 font-bold">{c.code}</td>
+                <td className="px-4 py-4 text-sm text-gray-500 max-w-[200px] truncate">{c.description || '-'}</td>
+                <td className="px-4 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${c.discount_type === 'percentage' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}`}>{c.discount_type}</span></td>
+                <td className="px-4 py-4 font-bold text-mk-red">{c.discount_type === 'percentage' ? `${c.discount_value}%` : `₹${Number(c.discount_value).toLocaleString()}`}</td>
+                <td className="px-4 py-4">₹{Number(c.min_order_amount || 0).toLocaleString()}</td>
+                <td className="px-4 py-4">{c.used_count || 0}/{c.usage_limit || '∞'}</td>
+                <td className="px-4 py-4 text-sm text-gray-500">{c.valid_until ? new Date(c.valid_until).toLocaleDateString('en-IN') : '-'}</td>
+                <td className="px-4 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${c.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{c.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td className="px-4 py-4"><div className="flex gap-2">
+                  <button onClick={() => handleEdit(c)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(c.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                </div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      {showModal && (
+        <Modal title={editingCoupon ? 'Edit Coupon' : 'Add Coupon'} onClose={() => setShowModal(false)}>
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="block text-sm font-bold mb-2">Code *</label><input type="text" className="input-field" value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} placeholder="SAVE20" /></div>
+            <div><label className="block text-sm font-bold mb-2">Discount Type</label>
+              <select className="input-field" value={formData.discount_type} onChange={e => setFormData({ ...formData, discount_type: e.target.value })}>
+                <option value="percentage">Percentage</option>
+                <option value="flat">Flat Amount</option>
+              </select>
+            </div>
+            <div className="col-span-2"><label className="block text-sm font-bold mb-2">Description</label><input type="text" className="input-field" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Coupon description" /></div>
+            <div><label className="block text-sm font-bold mb-2">Discount Value *</label><input type="number" className="input-field" value={formData.discount_value} onChange={e => setFormData({ ...formData, discount_value: e.target.value })} placeholder={formData.discount_type === 'percentage' ? '10' : '500'} /></div>
+            <div><label className="block text-sm font-bold mb-2">Min Order Amount</label><input type="number" className="input-field" value={formData.min_order_amount} onChange={e => setFormData({ ...formData, min_order_amount: e.target.value })} placeholder="0" /></div>
+            <div><label className="block text-sm font-bold mb-2">Max Discount</label><input type="number" className="input-field" value={formData.max_discount} onChange={e => setFormData({ ...formData, max_discount: e.target.value })} placeholder="No limit" /></div>
+            <div><label className="block text-sm font-bold mb-2">Usage Limit</label><input type="number" className="input-field" value={formData.usage_limit} onChange={e => setFormData({ ...formData, usage_limit: e.target.value })} placeholder="Unlimited" /></div>
+            <div><label className="block text-sm font-bold mb-2">Valid From</label><input type="date" className="input-field" value={formData.valid_from} onChange={e => setFormData({ ...formData, valid_from: e.target.value })} /></div>
+            <div><label className="block text-sm font-bold mb-2">Valid Until</label><input type="date" className="input-field" value={formData.valid_until} onChange={e => setFormData({ ...formData, valid_until: e.target.value })} /></div>
+          </div>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : editingCoupon ? 'Update Coupon' : 'Create Coupon'}</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// ADMIN USERS MODULE - API-BACKED CRUD
+// ============================================================================
+function AdminUsersModule() {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '' });
+  const [saving, setSaving] = useState(false);
+
+  const loadData = async () => {
+    try { const data = await adminUserService.getAll(); setUsers(data); }
+    catch (err) { console.error('Failed to load admin users:', err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdd = () => { setEditingUser(null); setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '' }); setShowModal(true); };
+  const handleEdit = (u: AdminUser) => {
+    setEditingUser(u);
+    setFormData({ firstName: u.first_name || '', lastName: u.last_name || '', email: u.email || '', phone: u.phone || '', password: '' });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const body: Record<string, any> = { ...formData };
+      if (editingUser && !body.password) delete body.password;
+      if (editingUser) { await adminUserService.update(editingUser.id, body); }
+      else { await adminUserService.create(body); }
+      await loadData(); setShowModal(false);
+    } catch (err) { console.error('Save admin user error:', err); alert('Failed to save admin user.'); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Delete this admin user?')) {
+      try { await adminUserService.delete(id); await loadData(); }
+      catch (err) { console.error('Delete admin user error:', err); alert('Failed to delete admin user.'); }
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-mk-gray">Admin Users</h1>
+        <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Admin User</button>
+      </div>
+      <div className="bg-white rounded-xl shadow-md p-6">
+        {users.length === 0 ? <p className="text-gray-500 text-center py-8">No admin users found. Add your first admin user.</p> : (
+          <table className="w-full">
+            <thead className="bg-gray-50"><tr>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Email</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Phone</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Roles</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Last Login</th>
+              <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
+            </tr></thead>
+            <tbody>{users.map(u => (
+              <tr key={u.id} className="border-t hover:bg-gray-50">
+                <td className="px-6 py-4 font-bold">{u.first_name} {u.last_name || ''}</td>
+                <td className="px-6 py-4 text-gray-600">{u.email}</td>
+                <td className="px-6 py-4 text-gray-600">{u.phone || '-'}</td>
+                <td className="px-6 py-4">{(u.roles || []).map((r, i) => <span key={i} className="px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-bold mr-1">{r}</span>)}</td>
+                <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${u.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{u.is_active ? 'Active' : 'Inactive'}</span></td>
+                <td className="px-6 py-4 text-sm text-gray-500">{u.last_login_at ? new Date(u.last_login_at).toLocaleDateString('en-IN') : 'Never'}</td>
+                <td className="px-6 py-4"><div className="flex gap-2">
+                  <button onClick={() => handleEdit(u)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(u.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
+                </div></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
+      </div>
+      {showModal && (
+        <Modal title={editingUser ? 'Edit Admin User' : 'Add Admin User'} onClose={() => setShowModal(false)}>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">First Name *</label><input type="text" className="input-field" value={formData.firstName} onChange={e => setFormData({ ...formData, firstName: e.target.value })} /></div>
+              <div><label className="block text-sm font-bold mb-2">Last Name</label><input type="text" className="input-field" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} /></div>
+            </div>
+            <div><label className="block text-sm font-bold mb-2">Email *</label><input type="email" className="input-field" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
+            <div><label className="block text-sm font-bold mb-2">Phone</label><input type="text" className="input-field" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} /></div>
+            <div><label className="block text-sm font-bold mb-2">{editingUser ? 'New Password (leave blank to keep)' : 'Password *'}</label><input type="password" className="input-field" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} /></div>
+          </div>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : editingUser ? 'Update User' : 'Create User'}</button>
           </div>
         </Modal>
       )}

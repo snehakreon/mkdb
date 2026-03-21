@@ -149,3 +149,31 @@ export interface Buyer {
   phone?: string;
 }
 
+export interface Coupon {
+  id: string;
+  code: string;
+  description?: string;
+  discount_type: 'percentage' | 'flat';
+  discount_value: number;
+  min_order_amount?: number;
+  max_discount?: number;
+  usage_limit?: number;
+  used_count?: number;
+  valid_from?: string;
+  valid_until?: string;
+  is_active: boolean;
+}
+
+export interface AdminUser {
+  id: string;
+  first_name: string;
+  last_name?: string;
+  email: string;
+  phone?: string;
+  is_active: boolean;
+  is_verified: boolean;
+  roles?: string[];
+  created_at?: string;
+  last_login_at?: string;
+}
+
