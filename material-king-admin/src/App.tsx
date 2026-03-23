@@ -13,6 +13,7 @@ import { Zone, Vendor, Category, Brand, Product, Order, Dealer, Buyer, Coupon, A
 import { couponService } from './services/coupon.service';
 import { adminUserService } from './services/adminUser.service';
 import { inventoryService, StockItem, InventorySummary, InventoryTransaction } from './services/inventory.service';
+import { dashboardService, DashboardStats, OrdersByStatus, RevenueByMonth, TopProduct, RecentOrder } from './services/dashboard.service';
 import { INDIAN_STATES } from './constants/indianStates';
 // API_CONFIG imported via services
 
@@ -220,31 +221,203 @@ function ModuleRenderer({ module }: { module: string }) {
 }
 
 // ============================================================================
-// DASHBOARD MODULE
+// DASHBOARD MODULE — REAL DATA
 // ============================================================================
 function DashboardModule() {
-  const stats = [
-    { label: 'Total Orders', value: '1,247', icon: ShoppingCart, color: 'bg-blue-500' },
-    { label: 'Active Vendors', value: '52', icon: Building2, color: 'bg-green-500' },
-    { label: 'Total GMV', value: '₹5.2 Cr', icon: DollarSign, color: 'bg-purple-500' },
-    { label: 'Pending', value: '23', icon: AlertCircle, color: 'bg-red-500' },
-  ];
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [ordersByStatus, setOrdersByStatus] = useState<OrdersByStatus[]>([]);
+  const [revenueByMonth, setRevenueByMonth] = useState<RevenueByMonth[]>([]);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [s, obs, rbm, tp, ro] = await Promise.all([
+          dashboardService.getStats(),
+          dashboardService.getOrdersByStatus(),
+          dashboardService.getRevenueByMonth(),
+          dashboardService.getTopProducts(),
+          dashboardService.getRecentOrders(),
+        ]);
+        setStats(s);
+        setOrdersByStatus(obs);
+        setRevenueByMonth(rbm);
+        setTopProducts(tp);
+        setRecentOrders(ro);
+      } catch (err) {
+        console.error('Dashboard load error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  if (loading) return <LoadingSpinner />;
+
+  const formatCurrency = (val: string | number) => {
+    const num = Number(val);
+    if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
+    if (num >= 100000) return `₹${(num / 100000).toFixed(2)} L`;
+    return `₹${num.toLocaleString()}`;
+  };
+
+  const statCards = stats ? [
+    { label: 'Total Orders', value: Number(stats.total_orders).toLocaleString(), icon: ShoppingCart, color: 'bg-blue-500' },
+    { label: 'Pending Orders', value: Number(stats.pending_orders).toLocaleString(), icon: AlertCircle, color: 'bg-yellow-500' },
+    { label: 'Delivered', value: Number(stats.delivered_orders).toLocaleString(), icon: Package, color: 'bg-green-500' },
+    { label: 'Total Revenue', value: formatCurrency(stats.total_revenue), icon: DollarSign, color: 'bg-purple-500' },
+    { label: 'Active Products', value: Number(stats.total_products).toLocaleString(), icon: Boxes, color: 'bg-indigo-500' },
+    { label: 'Out of Stock', value: Number(stats.out_of_stock_products).toLocaleString(), icon: PackageX, color: 'bg-red-500' },
+    { label: 'Total Buyers', value: Number(stats.total_buyers).toLocaleString(), icon: CreditCard, color: 'bg-cyan-500' },
+    { label: 'Active Vendors', value: Number(stats.total_vendors).toLocaleString(), icon: Building2, color: 'bg-teal-500' },
+  ] : [];
+
+  const statusColors: Record<string, string> = {
+    pending: 'bg-yellow-100 text-yellow-800',
+    pending_dealer_approval: 'bg-orange-100 text-orange-800',
+    confirmed: 'bg-blue-100 text-blue-800',
+    processing: 'bg-indigo-100 text-indigo-800',
+    shipped: 'bg-purple-100 text-purple-800',
+    delivered: 'bg-green-100 text-green-800',
+    cancelled: 'bg-red-100 text-red-800',
+  };
+
+  const maxRevenue = revenueByMonth.length > 0 ? Math.max(...revenueByMonth.map(r => Number(r.revenue))) : 1;
+  const maxProductRevenue = topProducts.length > 0 ? Math.max(...topProducts.map(p => Number(p.revenue))) : 1;
 
   return (
     <div>
       <h1 className="text-3xl font-bold text-mk-gray mb-6">Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, idx) => (
-          <div key={idx} className="bg-white rounded-xl p-6 shadow-md border-l-4 border-mk-red">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-gray-500 font-bold uppercase">{stat.label}</span>
-              <div className={`p-3 rounded-lg ${stat.color} bg-opacity-10`}>
-                <stat.icon className={`w-6 h-6 ${stat.color.replace('bg-', 'text-')}`} />
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {statCards.map((stat, idx) => (
+          <div key={idx} className="bg-white rounded-xl p-5 shadow-md border-l-4 border-mk-red">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-gray-500 font-bold uppercase">{stat.label}</span>
+              <div className={`p-2 rounded-lg ${stat.color} bg-opacity-10`}>
+                <stat.icon className={`w-5 h-5 ${stat.color.replace('bg-', 'text-')}`} />
               </div>
             </div>
-            <p className="text-3xl font-bold text-mk-gray">{stat.value}</p>
+            <p className="text-2xl font-bold text-mk-gray">{stat.value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        {/* Revenue by Month — Bar Chart */}
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h2 className="text-lg font-bold text-mk-gray mb-4">Revenue by Month</h2>
+          {revenueByMonth.length === 0 ? (
+            <p className="text-gray-400 text-center py-8">No revenue data yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {revenueByMonth.map((r, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-gray-500 w-20 shrink-0">{r.month}</span>
+                  <div className="flex-1 bg-gray-100 rounded-full h-6 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-mk-red to-red-400 h-full rounded-full flex items-center justify-end pr-2"
+                      style={{ width: `${Math.max((Number(r.revenue) / maxRevenue) * 100, 5)}%` }}
+                    >
+                      <span className="text-[10px] font-bold text-white whitespace-nowrap">{formatCurrency(r.revenue)}</span>
+                    </div>
+                  </div>
+                  <span className="text-xs text-gray-400 w-16 text-right">{r.orders} orders</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Orders by Status */}
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h2 className="text-lg font-bold text-mk-gray mb-4">Orders by Status</h2>
+          {ordersByStatus.length === 0 ? (
+            <p className="text-gray-400 text-center py-8">No orders yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {ordersByStatus.map((item, i) => {
+                const total = ordersByStatus.reduce((sum, o) => sum + o.value, 0);
+                const pct = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0';
+                return (
+                  <div key={i} className="flex items-center gap-3">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold w-44 text-center ${statusColors[item.name] || 'bg-gray-100 text-gray-700'}`}>
+                      {item.name.replace(/_/g, ' ').toUpperCase()}
+                    </span>
+                    <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+                      <div className="bg-mk-red h-full rounded-full" style={{ width: `${Math.max(Number(pct), 2)}%` }} />
+                    </div>
+                    <span className="text-sm font-bold text-gray-700 w-12 text-right">{item.value}</span>
+                    <span className="text-xs text-gray-400 w-12 text-right">{pct}%</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Products */}
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h2 className="text-lg font-bold text-mk-gray mb-4">Top 10 Products by Revenue</h2>
+          {topProducts.length === 0 ? (
+            <p className="text-gray-400 text-center py-8">No product sales data yet.</p>
+          ) : (
+            <div className="space-y-3">
+              {topProducts.map((p, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="text-xs font-bold bg-mk-red text-white w-6 h-6 rounded-full flex items-center justify-center shrink-0">{i + 1}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold truncate">{p.name}</p>
+                    <div className="bg-gray-100 rounded-full h-3 mt-1 overflow-hidden">
+                      <div className="bg-gradient-to-r from-green-500 to-emerald-400 h-full rounded-full" style={{ width: `${(Number(p.revenue) / maxProductRevenue) * 100}%` }} />
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold">{formatCurrency(p.revenue)}</p>
+                    <p className="text-xs text-gray-400">{p.units_sold} units</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent Orders */}
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h2 className="text-lg font-bold text-mk-gray mb-4">Recent Orders</h2>
+          {recentOrders.length === 0 ? (
+            <p className="text-gray-400 text-center py-8">No orders yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50"><tr>
+                  <th className="px-3 py-2 text-left text-xs font-bold text-gray-600">Order #</th>
+                  <th className="px-3 py-2 text-left text-xs font-bold text-gray-600">Buyer</th>
+                  <th className="px-3 py-2 text-center text-xs font-bold text-gray-600">Status</th>
+                  <th className="px-3 py-2 text-right text-xs font-bold text-gray-600">Amount</th>
+                </tr></thead>
+                <tbody>{recentOrders.map(order => (
+                  <tr key={order.id} className="border-t hover:bg-gray-50">
+                    <td className="px-3 py-2 text-sm font-bold">{order.order_number}</td>
+                    <td className="px-3 py-2 text-sm text-gray-600 truncate max-w-[150px]">{order.buyer_company || '-'}</td>
+                    <td className="px-3 py-2 text-center">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusColors[order.status] || 'bg-gray-100 text-gray-700'}`}>
+                        {order.status.replace(/_/g, ' ').toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-sm font-bold text-right">₹{Number(order.total_amount).toLocaleString()}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
