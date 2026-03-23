@@ -75,7 +75,7 @@ export default function OrdersPage() {
   // --- Status Update ---
   const openStatusUpdate = (order: any) => {
     setStatusTarget(order)
-    const nextStatuses = ORDER_STATUSES[order.order_status || order.status] || []
+    const nextStatuses = ORDER_STATUSES[order.status] || []
     setStatusForm({ status: nextStatuses[0] || "", notes: "" })
     setStatusModal(true)
   }
@@ -186,10 +186,10 @@ export default function OrdersPage() {
     { key: "order_number", label: "Order #" },
     { key: "buyer_company", label: "Buyer" },
     { key: "dealer_company", label: "Dealer", render: (v: string) => v || "Direct" },
-    { key: "order_type", label: "Type", render: (v: string) => <span className="capitalize">{v || "regular"}</span> },
     { key: "total_amount", label: "Total", render: (v: number) => v ? `₹${Number(v).toLocaleString()}` : "-" },
-    { key: "order_status", label: "Status", render: (_v: string, row: any) => <StatusBadge status={row.order_status || row.status} /> },
+    { key: "status", label: "Status", render: (v: string) => <StatusBadge status={v} /> },
     { key: "payment_status", label: "Payment", render: (v: string) => <StatusBadge status={v} /> },
+    { key: "payment_method", label: "Method", render: (v: string) => <span className="uppercase text-xs">{v || "COD"}</span> },
     { key: "created_at", label: "Date", render: (v: string) => v ? new Date(v).toLocaleDateString() : "-" },
   ]
 
@@ -223,7 +223,7 @@ export default function OrdersPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Order Status</p>
-                <StatusBadge status={selectedOrder.order_status || selectedOrder.status} />
+                <StatusBadge status={selectedOrder.status} />
               </div>
               <div>
                 <p className="text-sm text-gray-500">Payment Status</p>
@@ -255,7 +255,7 @@ export default function OrdersPage() {
 
             {/* Action Buttons */}
             <div className="flex gap-2 mb-6">
-              {(ORDER_STATUSES[selectedOrder.order_status || selectedOrder.status] || []).length > 0 && (
+              {(ORDER_STATUSES[selectedOrder.status] || []).length > 0 && (
                 <button onClick={() => openStatusUpdate(selectedOrder)}
                   className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                   Update Status
@@ -265,7 +265,7 @@ export default function OrdersPage() {
                 className="px-3 py-1.5 text-sm bg-gray-600 text-white rounded-lg hover:bg-gray-700">
                 Edit Details
               </button>
-              {!["delivered", "cancelled", "disputed"].includes(selectedOrder.order_status || selectedOrder.status) && (
+              {!["delivered", "cancelled", "disputed"].includes(selectedOrder.status) && (
                 <button onClick={() => cancelOrder(selectedOrder)}
                   className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700">
                   Cancel Order
@@ -329,10 +329,10 @@ export default function OrdersPage() {
           <>
             <div className="bg-gray-50 rounded-lg p-3 mb-2">
               <p className="text-sm"><span className="text-gray-500">Order:</span> <strong>{statusTarget.order_number}</strong></p>
-              <p className="text-sm"><span className="text-gray-500">Current Status:</span> <StatusBadge status={statusTarget.order_status || statusTarget.status} /></p>
+              <p className="text-sm"><span className="text-gray-500">Current Status:</span> <StatusBadge status={statusTarget.status} /></p>
             </div>
             <FormField label="New Status *" name="status" value={statusForm.status} onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })} required
-              options={(ORDER_STATUSES[statusTarget.order_status || statusTarget.status] || []).map(s => ({ value: s, label: s.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) }))} />
+              options={(ORDER_STATUSES[statusTarget.status] || []).map(s => ({ value: s, label: s.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) }))} />
             <FormField label="Notes" name="notes" value={statusForm.notes} onChange={(e) => setStatusForm({ ...statusForm, notes: e.target.value })} textarea placeholder="Optional reason for status change" />
           </>
         )}
