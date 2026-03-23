@@ -32,11 +32,11 @@ ws1.merge_cells("A1:D1")
 ws1["A1"] = "MATERIAL KING - Project Status Report"
 ws1["A1"].font = Font(bold=True, size=16, color="2F5496")
 
-elapsed_weeks = (date(2026, 3, 21) - date(2026, 1, 22)).days / 7
-remaining_weeks = (date(2026, 4, 30) - date(2026, 3, 21)).days / 7
+elapsed_weeks = (date(2026, 3, 23) - date(2026, 1, 22)).days / 7
+remaining_weeks = (date(2026, 4, 30) - date(2026, 3, 23)).days / 7
 
 ws1.merge_cells("A2:D2")
-ws1["A2"] = f"Generated: {date.today().strftime('%d %b %Y')}  |  Team: 6-7 devs  |  Start: 22 Jan 2026  |  Deadline: 30 Apr 2026  |  {remaining_weeks:.1f} weeks remaining"
+ws1["A2"] = f"Generated: 23 Mar 2026  |  Team: 6-7 devs  |  Start: 22 Jan 2026  |  Deadline: 30 Apr 2026  |  {remaining_weeks:.1f} weeks remaining"
 ws1["A2"].font = Font(size=10, color="666666")
 
 # Headers
@@ -48,10 +48,10 @@ for col, val in enumerate(["Module / Feature", "Area", "Status", "Notes"], 1):
     cell.alignment = Alignment(horizontal="center")
     cell.border = thin_border
 
-# Data — UPDATED TO REFLECT ACTUAL STATUS AS OF 21 MAR 2026
+# Data — UPDATED TO REFLECT ACTUAL STATUS AS OF 23 MAR 2026
 data = [
-    # BACKEND - COMPLETED (Jan 22 - Mar 21)
-    ("BACKEND - COMPLETED (Jan 22 - Mar 21)", "", "", ""),
+    # BACKEND - COMPLETED (Jan 22 - Mar 23)
+    ("BACKEND - COMPLETED (Jan 22 - Mar 23)", "", "", ""),
     ("Auth Module (register, login, JWT, refresh, logout)", "Backend", "DONE", "Full JWT auth with role middleware, account locking after 5 failed attempts"),
     ("Products CRUD API", "Backend", "DONE", "List, create, update, delete + active endpoint with filters"),
     ("Brands CRUD API", "Backend", "DONE", "List, create, update, delete"),
@@ -73,6 +73,9 @@ data = [
     ("File Upload Middleware (Multer)", "Backend", "DONE", "Multer middleware for Tech Data Sheet PDF uploads — completed Mar 17"),
     ("Order Workflow State Machine", "Backend", "DONE", "Transition validation (pending→confirmed→dispatched→delivered) — completed Mar 17"),
     ("Inventory Decrement on Order + Alerts", "Backend", "DONE", "Auto-decrement stock on order, low-stock validation — completed Mar 17"),
+    ("Back-order Logic (never reject on low stock)", "Backend", "DONE", "Accept all orders; mark items as back-order with 15-20 day timeline — completed Mar 21"),
+    ("Auto-create Buyer/Vendor/Dealer on Registration", "Backend", "DONE", "Insert entity record during user registration + backfill script — completed Mar 21"),
+    ("Bug Fixes (auth, coupon, token refresh)", "Backend", "DONE", "Fixed duplicate phone key, coupon integer parse, 401 token refresh — completed Mar 21"),
 
     # FRONTEND - FOUNDATION (COMPLETED)
     ("FRONTEND - FOUNDATION (COMPLETED)", "", "", ""),
@@ -102,6 +105,8 @@ data = [
     ("Admin Users Module (list + forms)", "Frontend", "DONE", "Full CRUD in both React frontend and legacy admin panel — completed Mar 21"),
     ("Reusable UI Components", "Frontend", "DONE", "DataTable, FormField, FormModal, StatusBadge"),
     ("Products File Upload UI", "Frontend", "DONE", "Tech Data Sheet PDF upload in product forms — completed Mar 17"),
+    ("Material King Logo & Branding", "Frontend", "DONE", "Logo added to all 3 frontends (storefront, admin, legacy admin) — completed Mar 21"),
+    ("Token Auto-Refresh (Admin Panel)", "Frontend", "DONE", "401 interceptor with automatic token refresh — completed Mar 21"),
 
     # FRONTEND - STOREFRONT (COMPLETED)
     ("FRONTEND - STOREFRONT PAGES (COMPLETED)", "", "", ""),
@@ -123,6 +128,12 @@ data = [
     ("My Orders Page", "Frontend", "DONE", "Order history with detail view"),
     ("Addresses Page", "Frontend", "DONE", "Saved addresses CRUD with default"),
     ("Wishlist Page", "Frontend", "DONE", "Wishlist management"),
+
+    # DOCUMENTATION (COMPLETED)
+    ("DOCUMENTATION (COMPLETED)", "", "", ""),
+    ("Deployment Guide (Ubuntu, Node, PG, Nginx, SSL, PM2)", "DevOps", "DONE", "Full production deployment docs with SQL backup/restore — completed Mar 21"),
+    ("Daily Work Report (Mar 21)", "Docs", "DONE", "Comprehensive testing report for all frontend/backend/admin modules"),
+    ("Gantt Chart Updates", "Docs", "DONE", "Refreshed to Mar 23, 2026 with all completed items"),
 
     # BACKEND - STILL PENDING
     ("BACKEND - PENDING (must complete by Apr 30)", "", "", ""),
@@ -190,12 +201,12 @@ ws2 = wb.create_sheet("Gantt Chart")
 
 # Full project: Jan 22 to Apr 30
 project_start = date(2026, 1, 19)  # Monday of week containing Jan 22
-today_marker = date(2026, 3, 21)
+today_marker = date(2026, 3, 23)
 deadline = date(2026, 4, 30)
 num_weeks = 15  # Jan 19 to Apr 27 (15 weeks)
 
 # Calculate current week index (0-based)
-today_week_index = (today_marker - project_start).days // 7  # = 8 (W9, week of Mar 16-22)
+today_week_index = (today_marker - project_start).days // 7  # = 9 (W10, week of Mar 23-29)
 
 gantt_tasks = [
     # COMPLETED PHASE (Weeks 0-7, Jan 22 - Mar 10)
@@ -223,6 +234,9 @@ gantt_tasks = [
     ("File Upload Middleware (Multer)", "Backend", 8, 1, "Dev 4", "done"),
     ("Order Workflow State Machine", "Backend", 8, 1, "Dev 7", "done"),
     ("Inventory Decrement on Order + Alerts", "Backend", 8, 1, "Dev 4", "done"),
+    ("Back-order Logic + Bug Fixes (auth, coupon, token)", "Backend", 8, 1, "Dev 3, Dev 4", "done"),
+    ("Logo Branding (all 3 frontends)", "Frontend", 8, 1, "Dev 1", "done"),
+    ("Deployment Guide + Work Report + Gantt Update", "Docs", 8, 1, "Dev 1", "done"),
 
     # PHASE 2: DONE EARLY + Remaining backend (Mar 24 - Apr 6)
     ("PHASE 2: CORE MODULES (Mar 24 - Apr 6) \u2014 Frontend DONE, Backend in progress", "", 0, 0, "", ""),
@@ -396,7 +410,7 @@ for task in gantt_tasks:
 
 # Add TODAY marker row
 ws2.merge_cells(f"A{row}:F{row}")
-ws2.cell(row=row, column=1, value=f"\u25b2 TODAY (Mar 21, 2026) \u2014 {remaining_weeks:.1f} weeks to deadline").font = Font(bold=True, size=11, color="CC0000")
+ws2.cell(row=row, column=1, value=f"\u25b2 TODAY (Mar 23, 2026) \u2014 {remaining_weeks:.1f} weeks to deadline").font = Font(bold=True, size=11, color="CC0000")
 ws2.cell(row=row, column=1).fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
 for c in range(2, week_start_col + num_weeks):
     ws2.cell(row=row, column=c).fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
@@ -412,11 +426,11 @@ ws2.cell(row=row, column=1, value="LEGEND:").font = Font(bold=True, size=10)
 row += 1
 legends = [
     (completed_color, "Completed (Jan 22 - Mar 10)"),
-    ("4472C4", "Phase 1: Foundation (Mar 10-23) \u2014 100% DONE"),
+    ("4472C4", "Phase 1: Foundation (Mar 10-21) \u2014 100% DONE"),
     ("ED7D31", "Phase 2: Core CRUD (Mar 24 - Apr 6) \u2014 frontend DONE, backend: Razorpay/Invoice/Pricing pending"),
     ("70AD47", "Phase 3: Business Logic & Dashboard (Apr 7-20)"),
     ("FF6B6B", "Phase 4: Polish & Launch (Apr 21-30)"),
-    ("CC0000", "TODAY marker (Mar 21)"),
+    ("CC0000", "TODAY marker (Mar 23)"),
 ]
 for color, label in legends:
     ws2.cell(row=row, column=1).fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
@@ -442,28 +456,29 @@ ws3["A1"] = "PROJECT SUMMARY"
 ws3["A1"].font = Font(bold=True, size=14, color="2F5496")
 
 ws3.merge_cells("A2:C2")
-ws3["A2"] = f"Start: 22 Jan 2026  |  Today: 21 Mar 2026  |  Deadline: 30 Apr 2026"
+ws3["A2"] = f"Start: 22 Jan 2026  |  Today: 23 Mar 2026  |  Deadline: 30 Apr 2026"
 ws3["A2"].font = Font(bold=True, size=10, color="CC0000")
 
 stats = [
     ("", "", ""),
     ("TIMELINE", "", ""),
     ("Project Start", "22 Jan 2026", ""),
-    ("Today", "21 Mar 2026", f"{elapsed_weeks:.0f} weeks elapsed"),
+    ("Today", "23 Mar 2026", f"{elapsed_weeks:.0f} weeks elapsed"),
     ("Hard Deadline", "30 Apr 2026", f"{remaining_weeks:.1f} weeks remaining"),
     ("Total Duration", "14 weeks", "~1 week buffer if on track"),
     ("", "", ""),
     ("COMPLETION STATUS", "Count", "Details"),
-    ("Backend CRUD Completed", "21 modules", "Auth, Products, Brands, Categories, Vendors, Zones, Buyers, Dealers, Orders, Cart, Wishlist, Coupon, Admin Users, Address, Schema, Seed, Validation, RBAC, Pagination, File Upload, Order State Machine, Inventory"),
+    ("Backend CRUD Completed", "24 modules", "Auth, Products, Brands, Categories, Vendors, Zones, Buyers, Dealers, Orders, Cart, Wishlist, Coupon, Admin Users, Address, Schema, Seed, Validation, RBAC, Pagination, File Upload, Order State Machine, Inventory, Back-order Logic, Auto-entity Creation"),
     ("Backend Features Pending", "4 features", "Payments (Razorpay), Invoices (PDF), Reporting/Analytics APIs, Notifications (Email/SMS)"),
     ("Backend Features Partial", "2 features", "Pricing Tiers (coupon exists, tier logic pending), Delivery Tracking (basic fields, no logistics API)"),
-    ("Frontend Completed", "54 items", "All admin CRUD (11 modules incl. Coupons & Admin Users), all storefront pages (11), buyer account (4), foundation (10), UI components (4), file upload UI, nav/footer"),
+    ("Frontend Completed", "57 items", "All admin CRUD (11 modules incl. Coupons & Admin Users), all storefront pages (11), buyer account (4), foundation (10), UI components (4), file upload UI, nav/footer, logo branding, token auto-refresh"),
     ("Frontend Pending", "7 items", "Inventory UI, Payment UI, Invoice UI, Delivery UI, Dashboard Charts, Role-based Dashboards, Responsive polish"),
+    ("Documentation", "3 items", "Deployment Guide, Daily Work Report, Gantt Chart — all completed"),
     ("", "", ""),
-    ("Overall Completion", "~70%", "Phase 1 100% done. Phase 2 frontend done. Remaining: 4 backend features + 7 frontend UIs + testing/deployment."),
+    ("Overall Completion", "~72%", "Phase 1 100% done. Phase 2 frontend done. All bug fixes resolved. Remaining: 4 backend features + 7 frontend UIs + testing/deployment."),
     ("", "", ""),
     ("RISK ASSESSMENT", "", ""),
-    ("Schedule Risk", "LOW-MEDIUM", "Ahead of schedule. Phase 1 fully done. ~30% work in 5.7 weeks. Comfortable pace."),
+    ("Schedule Risk", "LOW-MEDIUM", "Ahead of schedule. Phase 1 fully done. ~28% work in 5.4 weeks. Comfortable pace."),
     ("Critical Path", "Razorpay + Invoice PDF", "Payment backend needed before Payment UI; Invoice backend needed before Invoice UI"),
     ("Parallel Tracks Needed", "YES", "Backend (Razorpay, Invoice, Reporting) + Frontend (Inventory UI, Charts) simultaneously"),
     ("Recommended Action", "START PHASE 2 BACKEND", "Begin Razorpay integration and Invoice PDF generation next week"),
