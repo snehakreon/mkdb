@@ -1,6 +1,5 @@
-import { apiService } from './api.service';
+import { apiService, apiClient } from './api.service';
 import { API_CONFIG } from '../config/api.config';
-import axios from 'axios';
 
 export interface StockItem {
   id: string;
@@ -41,11 +40,6 @@ export interface InventoryTransaction {
   sku: string;
 }
 
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('mk_auth_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
 export const inventoryService = {
   async getStockLevels(filter?: 'low'): Promise<StockItem[]> {
     if (API_CONFIG.USE_REAL_API) {
@@ -58,9 +52,7 @@ export const inventoryService = {
 
   async getSummary(): Promise<InventorySummary> {
     if (API_CONFIG.USE_REAL_API) {
-      const response = await axios.get(`${API_CONFIG.API_BASE_URL}/inventory/summary`, {
-        headers: getAuthHeaders(),
-      });
+      const response = await apiClient.get('/inventory/summary');
       return response.data;
     }
     return Promise.resolve({
@@ -80,11 +72,7 @@ export const inventoryService = {
 
   async updateStock(productId: string, quantity: number, reason: string): Promise<any> {
     if (API_CONFIG.USE_REAL_API) {
-      const response = await axios.put(
-        `${API_CONFIG.API_BASE_URL}/inventory/${productId}`,
-        { quantity, reason },
-        { headers: { 'Content-Type': 'application/json', ...getAuthHeaders() } }
-      );
+      const response = await apiClient.put(`/inventory/${productId}`, { quantity, reason });
       return response.data;
     }
     return Promise.resolve({ product_id: productId, old_qty: 0, new_qty: quantity, change: quantity });

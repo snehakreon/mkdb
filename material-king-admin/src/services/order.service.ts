@@ -1,7 +1,6 @@
-import { apiService } from './api.service';
+import { apiService, apiClient } from './api.service';
 import { Order } from '../types';
 import { API_CONFIG } from '../config/api.config';
-import axios from 'axios';
 
 export interface OrderDetail extends Order {
   payment_method?: string;
@@ -38,11 +37,6 @@ export interface TransitionResult {
   previous_status: string;
   allowed_transitions: string[];
 }
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('mk_auth_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 export const orderService = {
   async getAll(params?: Record<string, any>): Promise<Order[]> {
@@ -81,19 +75,12 @@ export const orderService = {
   },
 
   async transitionStatus(id: string, status: string, notes?: string): Promise<TransitionResult> {
-    const response = await axios.post(
-      `${API_CONFIG.API_BASE_URL}/orders/${id}/transition`,
-      { status, notes },
-      { headers: { 'Content-Type': 'application/json', ...getAuthHeaders() } }
-    );
+    const response = await apiClient.post(`/orders/${id}/transition`, { status, notes });
     return response.data;
   },
 
   async getStatusHistory(id: string): Promise<StatusHistoryEntry[]> {
-    const response = await axios.get(
-      `${API_CONFIG.API_BASE_URL}/orders/${id}/history`,
-      { headers: getAuthHeaders() }
-    );
+    const response = await apiClient.get(`/orders/${id}/history`);
     return response.data;
   },
 };

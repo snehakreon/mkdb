@@ -98,6 +98,8 @@ apiClient.interceptors.response.use(
   }
 );
 
+export { apiClient };
+
 export const apiService = {
   async getAll<T>(endpoint: string, params?: Record<string, any>): Promise<T[]> {
     const response = await apiClient.get(endpoint, { params });

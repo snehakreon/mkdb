@@ -1,15 +1,8 @@
-import axios from 'axios';
+import { apiClient } from './api.service';
 import { API_CONFIG } from '../config/api.config';
 
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('mk_auth_token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
 const dashboardGet = async <T>(path: string): Promise<T> => {
-  const response = await axios.get(`${API_CONFIG.API_BASE_URL}/dashboard/${path}`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await apiClient.get(`/dashboard/${path}`);
   return response.data;
 };
 
