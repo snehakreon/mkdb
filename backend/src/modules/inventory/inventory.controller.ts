@@ -31,7 +31,7 @@ export const getStockLevels = async (req: Request, res: Response) => {
     const result = await pool.query(
       `SELECT p.id, p.name, p.sku, p.stock_qty, p.min_order_qty, p.price, p.mrp,
               p.is_active, p.lead_time_days,
-              c.category_name, b.brand_name,
+              c.name AS category_name, b.name AS brand_name,
               CASE WHEN p.stock_qty <= 0 THEN 'out_of_stock'
                    WHEN p.stock_qty <= 10 THEN 'low_stock'
                    ELSE 'in_stock' END AS stock_status

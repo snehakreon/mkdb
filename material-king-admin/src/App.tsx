@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, CreditCard, ShoppingCart, AlertCircle, Bell, Edit2, Trash2, Plus, X, LogOut, Ticket, UserCog } from 'lucide-react';
+import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, CreditCard, ShoppingCart, AlertCircle, Bell, Edit2, Trash2, Plus, X, LogOut, Ticket, UserCog, Warehouse, ArrowUpDown, TrendingDown, PackageCheck, PackageX, Search, RefreshCw } from 'lucide-react';
 import LoginPage from './auth/LoginPage';
 import { zoneService } from './services/zone.service';
 import { vendorService } from './services/vendor.service';
@@ -12,6 +12,7 @@ import { buyerService } from './services/buyer.service';
 import { Zone, Vendor, Category, Brand, Product, Order, Dealer, Buyer, Coupon, AdminUser } from './types';
 import { couponService } from './services/coupon.service';
 import { adminUserService } from './services/adminUser.service';
+import { inventoryService, StockItem, InventorySummary, InventoryTransaction } from './services/inventory.service';
 import { INDIAN_STATES } from './constants/indianStates';
 // API_CONFIG imported via services
 
@@ -169,6 +170,7 @@ function Sidebar({ currentModule, setCurrentModule, isOpen }: any) {
     { id: 'dealers', label: 'Dealers', icon: Users },
     { id: 'buyers', label: 'Buyers', icon: CreditCard },
     { id: 'orders', label: 'Orders', icon: ShoppingCart },
+    { id: 'inventory', label: 'Inventory', icon: Warehouse },
     { id: 'coupons', label: 'Coupons', icon: Ticket },
     { id: 'admin-users', label: 'Admin Users', icon: UserCog },
   ];
@@ -209,6 +211,7 @@ function ModuleRenderer({ module }: { module: string }) {
     dealers: <DealersModule />,
     buyers: <BuyersModule />,
     orders: <OrdersModule />,
+    inventory: <InventoryModule />,
     coupons: <CouponsModule />,
     'admin-users': <AdminUsersModule />,
   };
@@ -1653,6 +1656,305 @@ function AdminUsersModule() {
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
             <button onClick={handleSave} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : editingUser ? 'Update User' : 'Create User'}</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// INVENTORY MODULE - STOCK LEVELS, ALERTS, TRANSACTIONS
+// ============================================================================
+function InventoryModule() {
+  const [tab, setTab] = useState<'stock' | 'alerts' | 'transactions'>('stock');
+  const [stockItems, setStockItems] = useState<StockItem[]>([]);
+  const [alertItems, setAlertItems] = useState<StockItem[]>([]);
+  const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
+  const [summary, setSummary] = useState<InventorySummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Stock adjustment modal
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [adjustItem, setAdjustItem] = useState<StockItem | null>(null);
+  const [adjustQty, setAdjustQty] = useState('');
+  const [adjustReason, setAdjustReason] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [stockData, alertData, txnData, summaryData] = await Promise.all([
+        inventoryService.getStockLevels(),
+        inventoryService.getStockLevels('low'),
+        inventoryService.getTransactions(),
+        inventoryService.getSummary(),
+      ]);
+      setStockItems(stockData);
+      setAlertItems(alertData);
+      setTransactions(txnData);
+      setSummary(summaryData);
+    } catch (err) {
+      console.error('Failed to load inventory:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  const handleAdjust = (item: StockItem) => {
+    setAdjustItem(item);
+    setAdjustQty(String(item.stock_qty));
+    setAdjustReason('');
+    setShowAdjustModal(true);
+  };
+
+  const handleSaveAdjust = async () => {
+    if (!adjustItem) return;
+    setSaving(true);
+    try {
+      await inventoryService.updateStock(adjustItem.id, Number(adjustQty), adjustReason || 'Manual stock adjustment');
+      await loadData();
+      setShowAdjustModal(false);
+    } catch (err: any) {
+      console.error('Stock adjust error:', err);
+      alert(err?.response?.data?.message || 'Failed to update stock.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <LoadingSpinner />;
+
+  const stockStatusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      out_of_stock: 'bg-red-100 text-red-800',
+      low_stock: 'bg-yellow-100 text-yellow-800',
+      in_stock: 'bg-green-100 text-green-800',
+    };
+    const labels: Record<string, string> = {
+      out_of_stock: 'Out of Stock',
+      low_stock: 'Low Stock',
+      in_stock: 'In Stock',
+    };
+    return <span className={`px-3 py-1 rounded-full text-xs font-bold ${colors[status] || 'bg-gray-100'}`}>{labels[status] || status}</span>;
+  };
+
+  const txnTypeBadge = (type: string) => {
+    const colors: Record<string, string> = {
+      add: 'bg-green-100 text-green-800',
+      reduce: 'bg-red-100 text-red-800',
+      reserve: 'bg-yellow-100 text-yellow-800',
+      adjust: 'bg-blue-100 text-blue-800',
+    };
+    return <span className={`px-2 py-1 rounded-full text-xs font-bold ${colors[type] || 'bg-gray-100'}`}>{type.toUpperCase()}</span>;
+  };
+
+  const filteredStock = stockItems.filter(item =>
+    !searchTerm || item.name.toLowerCase().includes(searchTerm.toLowerCase()) || (item.sku && item.sku.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold text-mk-gray">Inventory Management</h1>
+        <button onClick={loadData} className="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold text-sm">
+          <RefreshCw className="w-4 h-4" /> Refresh
+        </button>
+      </div>
+
+      {/* Summary Cards */}
+      {summary && (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+          <div className="bg-white rounded-xl shadow-md p-4 text-center">
+            <Package className="w-6 h-6 text-blue-500 mx-auto mb-1" />
+            <p className="text-2xl font-bold">{Number(summary.total_products).toLocaleString()}</p>
+            <p className="text-xs text-gray-500">Total Products</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-4 text-center">
+            <PackageCheck className="w-6 h-6 text-green-500 mx-auto mb-1" />
+            <p className="text-2xl font-bold text-green-600">{Number(summary.in_stock).toLocaleString()}</p>
+            <p className="text-xs text-gray-500">In Stock</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-4 text-center">
+            <TrendingDown className="w-6 h-6 text-yellow-500 mx-auto mb-1" />
+            <p className="text-2xl font-bold text-yellow-600">{Number(summary.low_stock).toLocaleString()}</p>
+            <p className="text-xs text-gray-500">Low Stock</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-4 text-center">
+            <PackageX className="w-6 h-6 text-red-500 mx-auto mb-1" />
+            <p className="text-2xl font-bold text-red-600">{Number(summary.out_of_stock).toLocaleString()}</p>
+            <p className="text-xs text-gray-500">Out of Stock</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-4 text-center">
+            <Boxes className="w-6 h-6 text-purple-500 mx-auto mb-1" />
+            <p className="text-2xl font-bold">{Number(summary.total_units || 0).toLocaleString()}</p>
+            <p className="text-xs text-gray-500">Total Units</p>
+          </div>
+          <div className="bg-white rounded-xl shadow-md p-4 text-center">
+            <DollarSign className="w-6 h-6 text-indigo-500 mx-auto mb-1" />
+            <p className="text-2xl font-bold">₹{Number(summary.total_stock_value || 0).toLocaleString()}</p>
+            <p className="text-xs text-gray-500">Stock Value</p>
+          </div>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 bg-gray-100 rounded-lg p-1 w-fit">
+        {([
+          { id: 'stock' as const, label: 'All Stock', icon: Package },
+          { id: 'alerts' as const, label: `Low Stock Alerts (${alertItems.length})`, icon: AlertCircle },
+          { id: 'transactions' as const, label: 'Transaction History', icon: ArrowUpDown },
+        ]).map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition ${tab === t.id ? 'bg-white shadow text-mk-red' : 'text-gray-600 hover:text-gray-800'}`}>
+            <t.icon className="w-4 h-4" /> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Stock Levels Tab */}
+      {tab === 'stock' && (
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input type="text" placeholder="Search by name or SKU..." className="input-field pl-10"
+                value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            </div>
+          </div>
+          {filteredStock.length === 0 ? <p className="text-gray-500 text-center py-8">No products found.</p> : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50"><tr>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Product</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">SKU</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Category</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Brand</th>
+                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Stock Qty</th>
+                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Price</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Status</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Actions</th>
+                </tr></thead>
+                <tbody>{filteredStock.map(item => (
+                  <tr key={item.id} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-3 font-bold text-sm">{item.name}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{item.sku || '-'}</td>
+                    <td className="px-4 py-3 text-sm">{item.category_name || '-'}</td>
+                    <td className="px-4 py-3 text-sm">{item.brand_name || '-'}</td>
+                    <td className={`px-4 py-3 text-right font-bold ${item.stock_qty <= 0 ? 'text-red-600' : item.stock_qty <= 10 ? 'text-yellow-600' : 'text-green-600'}`}>{item.stock_qty}</td>
+                    <td className="px-4 py-3 text-right text-sm">₹{Number(item.price).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-center">{stockStatusBadge(item.stock_status)}</td>
+                    <td className="px-4 py-3 text-center">
+                      <button onClick={() => handleAdjust(item)} className="p-2 text-blue-600 hover:bg-blue-50 rounded" title="Adjust Stock">
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Low Stock Alerts Tab */}
+      {tab === 'alerts' && (
+        <div className="bg-white rounded-xl shadow-md p-6">
+          {alertItems.length === 0 ? (
+            <div className="text-center py-12">
+              <PackageCheck className="w-12 h-12 text-green-400 mx-auto mb-3" />
+              <p className="text-gray-500 font-bold">All stock levels are healthy!</p>
+              <p className="text-sm text-gray-400 mt-1">No products below the low-stock threshold (10 units).</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {alertItems.map(item => (
+                <div key={item.id} className={`flex items-center justify-between p-4 rounded-lg border-l-4 ${item.stock_qty <= 0 ? 'bg-red-50 border-red-500' : 'bg-yellow-50 border-yellow-500'}`}>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm">{item.name}</p>
+                    <p className="text-xs text-gray-500">{item.sku || 'No SKU'} {item.category_name ? `· ${item.category_name}` : ''} {item.brand_name ? `· ${item.brand_name}` : ''}</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className={`text-lg font-bold ${item.stock_qty <= 0 ? 'text-red-600' : 'text-yellow-600'}`}>{item.stock_qty}</p>
+                      <p className="text-xs text-gray-500">units left</p>
+                    </div>
+                    {stockStatusBadge(item.stock_status)}
+                    <button onClick={() => handleAdjust(item)} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700">
+                      Restock
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Transactions Tab */}
+      {tab === 'transactions' && (
+        <div className="bg-white rounded-xl shadow-md p-6">
+          {transactions.length === 0 ? <p className="text-gray-500 text-center py-8">No inventory transactions found.</p> : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50"><tr>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Date</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Product</th>
+                  <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Type</th>
+                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Change</th>
+                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Before</th>
+                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">After</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Reason</th>
+                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Reference</th>
+                </tr></thead>
+                <tbody>{transactions.map(txn => (
+                  <tr key={txn.id} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-3 text-sm">{new Date(txn.created_at).toLocaleString()}</td>
+                    <td className="px-4 py-3 text-sm"><span className="font-bold">{txn.product_name}</span>{txn.sku && <span className="text-gray-400 ml-1">({txn.sku})</span>}</td>
+                    <td className="px-4 py-3 text-center">{txnTypeBadge(txn.transaction_type)}</td>
+                    <td className={`px-4 py-3 text-right font-bold ${txn.quantity_change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {txn.quantity_change >= 0 ? '+' : ''}{txn.quantity_change}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-gray-500">{txn.quantity_before}</td>
+                    <td className="px-4 py-3 text-right text-sm font-bold">{txn.quantity_after}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{txn.reason || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-gray-500">{txn.reference_type ? `${txn.reference_type} #${txn.reference_id}` : '-'}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Stock Adjustment Modal */}
+      {showAdjustModal && adjustItem && (
+        <Modal title={`Adjust Stock — ${adjustItem.name}`} onClose={() => setShowAdjustModal(false)}>
+          <div className="space-y-4">
+            <div className="bg-gray-50 p-4 rounded-lg text-sm space-y-1">
+              <p><span className="font-bold">SKU:</span> {adjustItem.sku || '-'}</p>
+              <p><span className="font-bold">Current Stock:</span> <span className={adjustItem.stock_qty <= 0 ? 'text-red-600 font-bold' : 'font-bold'}>{adjustItem.stock_qty} units</span></p>
+            </div>
+            <div>
+              <label className="block text-sm font-bold mb-2">New Stock Quantity *</label>
+              <input type="number" min="0" className="input-field" value={adjustQty} onChange={e => setAdjustQty(e.target.value)} />
+              {adjustQty !== '' && Number(adjustQty) !== adjustItem.stock_qty && (
+                <p className={`text-sm mt-1 font-bold ${Number(adjustQty) > adjustItem.stock_qty ? 'text-green-600' : 'text-red-600'}`}>
+                  {Number(adjustQty) > adjustItem.stock_qty ? '+' : ''}{Number(adjustQty) - adjustItem.stock_qty} units change
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-bold mb-2">Reason</label>
+              <input type="text" className="input-field" placeholder="e.g. New shipment received, Damaged goods removed" value={adjustReason} onChange={e => setAdjustReason(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex gap-3 mt-6">
+            <button onClick={() => setShowAdjustModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={handleSaveAdjust} disabled={saving || adjustQty === ''} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Updating...' : 'Update Stock'}</button>
           </div>
         </Modal>
       )}
