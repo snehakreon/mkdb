@@ -1287,7 +1287,7 @@ function OrdersModule() {
     try {
       await orderService.update(editingOrder.id, editForm);
       await loadData(); setShowEditModal(false);
-    } catch (err) { console.error('Update order error:', err); alert('Failed to update order.'); }
+    } catch (err: any) { console.error('Update order error:', err); alert(err?.response?.data?.message || 'Failed to update order.'); }
     finally { setSaving(false); }
   };
 
