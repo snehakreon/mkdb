@@ -1464,14 +1464,18 @@ function OrdersModule() {
   const viewOrderDetail = async (order: Order) => {
     setLoadingDetail(true);
     try {
-      const [detail, history] = await Promise.all([
-        orderService.getById(order.id),
-        orderService.getStatusHistory(order.id),
-      ]);
+      const detail = await orderService.getById(order.id);
       setSelectedOrder(detail);
-      setStatusHistory(history);
       setAllowedTransitions(statusTransitionMap[detail.status] || []);
       setTransitionNotes('');
+      // Load history separately — don't block detail view if it fails
+      try {
+        const history = await orderService.getStatusHistory(order.id);
+        setStatusHistory(history);
+      } catch (err) {
+        console.error('Failed to load status history:', err);
+        setStatusHistory([]);
+      }
     } catch (err) { console.error('Failed to load order detail:', err); }
     finally { setLoadingDetail(false); }
   };
