@@ -1302,11 +1302,14 @@ function OrdersModule() {
 
   const statusColors: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-800',
+    pending_dealer_approval: 'bg-orange-100 text-orange-800',
     confirmed: 'bg-blue-100 text-blue-800',
-    processing: 'bg-indigo-100 text-indigo-800',
-    shipped: 'bg-purple-100 text-purple-800',
+    dispatched: 'bg-indigo-100 text-indigo-800',
+    in_transit: 'bg-purple-100 text-purple-800',
     delivered: 'bg-green-100 text-green-800',
+    partially_delivered: 'bg-teal-100 text-teal-800',
     cancelled: 'bg-red-100 text-red-800',
+    disputed: 'bg-red-200 text-red-900',
   };
 
   const subtotal = orderItems.reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
@@ -1412,8 +1415,8 @@ function OrdersModule() {
                 <option value="in_transit">In Transit</option>
                 <option value="delivered">Delivered</option>
                 <option value="partially_delivered">Partially Delivered</option>
-                <option value="disputed">Disputed</option>
                 <option value="cancelled">Cancelled</option>
+                <option value="disputed">Disputed</option>
               </select>
             </div>
             <div><label className="block text-sm font-bold mb-2">Shipping Address</label><input type="text" className="input-field" value={editForm.shipping_address} onChange={e => setEditForm({ ...editForm, shipping_address: e.target.value })} /></div>

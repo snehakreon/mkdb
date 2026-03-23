@@ -218,7 +218,7 @@ CREATE TABLE IF NOT EXISTS orders (
   dealer_id       INT REFERENCES dealers(id) ON DELETE SET NULL,
   vendor_id       INT REFERENCES vendors(id) ON DELETE SET NULL,
   status          VARCHAR(30) NOT NULL DEFAULT 'pending'
-                  CHECK (status IN ('pending','confirmed','processing','shipped','delivered','cancelled')),
+                  CHECK (status IN ('pending','pending_dealer_approval','confirmed','dispatched','in_transit','delivered','partially_delivered','cancelled','disputed')),
   payment_method  VARCHAR(30) NOT NULL DEFAULT 'cod'
                   CHECK (payment_method IN ('cod','upi','netbanking','card')),
   payment_status  VARCHAR(30) NOT NULL DEFAULT 'unpaid'
