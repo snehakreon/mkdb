@@ -1406,10 +1406,13 @@ function OrdersModule() {
             <div><label className="block text-sm font-bold mb-2">Status</label>
               <select className="input-field" value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}>
                 <option value="pending">Pending</option>
+                <option value="pending_dealer_approval">Pending Dealer Approval</option>
                 <option value="confirmed">Confirmed</option>
-                <option value="processing">Processing</option>
-                <option value="shipped">Shipped</option>
+                <option value="dispatched">Dispatched</option>
+                <option value="in_transit">In Transit</option>
                 <option value="delivered">Delivered</option>
+                <option value="partially_delivered">Partially Delivered</option>
+                <option value="disputed">Disputed</option>
                 <option value="cancelled">Cancelled</option>
               </select>
             </div>
