@@ -85,7 +85,7 @@ export default function OrdersPage() {
     if (!statusTarget || !statusForm.status) return
     setStatusSaving(true)
     try {
-      await orderService.update(statusTarget.id, { status: statusForm.status, notes: statusForm.notes || undefined })
+      await orderService.transition(statusTarget.id, { status: statusForm.status, notes: statusForm.notes || undefined })
       setStatusModal(false)
       setSelectedOrder(null)
       fetchData()
