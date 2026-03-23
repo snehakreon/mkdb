@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, CreditCard, ShoppingCart, AlertCircle, Bell, Edit2, Trash2, Plus, X, LogOut, Ticket, UserCog, Warehouse, ArrowUpDown, TrendingDown, PackageCheck, PackageX, Search, RefreshCw } from 'lucide-react';
+import { Home, MapPin, Building2, Boxes, Tag, Package, DollarSign, Users, CreditCard, ShoppingCart, AlertCircle, Bell, Edit2, Trash2, Plus, X, LogOut, Ticket, UserCog, Warehouse, ArrowUpDown, TrendingDown, PackageCheck, PackageX, Search, RefreshCw, Eye, ChevronRight, Clock, Upload, Image } from 'lucide-react';
 import LoginPage from './auth/LoginPage';
 import { zoneService } from './services/zone.service';
 import { vendorService } from './services/vendor.service';
@@ -7,13 +7,14 @@ import { categoryService } from './services/category.service';
 import { brandService } from './services/brand.service';
 import { productService } from './services/product.service';
 import { dealerService } from './services/dealer.service';
-import { orderService } from './services/order.service';
+import { orderService, OrderDetail, OrderLineItem, StatusHistoryEntry } from './services/order.service';
 import { buyerService } from './services/buyer.service';
 import { Zone, Vendor, Category, Brand, Product, Order, Dealer, Buyer, Coupon, AdminUser } from './types';
 import { couponService } from './services/coupon.service';
 import { adminUserService } from './services/adminUser.service';
 import { inventoryService, StockItem, InventorySummary, InventoryTransaction } from './services/inventory.service';
 import { dashboardService, DashboardStats, OrdersByStatus, RevenueByMonth, TopProduct, RecentOrder } from './services/dashboard.service';
+import { uploadService } from './services/upload.service';
 import { INDIAN_STATES } from './constants/indianStates';
 // API_CONFIG imported via services
 
@@ -1015,7 +1016,38 @@ function ProductsModule() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><label className="block text-sm font-bold mb-2">Brand Collection</label><input type="text" className="input-field" value={formData.brand_collection} onChange={e => setFormData({ ...formData, brand_collection: e.target.value })} placeholder="Premium" /></div>
-              <div><label className="block text-sm font-bold mb-2">Image URL</label><input type="text" className="input-field" value={formData.image_url} onChange={e => setFormData({ ...formData, image_url: e.target.value })} placeholder="https://..." /></div>
+            </div>
+            {/* Image Upload */}
+            <div>
+              <label className="block text-sm font-bold mb-2">Product Image</label>
+              <div className="flex items-start gap-4">
+                {formData.image_url ? (
+                  <div className="relative">
+                    <img src={formData.image_url} alt="Product" className="w-24 h-24 object-cover rounded-lg border" />
+                    <button type="button" onClick={() => setFormData({ ...formData, image_url: '' })} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">×</button>
+                  </div>
+                ) : (
+                  <div className="w-24 h-24 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
+                    <Image className="w-8 h-8 text-gray-300" />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <label className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 border-2 border-blue-200 rounded-lg cursor-pointer hover:bg-blue-100 font-bold text-sm w-fit">
+                    <Upload className="w-4 h-4" /> Upload Image
+                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5MB.'); return; }
+                      try {
+                        const url = await uploadService.uploadImage(file, 'products');
+                        setFormData({ ...formData, image_url: url });
+                      } catch (err) { console.error('Upload error:', err); alert('Failed to upload image.'); }
+                    }} />
+                  </label>
+                  <p className="text-xs text-gray-400 mt-1">JPEG, PNG, WebP, GIF — max 5MB</p>
+                  <input type="text" className="input-field text-xs mt-2" value={formData.image_url} onChange={e => setFormData({ ...formData, image_url: e.target.value })} placeholder="Or paste image URL manually" />
+                </div>
+              </div>
             </div>
             <div><label className="block text-sm font-bold mb-2">Description</label><textarea className="input-field" rows={2} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Product description" /></div>
 
@@ -1372,109 +1404,23 @@ function BuyersModule() {
 function OrdersModule() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
-  // Create order form state
+  // Create modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-
-  const [orderForm, setOrderForm] = useState({
-    buyer_id: '', vendor_id: '', shipping_address: '', notes: ''
-  });
+  const [orderForm, setOrderForm] = useState({ buyer_id: '', vendor_id: '', shipping_address: '', notes: '' });
   const [orderItems, setOrderItems] = useState<Array<{ product_id: string; product_name: string; sku: string; quantity: number; unit_price: number }>>([]);
 
-  // Edit order form state
-  const [editForm, setEditForm] = useState({
-    status: '', notes: '', shipping_address: ''
-  });
-
-  const loadData = async () => {
-    try { const data = await orderService.getAll(); setOrders(data); }
-    catch (err) { console.error('Failed to load orders:', err); }
-    finally { setLoading(false); }
-  };
-
-  useEffect(() => { loadData(); }, []);
-
-  const handleAdd = async () => {
-    setOrderForm({ buyer_id: '', vendor_id: '', shipping_address: '', notes: '' });
-    setOrderItems([]);
-    try {
-      const [buyerData, productData] = await Promise.all([
-        buyerService.getAll(), productService.getAll()
-      ]);
-      setBuyers(buyerData); setProducts(productData);
-    } catch (err) { console.error('Failed to load form data:', err); }
-    setShowModal(true);
-  };
-
-  const addOrderItem = () => {
-    setOrderItems([...orderItems, { product_id: '', product_name: '', sku: '', quantity: 1, unit_price: 0 }]);
-  };
-
-  const updateOrderItem = (index: number, field: string, value: any) => {
-    const updated = [...orderItems];
-    (updated[index] as any)[field] = value;
-    if (field === 'product_id') {
-      const prod = products.find(p => p.id === value);
-      if (prod) {
-        updated[index].product_name = prod.name;
-        updated[index].sku = prod.sku || '';
-        updated[index].unit_price = Number(prod.price) || 0;
-      }
-    }
-    setOrderItems(updated);
-  };
-
-  const removeOrderItem = (index: number) => {
-    setOrderItems(orderItems.filter((_, i) => i !== index));
-  };
-
-  const handleCreateOrder = async () => {
-    if (!orderForm.buyer_id || orderItems.length === 0) {
-      alert('Please select buyer and add at least one item.'); return;
-    }
-    setSaving(true);
-    try {
-      await orderService.create({
-        ...orderForm,
-        items: orderItems.map(i => ({ product_id: i.product_id, quantity: i.quantity, unit_price: i.unit_price }))
-      });
-      await loadData(); setShowModal(false);
-    } catch (err) { console.error('Create order error:', err); alert('Failed to create order.'); }
-    finally { setSaving(false); }
-  };
-
-  const handleEdit = (order: Order) => {
-    setEditingOrder(order);
-    setEditForm({
-      status: order.status, notes: order.notes || '',
-      shipping_address: order.shipping_address || ''
-    });
-    setShowEditModal(true);
-  };
-
-  const handleUpdateOrder = async () => {
-    if (!editingOrder) return;
-    setSaving(true);
-    try {
-      await orderService.update(editingOrder.id, editForm);
-      await loadData(); setShowEditModal(false);
-    } catch (err: any) { console.error('Update order error:', err); alert(err?.response?.data?.message || 'Failed to update order.'); }
-    finally { setSaving(false); }
-  };
-
-  const handleCancel = async (id: string) => {
-    if (confirm('Cancel this order?')) {
-      try { await orderService.delete(id); await loadData(); }
-      catch (err) { console.error('Cancel order error:', err); alert('Failed to cancel order.'); }
-    }
-  };
-
-  if (loading) return <LoadingSpinner />;
+  // Detail / transition view
+  const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
+  const [statusHistory, setStatusHistory] = useState<StatusHistoryEntry[]>([]);
+  const [allowedTransitions, setAllowedTransitions] = useState<string[]>([]);
+  const [transitionNotes, setTransitionNotes] = useState('');
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   const statusColors: Record<string, string> = {
     pending: 'bg-yellow-100 text-yellow-800',
@@ -1488,47 +1434,314 @@ function OrdersModule() {
     disputed: 'bg-red-200 text-red-900',
   };
 
+  const statusTransitionMap: Record<string, string[]> = {
+    pending: ['confirmed', 'pending_dealer_approval', 'cancelled'],
+    pending_dealer_approval: ['confirmed', 'cancelled'],
+    confirmed: ['dispatched', 'cancelled'],
+    dispatched: ['in_transit'],
+    in_transit: ['delivered', 'partially_delivered'],
+    partially_delivered: ['delivered', 'disputed'],
+    delivered: ['disputed'],
+    disputed: [],
+    cancelled: [],
+  };
+
+  const loadData = async () => {
+    try {
+      const params: Record<string, any> = { limit: 200 };
+      if (statusFilter) params.status = statusFilter;
+      if (searchTerm) params.search = searchTerm;
+      const data = await orderService.getAll(params);
+      setOrders(data);
+    } catch (err) { console.error('Failed to load orders:', err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadData(); }, [statusFilter]);
+
+  const handleSearch = () => { setLoading(true); loadData(); };
+
+  const viewOrderDetail = async (order: Order) => {
+    setLoadingDetail(true);
+    try {
+      const [detail, history] = await Promise.all([
+        orderService.getById(order.id),
+        orderService.getStatusHistory(order.id),
+      ]);
+      setSelectedOrder(detail);
+      setStatusHistory(history);
+      setAllowedTransitions(statusTransitionMap[detail.status] || []);
+      setTransitionNotes('');
+    } catch (err) { console.error('Failed to load order detail:', err); }
+    finally { setLoadingDetail(false); }
+  };
+
+  const handleTransition = async (newStatus: string) => {
+    if (!selectedOrder) return;
+    setSaving(true);
+    try {
+      const result = await orderService.transitionStatus(selectedOrder.id, newStatus, transitionNotes || undefined);
+      setAllowedTransitions(result.allowed_transitions || statusTransitionMap[newStatus] || []);
+      setTransitionNotes('');
+      // Reload detail and history
+      const [detail, history] = await Promise.all([
+        orderService.getById(selectedOrder.id),
+        orderService.getStatusHistory(selectedOrder.id),
+      ]);
+      setSelectedOrder(detail);
+      setStatusHistory(history);
+      loadData();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Transition failed.');
+    } finally { setSaving(false); }
+  };
+
+  const handleCancel = async (id: string) => {
+    if (confirm('Cancel this order? Inventory will be restored.')) {
+      try { await orderService.delete(id); setSelectedOrder(null); await loadData(); }
+      catch (err) { console.error('Cancel order error:', err); alert('Failed to cancel order.'); }
+    }
+  };
+
+  // Create order handlers
+  const handleAdd = async () => {
+    setOrderForm({ buyer_id: '', vendor_id: '', shipping_address: '', notes: '' });
+    setOrderItems([]);
+    try {
+      const [buyerData, productData] = await Promise.all([buyerService.getAll(), productService.getAll()]);
+      setBuyers(buyerData); setProducts(productData);
+    } catch (err) { console.error('Failed to load form data:', err); }
+    setShowCreateModal(true);
+  };
+  const addOrderItem = () => { setOrderItems([...orderItems, { product_id: '', product_name: '', sku: '', quantity: 1, unit_price: 0 }]); };
+  const updateOrderItem = (index: number, field: string, value: any) => {
+    const updated = [...orderItems];
+    (updated[index] as any)[field] = value;
+    if (field === 'product_id') {
+      const prod = products.find(p => p.id === value);
+      if (prod) { updated[index].product_name = prod.name; updated[index].sku = prod.sku || ''; updated[index].unit_price = Number(prod.price) || 0; }
+    }
+    setOrderItems(updated);
+  };
+  const removeOrderItem = (index: number) => { setOrderItems(orderItems.filter((_, i) => i !== index)); };
+  const handleCreateOrder = async () => {
+    if (!orderForm.buyer_id || orderItems.length === 0) { alert('Please select buyer and add at least one item.'); return; }
+    setSaving(true);
+    try {
+      await orderService.create({ ...orderForm, items: orderItems.map(i => ({ product_id: i.product_id, quantity: i.quantity, unit_price: i.unit_price })) });
+      await loadData(); setShowCreateModal(false);
+    } catch (err) { console.error('Create order error:', err); alert('Failed to create order.'); }
+    finally { setSaving(false); }
+  };
+
+  if (loading && orders.length === 0) return <LoadingSpinner />;
+
   const subtotal = orderItems.reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
 
+  // ---- DETAIL VIEW ----
+  if (selectedOrder) {
+    return (
+      <div>
+        <button onClick={() => setSelectedOrder(null)} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800 mb-4 font-bold">
+          ← Back to Orders
+        </button>
+
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-3xl font-bold text-mk-gray">{selectedOrder.order_number}</h1>
+            <p className="text-sm text-gray-500 mt-1">Created {new Date(selectedOrder.created_at).toLocaleString()}</p>
+          </div>
+          <span className={`px-4 py-2 rounded-full text-sm font-bold ${statusColors[selectedOrder.status] || 'bg-gray-100'}`}>
+            {selectedOrder.status.replace(/_/g, ' ').toUpperCase()}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left column — Order info + Items */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Order Summary */}
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h2 className="text-lg font-bold mb-3">Order Summary</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div><p className="text-gray-500">Buyer</p><p className="font-bold">{selectedOrder.buyer_company || '-'}</p></div>
+                <div><p className="text-gray-500">Dealer</p><p className="font-bold">{selectedOrder.dealer_company || '-'}</p></div>
+                <div><p className="text-gray-500">Payment</p><p className="font-bold">{(selectedOrder.payment_method || 'COD').toUpperCase()}</p></div>
+                <div><p className="text-gray-500">Payment Status</p><p className="font-bold">{(selectedOrder.payment_status || 'pending').toUpperCase()}</p></div>
+              </div>
+              {selectedOrder.shipping_address && (
+                <div className="mt-3 text-sm"><p className="text-gray-500">Shipping Address</p><p className="font-bold">{selectedOrder.shipping_address}</p></div>
+              )}
+              {selectedOrder.notes && (
+                <div className="mt-3 text-sm"><p className="text-gray-500">Notes</p><p>{selectedOrder.notes}</p></div>
+              )}
+            </div>
+
+            {/* Line Items */}
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h2 className="text-lg font-bold mb-3">Line Items ({selectedOrder.items?.length || 0})</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50"><tr>
+                    <th className="px-4 py-2 text-left text-xs font-bold text-gray-600 uppercase">Product</th>
+                    <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 uppercase">Qty</th>
+                    <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 uppercase">Unit Price</th>
+                    <th className="px-4 py-2 text-right text-xs font-bold text-gray-600 uppercase">Total</th>
+                    <th className="px-4 py-2 text-center text-xs font-bold text-gray-600 uppercase">Fulfillment</th>
+                  </tr></thead>
+                  <tbody>{(selectedOrder.items || []).map((item: OrderLineItem) => (
+                    <tr key={item.id} className="border-t">
+                      <td className="px-4 py-3">
+                        <p className="font-bold text-sm">{item.product_name}</p>
+                        {item.sku && <p className="text-xs text-gray-400">{item.sku}</p>}
+                      </td>
+                      <td className="px-4 py-3 text-right font-bold">{item.quantity}</td>
+                      <td className="px-4 py-3 text-right text-sm">₹{Number(item.unit_price).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-right font-bold">₹{Number(item.total_price).toLocaleString()}</td>
+                      <td className="px-4 py-3 text-center">
+                        {item.fulfillment_status === 'back_order' ? (
+                          <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-bold">Back Order ({item.quantity_back_order})</span>
+                        ) : (
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">In Stock</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}</tbody>
+                  <tfoot><tr className="border-t-2">
+                    <td colSpan={3} className="px-4 py-3 text-right font-bold text-lg">Total</td>
+                    <td className="px-4 py-3 text-right font-bold text-lg text-mk-red">₹{Number(selectedOrder.total_amount).toLocaleString()}</td>
+                    <td></td>
+                  </tr></tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Right column — Status transition + History */}
+          <div className="space-y-6">
+            {/* Status Transition */}
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h2 className="text-lg font-bold mb-3">Update Status</h2>
+              {allowedTransitions.length === 0 ? (
+                <p className="text-sm text-gray-400">No transitions available — order is in a terminal state.</p>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-bold mb-1">Transition Notes</label>
+                    <input type="text" className="input-field text-sm" placeholder="Optional notes..." value={transitionNotes} onChange={e => setTransitionNotes(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    {allowedTransitions.map(status => (
+                      <button key={status} onClick={() => handleTransition(status)} disabled={saving}
+                        className="w-full flex items-center justify-between px-4 py-2.5 border-2 rounded-lg font-bold text-sm hover:bg-gray-50 disabled:opacity-50">
+                        <span className="flex items-center gap-2">
+                          <ChevronRight className="w-4 h-4" />
+                          {status.replace(/_/g, ' ').toUpperCase()}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] ${statusColors[status] || 'bg-gray-100'}`}>{status}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {selectedOrder.status !== 'delivered' && selectedOrder.status !== 'cancelled' && (
+                    <button onClick={() => handleCancel(selectedOrder.id)} className="w-full px-4 py-2 bg-red-50 text-red-600 border-2 border-red-200 rounded-lg font-bold text-sm hover:bg-red-100 mt-2">
+                      Cancel Order
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Status History / Audit Trail */}
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <h2 className="text-lg font-bold mb-3 flex items-center gap-2"><Clock className="w-5 h-5" /> Status History</h2>
+              {statusHistory.length === 0 ? (
+                <p className="text-sm text-gray-400">No status changes recorded.</p>
+              ) : (
+                <div className="space-y-3">
+                  {statusHistory.map((entry) => (
+                    <div key={entry.id} className="relative pl-6 pb-3 border-l-2 border-gray-200 last:border-transparent">
+                      <div className="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-mk-red"></div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusColors[entry.from_status] || 'bg-gray-100'}`}>{entry.from_status || 'created'}</span>
+                        <ChevronRight className="w-3 h-3 text-gray-400" />
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${statusColors[entry.to_status] || 'bg-gray-100'}`}>{entry.to_status}</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">{new Date(entry.created_at).toLocaleString()}</p>
+                      {entry.changed_by_email && <p className="text-xs text-gray-400">by {entry.changed_by_email}</p>}
+                      {entry.notes && <p className="text-xs text-gray-600 mt-1 italic">"{entry.notes}"</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- LIST VIEW ----
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-mk-gray">Order Management</h1>
         <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Create Order</button>
       </div>
+
+      {/* Search + Filter bar */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input type="text" placeholder="Search by order # or buyer..." className="input-field pl-10" value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} />
+        </div>
+        <select className="input-field w-48" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <option value="">All Statuses</option>
+          {Object.keys(statusColors).map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
+        </select>
+        <button onClick={handleSearch} className="px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold text-sm">Search</button>
+      </div>
+
       <div className="bg-white rounded-xl shadow-md p-6">
-        {orders.length === 0 ? <p className="text-gray-500 text-center py-8">No orders found. Create your first order.</p> : (
-          <table className="w-full">
+        {orders.length === 0 ? <p className="text-gray-500 text-center py-8">No orders found.</p> : (
+          <div className="overflow-x-auto"><table className="w-full">
             <thead className="bg-gray-50"><tr>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Order #</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Buyer</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Amount</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
+              <th className="px-4 py-3 text-right text-xs font-bold text-gray-600 uppercase">Amount</th>
+              <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Date</th>
-              <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
+              <th className="px-4 py-3 text-center text-xs font-bold text-gray-600 uppercase">Actions</th>
             </tr></thead>
             <tbody>{orders.map(order => (
-              <tr key={order.id} className="border-t hover:bg-gray-50">
+              <tr key={order.id} className="border-t hover:bg-gray-50 cursor-pointer" onClick={() => viewOrderDetail(order)}>
                 <td className="px-4 py-4 font-bold">{order.order_number}</td>
                 <td className="px-4 py-4 text-sm">{order.buyer_company || '-'}</td>
-                <td className="px-4 py-4 font-bold text-mk-red">₹{Number(order.total_amount || 0).toLocaleString()}</td>
-                <td className="px-4 py-4"><span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColors[order.status] || 'bg-gray-100 text-gray-800'}`}>{order.status}</span></td>
+                <td className="px-4 py-4 font-bold text-mk-red text-right">₹{Number(order.total_amount || 0).toLocaleString()}</td>
+                <td className="px-4 py-4 text-center"><span className={`px-3 py-1 rounded-full text-xs font-bold ${statusColors[order.status] || 'bg-gray-100 text-gray-800'}`}>{order.status.replace(/_/g, ' ')}</span></td>
                 <td className="px-4 py-4 text-sm">{new Date(order.created_at).toLocaleDateString()}</td>
-                <td className="px-4 py-4"><div className="flex gap-2">
-                  <button onClick={() => handleEdit(order)} className="p-2 text-blue-600 hover:bg-blue-50 rounded"><Edit2 className="w-4 h-4" /></button>
-                  {order.status !== 'delivered' && order.status !== 'cancelled' && (
-                    <button onClick={() => handleCancel(order.id)} className="p-2 text-red-600 hover:bg-red-50 rounded"><Trash2 className="w-4 h-4" /></button>
-                  )}
-                </div></td>
+                <td className="px-4 py-4 text-center" onClick={e => e.stopPropagation()}>
+                  <div className="flex justify-center gap-2">
+                    <button onClick={() => viewOrderDetail(order)} className="p-2 text-blue-600 hover:bg-blue-50 rounded" title="View Details"><Eye className="w-4 h-4" /></button>
+                    {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                      <button onClick={() => handleCancel(order.id)} className="p-2 text-red-600 hover:bg-red-50 rounded" title="Cancel"><Trash2 className="w-4 h-4" /></button>
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}</tbody>
-          </table>
+          </table></div>
         )}
       </div>
 
+      {loadingDetail && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-8 shadow-xl"><LoadingSpinner /></div>
+        </div>
+      )}
+
       {/* CREATE ORDER MODAL */}
-      {showModal && (
-        <Modal title="Create New Order" onClose={() => setShowModal(false)}>
+      {showCreateModal && (
+        <Modal title="Create New Order" onClose={() => setShowCreateModal(false)}>
           <div className="space-y-4">
             <div><label className="block text-sm font-bold mb-2">Buyer *</label>
               <select className="input-field" value={orderForm.buyer_id} onChange={e => setOrderForm({ ...orderForm, buyer_id: e.target.value })}>
@@ -1537,7 +1750,6 @@ function OrdersModule() {
               </select>
             </div>
             <div><label className="block text-sm font-bold mb-2">Shipping Address</label><input type="text" className="input-field" value={orderForm.shipping_address} onChange={e => setOrderForm({ ...orderForm, shipping_address: e.target.value })} placeholder="Full delivery address" /></div>
-
             <p className="text-sm font-bold text-gray-500 uppercase mt-4">Order Items</p>
             {orderItems.map((item, idx) => (
               <div key={idx} className="flex gap-2 items-end bg-gray-50 p-3 rounded-lg">
@@ -1558,49 +1770,16 @@ function OrdersModule() {
               </div>
             ))}
             <button onClick={addOrderItem} className="text-sm text-blue-600 font-bold hover:underline flex items-center gap-1"><Plus className="w-4 h-4" /> Add Item</button>
-
             {orderItems.length > 0 && (
               <div className="bg-gray-50 p-4 rounded-lg text-right">
                 <p className="text-lg font-bold text-mk-red">Total: ₹{subtotal.toLocaleString()}</p>
               </div>
             )}
-
             <div><label className="block text-sm font-bold mb-2">Notes</label><textarea className="input-field" rows={2} value={orderForm.notes} onChange={e => setOrderForm({ ...orderForm, notes: e.target.value })} /></div>
           </div>
           <div className="flex gap-3 mt-6">
-            <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
+            <button onClick={() => setShowCreateModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
             <button onClick={handleCreateOrder} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Creating...' : 'Create Order'}</button>
-          </div>
-        </Modal>
-      )}
-
-      {/* EDIT ORDER MODAL */}
-      {showEditModal && editingOrder && (
-        <Modal title={`Edit Order ${editingOrder.order_number}`} onClose={() => setShowEditModal(false)}>
-          <div className="space-y-4">
-            <div className="bg-gray-50 p-4 rounded-lg text-sm space-y-1">
-              <p><span className="font-bold">Buyer:</span> {editingOrder.buyer_company || '-'}</p>
-              <p><span className="font-bold">Total:</span> <span className="text-mk-red font-bold">₹{Number(editingOrder.total_amount || 0).toLocaleString()}</span></p>
-            </div>
-            <div><label className="block text-sm font-bold mb-2">Status</label>
-              <select className="input-field" value={editForm.status} onChange={e => setEditForm({ ...editForm, status: e.target.value })}>
-                <option value="pending">Pending</option>
-                <option value="pending_dealer_approval">Pending Dealer Approval</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="dispatched">Dispatched</option>
-                <option value="in_transit">In Transit</option>
-                <option value="delivered">Delivered</option>
-                <option value="partially_delivered">Partially Delivered</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="disputed">Disputed</option>
-              </select>
-            </div>
-            <div><label className="block text-sm font-bold mb-2">Shipping Address</label><input type="text" className="input-field" value={editForm.shipping_address} onChange={e => setEditForm({ ...editForm, shipping_address: e.target.value })} /></div>
-            <div><label className="block text-sm font-bold mb-2">Notes</label><textarea className="input-field" rows={2} value={editForm.notes} onChange={e => setEditForm({ ...editForm, notes: e.target.value })} /></div>
-          </div>
-          <div className="flex gap-3 mt-6">
-            <button onClick={() => setShowEditModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
-            <button onClick={handleUpdateOrder} disabled={saving} className="flex-1 btn-primary disabled:opacity-50">{saving ? 'Saving...' : 'Update Order'}</button>
           </div>
         </Modal>
       )}
