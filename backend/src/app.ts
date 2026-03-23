@@ -18,6 +18,8 @@ import couponRoutes from "./modules/coupon/coupon.routes";
 import cartRoutes from "./modules/cart/cart.routes";
 import uploadRoutes from "./modules/upload/upload.routes";
 import adminUserRoutes from "./modules/admin-user/adminUser.routes";
+import inventoryRoutes from "./modules/inventory/inventory.routes";
+import dashboardRoutes from "./modules/dashboard/dashboard.routes";
 import { errorHandler } from "./middleware/error.middleware";
 
 dotenv.config();
@@ -58,6 +60,8 @@ app.use("/api/coupons", couponRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/admin-users", adminUserRoutes);
+app.use("/api/inventory", inventoryRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // Health check
 app.get("/", (_req, res) => {

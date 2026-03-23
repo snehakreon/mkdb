@@ -37,6 +37,7 @@ import BuyersPage from "../modules/buyers/BuyersPage"
 import OrdersPage from "../modules/orders/OrdersPage"
 import CouponsPage from "../modules/coupons/CouponsPage"
 import AdminUsersPage from "../modules/admin-users/AdminUsersPage"
+import InventoryPage from "../modules/inventory/InventoryPage"
 
 export default function AppRoutes() {
   return (
@@ -89,6 +90,7 @@ export default function AppRoutes() {
         <Route path="orders" element={<OrdersPage />} />
         <Route path="coupons" element={<CouponsPage />} />
         <Route path="admin-users" element={<AdminUsersPage />} />
+        <Route path="inventory" element={<InventoryPage />} />
       </Route>
 
       {/* Legacy redirect */}
