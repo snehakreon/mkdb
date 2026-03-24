@@ -443,8 +443,9 @@ function ZonesModule() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingZone, setEditingZone] = useState<Zone | null>(null);
-  const [formData, setFormData] = useState({ code: '', name: '', description: '' });
+  const [formData, setFormData] = useState({ code: '', name: '', description: '', is_active: true as boolean });
   const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const loadData = async () => {
     try { const data = await zoneService.getAll(); setZones(data); }
@@ -454,8 +455,8 @@ function ZonesModule() {
 
   useEffect(() => { loadData(); }, []);
 
-  const handleAdd = () => { setEditingZone(null); setFormData({ code: '', name: '', description: '' }); setShowModal(true); };
-  const handleEdit = (zone: Zone) => { setEditingZone(zone); setFormData({ code: zone.code, name: zone.name, description: zone.description || '' }); setShowModal(true); };
+  const handleAdd = () => { setEditingZone(null); setFormData({ code: '', name: '', description: '', is_active: true }); setShowModal(true); };
+  const handleEdit = (zone: Zone) => { setEditingZone(zone); setFormData({ code: zone.code, name: zone.name, description: zone.description || '', is_active: zone.is_active !== false }); setShowModal(true); };
 
   const handleSave = async () => {
     setSaving(true);
@@ -483,7 +484,8 @@ function ZonesModule() {
         <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Zone</button>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
-        {zones.length === 0 ? <p className="text-gray-500 text-center py-8">No zones found. Add your first zone.</p> : (
+        <div className="flex items-center gap-3 mb-4"><div className="relative flex-1 max-w-md"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search zones..." className="input-field pl-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div></div>
+        {(() => { const filtered = zones.filter(z => !searchTerm || z.name.toLowerCase().includes(searchTerm.toLowerCase()) || z.code.toLowerCase().includes(searchTerm.toLowerCase())); return filtered.length === 0 ? <p className="text-gray-500 text-center py-8">No zones found.</p> : (
           <table className="w-full">
             <thead className="bg-gray-50"><tr>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Code</th>
@@ -492,7 +494,7 @@ function ZonesModule() {
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
             </tr></thead>
-            <tbody>{zones.map(zone => (
+            <tbody>{filtered.map(zone => (
               <tr key={zone.id} className="border-t hover:bg-gray-50">
                 <td className="px-6 py-4 font-bold">{zone.code}</td>
                 <td className="px-6 py-4">{zone.name}</td>
@@ -505,7 +507,7 @@ function ZonesModule() {
               </tr>
             ))}</tbody>
           </table>
-        )}
+        ); })()}
       </div>
       {showModal && (
         <Modal title={editingZone ? 'Edit Zone' : 'Add Zone'} onClose={() => setShowModal(false)}>
@@ -513,6 +515,7 @@ function ZonesModule() {
             <div><label className="block text-sm font-bold mb-2">Zone Code</label><input type="text" className="input-field" value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} placeholder="ZONE-MUM-N" /></div>
             <div><label className="block text-sm font-bold mb-2">Zone Name</label><input type="text" className="input-field" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Mumbai North" /></div>
             <div><label className="block text-sm font-bold mb-2">Description</label><input type="text" className="input-field" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} placeholder="Covers Mumbai North region" /></div>
+            <div><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="w-5 h-5 accent-mk-red" /><span className="text-sm font-bold">Active</span></label></div>
           </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
@@ -533,8 +536,9 @@ function VendorsModule() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
-  const [formData, setFormData] = useState({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '', zone_id: '' });
+  const [formData, setFormData] = useState({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '', zone_id: '', is_active: true as boolean, is_verified: false as boolean });
   const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const loadData = async () => {
     try {
@@ -547,8 +551,8 @@ function VendorsModule() {
 
   useEffect(() => { loadData(); }, []);
 
-  const handleAdd = () => { setEditingVendor(null); setFormData({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '', zone_id: '' }); setShowModal(true); };
-  const handleEdit = (vendor: Vendor) => { setEditingVendor(vendor); setFormData({ company_name: vendor.company_name, contact_name: vendor.contact_name || '', email: vendor.email || '', phone: vendor.phone || '', gstin: vendor.gstin || '', address: vendor.address || '', city: vendor.city || '', state: vendor.state || '', pincode: vendor.pincode || '', zone_id: (vendor as any).zone_id ? String((vendor as any).zone_id) : '' }); setShowModal(true); };
+  const handleAdd = () => { setEditingVendor(null); setFormData({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '', zone_id: '', is_active: true, is_verified: false }); setShowModal(true); };
+  const handleEdit = (vendor: Vendor) => { setEditingVendor(vendor); setFormData({ company_name: vendor.company_name, contact_name: vendor.contact_name || '', email: vendor.email || '', phone: vendor.phone || '', gstin: vendor.gstin || '', address: vendor.address || '', city: vendor.city || '', state: vendor.state || '', pincode: vendor.pincode || '', zone_id: (vendor as any).zone_id ? String((vendor as any).zone_id) : '', is_active: vendor.is_active !== false, is_verified: vendor.is_verified === true }); setShowModal(true); };
 
   const handleSave = async () => {
     setSaving(true);
@@ -576,7 +580,8 @@ function VendorsModule() {
         <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Vendor</button>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
-        {vendors.length === 0 ? <p className="text-gray-500 text-center py-8">No vendors found. Add your first vendor.</p> : (
+        <div className="flex items-center gap-3 mb-4"><div className="relative flex-1 max-w-md"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search by company, contact, or GSTIN..." className="input-field pl-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div></div>
+        {(() => { const filtered = vendors.filter(v => !searchTerm || v.company_name.toLowerCase().includes(searchTerm.toLowerCase()) || (v.contact_name && v.contact_name.toLowerCase().includes(searchTerm.toLowerCase())) || (v.gstin && v.gstin.toLowerCase().includes(searchTerm.toLowerCase()))); return filtered.length === 0 ? <p className="text-gray-500 text-center py-8">No vendors found.</p> : (
           <table className="w-full">
             <thead className="bg-gray-50"><tr>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Company</th>
@@ -587,7 +592,7 @@ function VendorsModule() {
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
             </tr></thead>
-            <tbody>{vendors.map(vendor => (
+            <tbody>{filtered.map(vendor => (
               <tr key={vendor.id} className="border-t hover:bg-gray-50">
                 <td className="px-6 py-4 font-bold">{vendor.company_name}</td>
                 <td className="px-6 py-4 text-sm">{vendor.contact_name || '-'}<br/><span className="text-gray-400">{vendor.phone || ''}</span></td>
@@ -602,7 +607,7 @@ function VendorsModule() {
               </tr>
             ))}</tbody>
           </table>
-        )}
+        ); })()}
       </div>
       {showModal && (
         <Modal title={editingVendor ? 'Edit Vendor' : 'Add Vendor'} onClose={() => setShowModal(false)}>
@@ -633,6 +638,10 @@ function VendorsModule() {
                 {zones.filter(z => z.is_active).map(z => <option key={z.id} value={z.id}>{z.name} ({z.code})</option>)}
               </select>
             </div>
+            <div className="flex gap-6">
+              <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="w-5 h-5 accent-mk-red" /><span className="text-sm font-bold">Active</span></label>
+              <label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={formData.is_verified} onChange={e => setFormData({ ...formData, is_verified: e.target.checked })} className="w-5 h-5 accent-green-600" /><span className="text-sm font-bold">Verified</span></label>
+            </div>
           </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
@@ -652,8 +661,9 @@ function CategoriesModule() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Category | null>(null);
-  const [formData, setFormData] = useState({ name: '', slug: '' });
+  const [formData, setFormData] = useState({ name: '', slug: '', is_active: true as boolean });
   const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const loadData = async () => {
     try { const data = await categoryService.getAll(); setCategories(data); }
@@ -663,8 +673,8 @@ function CategoriesModule() {
 
   useEffect(() => { loadData(); }, []);
 
-  const handleAdd = () => { setEditingItem(null); setFormData({ name: '', slug: '' }); setShowModal(true); };
-  const handleEdit = (item: Category) => { setEditingItem(item); setFormData({ name: item.name, slug: item.slug }); setShowModal(true); };
+  const handleAdd = () => { setEditingItem(null); setFormData({ name: '', slug: '', is_active: true }); setShowModal(true); };
+  const handleEdit = (item: Category) => { setEditingItem(item); setFormData({ name: item.name, slug: item.slug, is_active: item.is_active !== false }); setShowModal(true); };
 
   const handleSave = async () => {
     setSaving(true);
@@ -692,7 +702,8 @@ function CategoriesModule() {
         <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Category</button>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
-        {categories.length === 0 ? <p className="text-gray-500 text-center py-8">No categories found. Add your first category.</p> : (
+        <div className="flex items-center gap-3 mb-4"><div className="relative flex-1 max-w-md"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search categories..." className="input-field pl-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div></div>
+        {(() => { const filtered = categories.filter(c => !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase()) || c.slug.toLowerCase().includes(searchTerm.toLowerCase())); return filtered.length === 0 ? <p className="text-gray-500 text-center py-8">No categories found.</p> : (
           <table className="w-full">
             <thead className="bg-gray-50"><tr>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Name</th>
@@ -700,7 +711,7 @@ function CategoriesModule() {
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
             </tr></thead>
-            <tbody>{categories.map(cat => (
+            <tbody>{filtered.map(cat => (
               <tr key={cat.id} className="border-t hover:bg-gray-50">
                 <td className="px-6 py-4 font-bold">{cat.name}</td>
                 <td className="px-6 py-4 text-sm">{cat.slug}</td>
@@ -712,13 +723,14 @@ function CategoriesModule() {
               </tr>
             ))}</tbody>
           </table>
-        )}
+        ); })()}
       </div>
       {showModal && (
         <Modal title={editingItem ? 'Edit Category' : 'Add Category'} onClose={() => setShowModal(false)}>
           <div className="space-y-4">
             <div><label className="block text-sm font-bold mb-2">Category Name</label><input type="text" className="input-field" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Plywood" /></div>
             <div><label className="block text-sm font-bold mb-2">Slug</label><input type="text" className="input-field" value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} placeholder="plywood (auto-generated if empty)" /></div>
+            <div><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="w-5 h-5 accent-mk-red" /><span className="text-sm font-bold">Active</span></label></div>
           </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
@@ -738,8 +750,9 @@ function BrandsModule() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Brand | null>(null);
-  const [formData, setFormData] = useState({ name: '', slug: '' });
+  const [formData, setFormData] = useState({ name: '', slug: '', is_active: true as boolean });
   const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const loadData = async () => {
     try { const data = await brandService.getAll(); setBrands(data); }
@@ -749,8 +762,8 @@ function BrandsModule() {
 
   useEffect(() => { loadData(); }, []);
 
-  const handleAdd = () => { setEditingItem(null); setFormData({ name: '', slug: '' }); setShowModal(true); };
-  const handleEdit = (item: Brand) => { setEditingItem(item); setFormData({ name: item.name, slug: item.slug }); setShowModal(true); };
+  const handleAdd = () => { setEditingItem(null); setFormData({ name: '', slug: '', is_active: true }); setShowModal(true); };
+  const handleEdit = (item: Brand) => { setEditingItem(item); setFormData({ name: item.name, slug: item.slug, is_active: item.is_active !== false }); setShowModal(true); };
 
   const handleSave = async () => {
     setSaving(true);
@@ -778,7 +791,8 @@ function BrandsModule() {
         <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Brand</button>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
-        {brands.length === 0 ? <p className="text-gray-500 text-center py-8">No brands found. Add your first brand.</p> : (
+        <div className="flex items-center gap-3 mb-4"><div className="relative flex-1 max-w-md"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search brands..." className="input-field pl-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div></div>
+        {(() => { const filtered = brands.filter(b => !searchTerm || b.name.toLowerCase().includes(searchTerm.toLowerCase()) || b.slug.toLowerCase().includes(searchTerm.toLowerCase())); return filtered.length === 0 ? <p className="text-gray-500 text-center py-8">No brands found.</p> : (
           <table className="w-full">
             <thead className="bg-gray-50"><tr>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Name</th>
@@ -786,7 +800,7 @@ function BrandsModule() {
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
             </tr></thead>
-            <tbody>{brands.map(brand => (
+            <tbody>{filtered.map(brand => (
               <tr key={brand.id} className="border-t hover:bg-gray-50">
                 <td className="px-6 py-4 font-bold">{brand.name}</td>
                 <td className="px-6 py-4 text-sm">{brand.slug}</td>
@@ -798,13 +812,14 @@ function BrandsModule() {
               </tr>
             ))}</tbody>
           </table>
-        )}
+        ); })()}
       </div>
       {showModal && (
         <Modal title={editingItem ? 'Edit Brand' : 'Add Brand'} onClose={() => setShowModal(false)}>
           <div className="space-y-4">
             <div><label className="block text-sm font-bold mb-2">Brand Name</label><input type="text" className="input-field" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Century" /></div>
             <div><label className="block text-sm font-bold mb-2">Slug</label><input type="text" className="input-field" value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} placeholder="century (auto-generated if empty)" /></div>
+            <div><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="w-5 h-5 accent-mk-red" /><span className="text-sm font-bold">Active</span></label></div>
           </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
@@ -827,6 +842,8 @@ function ProductsModule() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Product | null>(null);
+
+  const [searchTerm, setSearchTerm] = useState('');
 
   const emptyForm = {
     name: '', sku: '', hsn_code: '', isin: '', category_id: '', brand_id: '', brand_collection: '',
@@ -941,7 +958,13 @@ function ProductsModule() {
         <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Product</button>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
-        {products.length === 0 ? <p className="text-gray-500 text-center py-8">No products found. Add your first product.</p> : (
+        <div className="flex items-center gap-3 mb-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input type="text" placeholder="Search by name, SKU, or brand..." className="input-field pl-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+          </div>
+        </div>
+        {(() => { const filtered = products.filter(p => !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase()) || (p.sku && p.sku.toLowerCase().includes(searchTerm.toLowerCase())) || (p.brand_name && p.brand_name.toLowerCase().includes(searchTerm.toLowerCase()))); return filtered.length === 0 ? <p className="text-gray-500 text-center py-8">No products found.</p> : (
           <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50"><tr>
@@ -958,7 +981,7 @@ function ProductsModule() {
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
             </tr></thead>
-            <tbody>{products.map(product => (
+            <tbody>{filtered.map(product => (
               <tr key={product.id} className="border-t hover:bg-gray-50">
                 <td className="px-4 py-4">{product.image_url ? <img src={product.image_url} alt={product.name} className="w-10 h-10 object-cover rounded" /> : <div className="w-10 h-10 bg-gray-100 rounded flex items-center justify-center"><Package className="w-5 h-5 text-gray-400" /></div>}</td>
                 <td className="px-4 py-4 font-mono text-sm">{product.sku || '-'}</td>
@@ -979,7 +1002,7 @@ function ProductsModule() {
             ))}</tbody>
           </table>
           </div>
-        )}
+        ); })()}
       </div>
       {showModal && (
         <Modal title={editingItem ? 'Edit Product' : 'Add Product'} onClose={() => setShowModal(false)}>
@@ -1148,9 +1171,10 @@ function DealersModule() {
   const [editingItem, setEditingItem] = useState<Dealer | null>(null);
   const [formData, setFormData] = useState({
     company_name: '', contact_name: '', email: '', phone: '', gstin: '',
-    address: '', city: '', state: '', pincode: ''
+    address: '', city: '', state: '', pincode: '', is_active: true as boolean
   });
   const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const loadData = async () => {
     try { const data = await dealerService.getAll(); setDealers(data); }
@@ -1162,7 +1186,7 @@ function DealersModule() {
 
   const handleAdd = () => {
     setEditingItem(null);
-    setFormData({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '' });
+    setFormData({ company_name: '', contact_name: '', email: '', phone: '', gstin: '', address: '', city: '', state: '', pincode: '', is_active: true });
     setShowModal(true);
   };
 
@@ -1171,7 +1195,8 @@ function DealersModule() {
     setFormData({
       company_name: item.company_name, contact_name: item.contact_name || '',
       email: item.email || '', phone: item.phone || '', gstin: item.gstin || '',
-      address: item.address || '', city: item.city || '', state: item.state || '', pincode: item.pincode || ''
+      address: item.address || '', city: item.city || '', state: item.state || '', pincode: item.pincode || '',
+      is_active: item.is_active !== false
     });
     setShowModal(true);
   };
@@ -1202,7 +1227,8 @@ function DealersModule() {
         <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Dealer</button>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
-        {dealers.length === 0 ? <p className="text-gray-500 text-center py-8">No dealers found. Add your first dealer.</p> : (
+        <div className="flex items-center gap-3 mb-4"><div className="relative flex-1 max-w-md"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search by company, contact, or GSTIN..." className="input-field pl-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div></div>
+        {(() => { const filtered = dealers.filter(d => !searchTerm || d.company_name.toLowerCase().includes(searchTerm.toLowerCase()) || (d.contact_name && d.contact_name.toLowerCase().includes(searchTerm.toLowerCase())) || (d.gstin && d.gstin.toLowerCase().includes(searchTerm.toLowerCase()))); return filtered.length === 0 ? <p className="text-gray-500 text-center py-8">No dealers found.</p> : (
           <table className="w-full">
             <thead className="bg-gray-50"><tr>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Company</th>
@@ -1212,7 +1238,7 @@ function DealersModule() {
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
             </tr></thead>
-            <tbody>{dealers.map(dealer => (
+            <tbody>{filtered.map(dealer => (
               <tr key={dealer.id} className="border-t hover:bg-gray-50">
                 <td className="px-4 py-4 font-bold">{dealer.company_name}</td>
                 <td className="px-4 py-4 text-sm">{dealer.contact_name || '-'}<br/><span className="text-gray-400">{dealer.phone || ''}</span></td>
@@ -1226,7 +1252,7 @@ function DealersModule() {
               </tr>
             ))}</tbody>
           </table>
-        )}
+        ); })()}
       </div>
       {showModal && (
         <Modal title={editingItem ? 'Edit Dealer' : 'Add Dealer'} onClose={() => setShowModal(false)}>
@@ -1251,6 +1277,7 @@ function DealersModule() {
               </div>
               <div><label className="block text-sm font-bold mb-2">Pincode</label><input type="text" className="input-field" value={formData.pincode} onChange={e => setFormData({ ...formData, pincode: e.target.value })} placeholder="400001" /></div>
             </div>
+            <div><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="w-5 h-5 accent-mk-red" /><span className="text-sm font-bold">Active</span></label></div>
           </div>
           <div className="flex gap-3 mt-6">
             <button onClick={() => setShowModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg hover:bg-gray-100 font-bold">Cancel</button>
@@ -1270,6 +1297,7 @@ function BuyersModule() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Buyer | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     company_name: '', gstin: '', pan: '', company_type: '', company_address: '', billing_address: '',
     first_name: '', last_name: '', email: '', phone: ''
@@ -1328,7 +1356,8 @@ function BuyersModule() {
         <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Buyer</button>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
-        {buyers.length === 0 ? <p className="text-gray-500 text-center py-8">No buyers found. Add your first buyer.</p> : (
+        <div className="flex items-center gap-3 mb-4"><div className="relative flex-1 max-w-md"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search by company, name, or email..." className="input-field pl-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div></div>
+        {(() => { const filtered = buyers.filter(b => !searchTerm || b.company_name.toLowerCase().includes(searchTerm.toLowerCase()) || (b.first_name && b.first_name.toLowerCase().includes(searchTerm.toLowerCase())) || (b.email && b.email.toLowerCase().includes(searchTerm.toLowerCase()))); return filtered.length === 0 ? <p className="text-gray-500 text-center py-8">No buyers found.</p> : (
           <table className="w-full">
             <thead className="bg-gray-50"><tr>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Company</th>
@@ -1340,7 +1369,7 @@ function BuyersModule() {
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
             </tr></thead>
-            <tbody>{buyers.map(buyer => (
+            <tbody>{filtered.map(buyer => (
               <tr key={buyer.id} className="border-t hover:bg-gray-50">
                 <td className="px-4 py-4 font-bold">{buyer.company_name}</td>
                 <td className="px-4 py-4 text-sm">{buyer.first_name} {buyer.last_name}</td>
@@ -1356,7 +1385,7 @@ function BuyersModule() {
               </tr>
             ))}</tbody>
           </table>
-        )}
+        ); })()}
       </div>
       {showModal && (
         <Modal title={editingItem ? 'Edit Buyer' : 'Add Buyer'} onClose={() => setShowModal(false)}>
@@ -1799,6 +1828,7 @@ function CouponsModule() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({ code: '', description: '', discount_type: 'percentage', discount_value: '', min_order_amount: '', max_discount: '', usage_limit: '', valid_from: '', valid_until: '', is_active: true as boolean });
   const [saving, setSaving] = useState(false);
 
@@ -1850,7 +1880,8 @@ function CouponsModule() {
         <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Coupon</button>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
-        {coupons.length === 0 ? <p className="text-gray-500 text-center py-8">No coupons found. Add your first coupon.</p> : (
+        <div className="flex items-center gap-3 mb-4"><div className="relative flex-1 max-w-md"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search by code or description..." className="input-field pl-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div></div>
+        {(() => { const filtered = coupons.filter(c => !searchTerm || c.code.toLowerCase().includes(searchTerm.toLowerCase()) || (c.description && c.description.toLowerCase().includes(searchTerm.toLowerCase()))); return filtered.length === 0 ? <p className="text-gray-500 text-center py-8">No coupons found.</p> : (
           <table className="w-full">
             <thead className="bg-gray-50"><tr>
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Code</th>
@@ -1880,7 +1911,7 @@ function CouponsModule() {
               </tr>
             ))}</tbody>
           </table>
-        )}
+        ); })()}
       </div>
       {showModal && (
         <Modal title={editingCoupon ? 'Edit Coupon' : 'Add Coupon'} onClose={() => setShowModal(false)}>
@@ -1921,8 +1952,11 @@ function AdminUsersModule() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
-  const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '', is_active: true as boolean });
+  const [formData, setFormData] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '', is_active: true as boolean, role: 'super_admin' });
   const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const availableRoles = ['super_admin', 'admin', 'manager', 'operator', 'viewer'];
 
   const loadData = async () => {
     try { const data = await adminUserService.getAll(); setUsers(data); }
@@ -1932,10 +1966,10 @@ function AdminUsersModule() {
 
   useEffect(() => { loadData(); }, []);
 
-  const handleAdd = () => { setEditingUser(null); setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', is_active: true }); setShowModal(true); };
+  const handleAdd = () => { setEditingUser(null); setFormData({ firstName: '', lastName: '', email: '', phone: '', password: '', is_active: true, role: 'super_admin' }); setShowModal(true); };
   const handleEdit = (u: AdminUser) => {
     setEditingUser(u);
-    setFormData({ firstName: u.first_name || '', lastName: u.last_name || '', email: u.email || '', phone: u.phone || '', password: '', is_active: u.is_active !== false });
+    setFormData({ firstName: u.first_name || '', lastName: u.last_name || '', email: u.email || '', phone: u.phone || '', password: '', is_active: u.is_active !== false, role: (u.roles && u.roles[0]) || 'super_admin' });
     setShowModal(true);
   };
 
@@ -1967,7 +2001,8 @@ function AdminUsersModule() {
         <button onClick={handleAdd} className="btn-primary flex items-center gap-2"><Plus className="w-5 h-5" /> Add Admin User</button>
       </div>
       <div className="bg-white rounded-xl shadow-md p-6">
-        {users.length === 0 ? <p className="text-gray-500 text-center py-8">No admin users found. Add your first admin user.</p> : (
+        <div className="flex items-center gap-3 mb-4"><div className="relative flex-1 max-w-md"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" /><input type="text" placeholder="Search by name or email..." className="input-field pl-10" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div></div>
+        {(() => { const filtered = users.filter(u => !searchTerm || `${u.first_name} ${u.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase())); return filtered.length === 0 ? <p className="text-gray-500 text-center py-8">No admin users found.</p> : (
           <table className="w-full">
             <thead className="bg-gray-50"><tr>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Name</th>
@@ -1978,7 +2013,7 @@ function AdminUsersModule() {
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Last Login</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase">Actions</th>
             </tr></thead>
-            <tbody>{users.map(u => (
+            <tbody>{filtered.map(u => (
               <tr key={u.id} className="border-t hover:bg-gray-50">
                 <td className="px-6 py-4 font-bold">{u.first_name} {u.last_name || ''}</td>
                 <td className="px-6 py-4 text-gray-600">{u.email}</td>
@@ -1993,7 +2028,7 @@ function AdminUsersModule() {
               </tr>
             ))}</tbody>
           </table>
-        )}
+        ); })()}
       </div>
       {showModal && (
         <Modal title={editingUser ? 'Edit Admin User' : 'Add Admin User'} onClose={() => setShowModal(false)}>
@@ -2003,7 +2038,14 @@ function AdminUsersModule() {
               <div><label className="block text-sm font-bold mb-2">Last Name</label><input type="text" className="input-field" value={formData.lastName} onChange={e => setFormData({ ...formData, lastName: e.target.value })} /></div>
             </div>
             <div><label className="block text-sm font-bold mb-2">Email *</label><input type="email" className="input-field" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} /></div>
-            <div><label className="block text-sm font-bold mb-2">Phone</label><input type="text" className="input-field" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><label className="block text-sm font-bold mb-2">Phone</label><input type="text" className="input-field" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} /></div>
+              <div><label className="block text-sm font-bold mb-2">Role</label>
+                <select className="input-field" value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })}>
+                  {availableRoles.map(r => <option key={r} value={r}>{r.replace(/_/g, ' ').toUpperCase()}</option>)}
+                </select>
+              </div>
+            </div>
             <div><label className="block text-sm font-bold mb-2">{editingUser ? 'New Password (leave blank to keep)' : 'Password *'}</label><input type="password" className="input-field" value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })} /></div>
             {editingUser && (
               <div><label className="flex items-center gap-3 cursor-pointer"><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="w-5 h-5 accent-mk-red" /><span className="text-sm font-bold">Active</span></label></div>
