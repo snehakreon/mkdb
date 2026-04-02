@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { productService } from "../../services/product.service"
 import { brandService } from "../../services/brand.service"
 import { categoryService } from "../../services/category.service"
+import { api } from "../../services/api"
 import DataTable from "../../components/ui/DataTable"
 import FormModal from "../../components/ui/FormModal"
 import FormField from "../../components/ui/FormField"
@@ -35,6 +36,30 @@ export default function ProductsPage() {
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [activeTab, setActiveTab] = useState("basic")
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.type !== "application/pdf") {
+      alert("Only PDF files are allowed")
+      return
+    }
+    setUploading(true)
+    try {
+      const formDataUpload = new FormData()
+      formDataUpload.append("file", file)
+      const res = await api.post("/upload", formDataUpload, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+      setForm({ ...form, tech_sheet_url: res.data.url })
+    } catch {
+      alert("Failed to upload file. Make sure the backend is running.")
+    }
+    setUploading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
 
   const fetchData = async () => {
     setLoading(true)
@@ -233,7 +258,22 @@ export default function ProductsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <FormField label="Country of Origin" name="country_of_origin" value={form.country_of_origin} onChange={handleChange} />
-              <FormField label="Tech Data Sheet URL" name="tech_sheet_url" value={form.tech_sheet_url} onChange={handleChange} placeholder="https://..." />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tech Data Sheet (PDF)</label>
+                {form.tech_sheet_url ? (
+                  <div className="flex items-center gap-2">
+                    <a href={`http://localhost:5000${form.tech_sheet_url}`} target="_blank" rel="noopener noreferrer"
+                      className="text-sm text-primary-600 underline truncate max-w-[180px]">
+                      {form.tech_sheet_url.split("/").pop()}
+                    </a>
+                    <button type="button" onClick={() => setForm({ ...form, tech_sheet_url: "" })}
+                      className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                  </div>
+                ) : null}
+                <input ref={fileInputRef} type="file" accept=".pdf,application/pdf" onChange={handleFileUpload}
+                  className="mt-1 block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100" />
+                {uploading && <p className="text-xs text-gray-400 mt-1">Uploading...</p>}
+              </div>
             </div>
             <FormField label="Customer Care Details" name="customer_care_details" value={form.customer_care_details} onChange={handleChange} textarea />
           </>

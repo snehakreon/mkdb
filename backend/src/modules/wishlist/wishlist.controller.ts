@@ -1,10 +1,20 @@
 import { Response } from "express";
 import pool from "../../config/db";
 import { AuthRequest } from "../../middleware/auth.middleware";
+import { parsePagination, buildPaginatedResponse } from "../../utils/pagination";
 
-// GET /api/wishlist — list wishlist items with product details
+// GET /api/wishlist — list wishlist items with product details (paginated)
 export const getAll = async (req: AuthRequest, res: Response) => {
   try {
+    const userId = req.user!.userId;
+    const pag = parsePagination(req);
+
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM wishlists WHERE user_id = $1`,
+      [userId]
+    );
+    const total = parseInt(countResult.rows[0].count);
+
     const result = await pool.query(
       `SELECT w.id, w.product_id, w.created_at,
               p.name, p.slug, p.price, p.mrp, p.image_url, p.unit, p.stock_qty,
@@ -13,10 +23,11 @@ export const getAll = async (req: AuthRequest, res: Response) => {
        JOIN products p ON p.id = w.product_id
        LEFT JOIN brands b ON b.id = p.brand_id
        WHERE w.user_id = $1
-       ORDER BY w.created_at DESC`,
-      [req.user!.userId]
+       ORDER BY w.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, pag.pageSize, pag.offset]
     );
-    res.json(result.rows);
+    res.json(buildPaginatedResponse(result.rows, total, pag));
   } catch (error: any) {
     console.error("Wishlist getAll error:", error);
     res.status(500).json({ message: error.message });

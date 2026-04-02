@@ -1,4 +1,4 @@
-import { apiService } from './api.service';
+import { apiService, PaginatedResult } from './api.service';
 import { Dealer } from '../types';
 import { API_CONFIG } from '../config/api.config';
 
@@ -17,6 +17,13 @@ export const dealerService = {
       return apiService.getAll<Dealer>('/dealers');
     }
     return Promise.resolve(MOCK_DEALERS);
+  },
+
+  async getPaginated(page = 1, pageSize = 20, search = ''): Promise<PaginatedResult<Dealer>> {
+    if (API_CONFIG.USE_REAL_API) {
+      return apiService.getPaginated<Dealer>('/dealers', { page, pageSize, ...(search && { search }) });
+    }
+    return { data: MOCK_DEALERS, pagination: { page: 1, pageSize: 20, total: MOCK_DEALERS.length, totalPages: 1 } };
   },
 
   async getById(id: string): Promise<Dealer> {
