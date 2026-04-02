@@ -26,14 +26,16 @@ dotenv.config();
 
 const app = express();
 
-// CORS — allow admin (3000) and buyer (5173) frontends
+// CORS — allow admin and buyer frontends (local + Render)
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:5173",
+  ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : []),
+];
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:5173",
-    ],
+    origin: allowedOrigins,
     credentials: true,
   })
 );

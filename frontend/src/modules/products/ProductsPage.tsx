@@ -262,7 +262,7 @@ export default function ProductsPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tech Data Sheet (PDF)</label>
                 {form.tech_sheet_url ? (
                   <div className="flex items-center gap-2">
-                    <a href={`http://localhost:5000${form.tech_sheet_url}`} target="_blank" rel="noopener noreferrer"
+                    <a href={`${import.meta.env.VITE_API_HOST || "http://localhost:5000"}${form.tech_sheet_url}`} target="_blank" rel="noopener noreferrer"
                       className="text-sm text-primary-600 underline truncate max-w-[180px]">
                       {form.tech_sheet_url.split("/").pop()}
                     </a>
