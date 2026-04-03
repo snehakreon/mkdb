@@ -18,6 +18,7 @@ const pool = new Pool(
         user: process.env.DB_USER || "postgres",
         password: process.env.DB_PASSWORD,
         database: process.env.DB_NAME || "material_king",
+        ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
         connectionTimeoutMillis: 5000,
         query_timeout: 10000,
         statement_timeout: 10000,
