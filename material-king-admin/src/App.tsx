@@ -1858,7 +1858,7 @@ function CouponsModule() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const payload = { ...formData, discount_type: formData.discount_type as 'percentage' | 'flat' };
+      const payload = { ...formData, discount_type: formData.discount_type as 'percentage' | 'flat', discount_value: Number(formData.discount_value), min_order_amount: Number(formData.min_order_amount) || undefined, max_discount: Number(formData.max_discount) || undefined, usage_limit: Number(formData.usage_limit) || undefined };
       if (editingCoupon) { await couponService.update(editingCoupon.id, payload); }
       else { await couponService.create(payload); }
       await loadData(); setShowModal(false);
