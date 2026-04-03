@@ -557,8 +557,9 @@ function VendorsModule() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      if (editingVendor) { await vendorService.update(editingVendor.id, formData); }
-      else { await vendorService.create(formData); }
+      const payload = { ...formData, zone_id: formData.zone_id ? Number(formData.zone_id) : undefined };
+      if (editingVendor) { await vendorService.update(editingVendor.id, payload); }
+      else { await vendorService.create(payload); }
       await loadData(); setShowModal(false);
     } catch (err) { console.error('Save vendor error:', err); alert('Failed to save vendor.'); }
     finally { setSaving(false); }
@@ -1857,8 +1858,9 @@ function CouponsModule() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      if (editingCoupon) { await couponService.update(editingCoupon.id, formData); }
-      else { await couponService.create(formData); }
+      const payload = { ...formData, discount_type: formData.discount_type as 'percentage' | 'flat' };
+      if (editingCoupon) { await couponService.update(editingCoupon.id, payload); }
+      else { await couponService.create(payload); }
       await loadData(); setShowModal(false);
     } catch (err) { console.error('Save coupon error:', err); alert('Failed to save coupon.'); }
     finally { setSaving(false); }
