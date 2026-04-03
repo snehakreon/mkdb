@@ -22,7 +22,7 @@ export default function ProductsListPage() {
   const [subcategories, setSubcategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [wishlisted, setWishlisted] = useState<Set<number>>(new Set())
-  const [wishlistLoading, setWishlistLoading] = useState(false)
+  const [, setWishlistLoading] = useState(false)
 
   // Read filter state from URL params
   const selectedCategory = searchParams.get("category") || ""

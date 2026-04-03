@@ -90,7 +90,7 @@ export default function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                <Tooltip formatter={(value: number) => [`₹${Number(value).toLocaleString()}`, "Revenue"]}
+                <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString()}`, "Revenue"]}
                   labelStyle={{ fontWeight: 600 }} />
                 <Legend />
                 <Bar dataKey="revenue" name="Revenue" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -132,7 +132,7 @@ export default function DashboardPage() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
               <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={120} />
-              <Tooltip formatter={(value: number) => [`₹${Number(value).toLocaleString()}`, "Revenue"]} />
+              <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString()}`, "Revenue"]} />
               <Bar dataKey="revenue" name="Revenue" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
