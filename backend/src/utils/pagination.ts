@@ -3,7 +3,7 @@ import { Request } from "express";
 export interface PaginationParams {
   page: number;
   limit: number;
-  pageSize: number;
+  pageSize?: number;
   offset: number;
   search?: string;
 }
