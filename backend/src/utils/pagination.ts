@@ -3,6 +3,7 @@ import { Request } from "express";
 export interface PaginationParams {
   page: number;
   limit: number;
+  pageSize: number;
   offset: number;
   search?: string;
 }
@@ -27,7 +28,7 @@ export function getPaginationParams(req: Request): PaginationParams {
   const offset = (page - 1) * limit;
   const search = (req.query.search as string) || undefined;
 
-  return { page, limit, offset, search };
+  return { page, limit, pageSize: limit, offset, search };
 }
 
 /**
