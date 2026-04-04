@@ -48,3 +48,6 @@ export function paginatedResponse<T>(
     },
   };
 }
+
+export const parsePagination = getPaginationParams;
+export const buildPaginatedResponse = paginatedResponse;

@@ -352,6 +352,52 @@ export const update = async (req: Request, res: Response) => {
   }
 };
 
+// GET /api/products/low-stock
+export const getLowStock = async (req: Request, res: Response) => {
+  try {
+    const { page, limit, offset } = getPaginationParams(req);
+    const threshold = parseInt(req.query.threshold as string) || 10;
+    const countResult = await pool.query(
+      "SELECT COUNT(*) FROM products WHERE stock_qty <= $1 AND is_active = true",
+      [threshold]
+    );
+    const total = parseInt(countResult.rows[0].count);
+    const result = await pool.query(
+      `SELECT ${PRODUCT_FIELDS}, c.name AS category_name, b.name AS brand_name
+       FROM products p
+       LEFT JOIN categories c ON p.category_id = c.id
+       LEFT JOIN brands b ON p.brand_id = b.id
+       WHERE p.stock_qty <= $1 AND p.is_active = true
+       ORDER BY p.stock_qty ASC
+       LIMIT $2 OFFSET $3`,
+      [threshold, limit, offset]
+    );
+    res.json(paginatedResponse(result.rows, total, { page, limit, offset }));
+  } catch (error: any) {
+    console.error("Product getLowStock error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/products/inventory-summary
+export const getInventorySummary = async (_req: Request, res: Response) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        COUNT(*) AS total_products,
+        SUM(CASE WHEN is_active THEN 1 ELSE 0 END) AS active_products,
+        SUM(stock_qty) AS total_stock,
+        SUM(CASE WHEN stock_qty <= 0 THEN 1 ELSE 0 END) AS out_of_stock,
+        SUM(CASE WHEN stock_qty > 0 AND stock_qty <= 10 THEN 1 ELSE 0 END) AS low_stock
+      FROM products
+    `);
+    res.json(result.rows[0]);
+  } catch (error: any) {
+    console.error("Product getInventorySummary error:", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // DELETE /api/products/:id (soft delete)
 export const remove = async (req: Request, res: Response) => {
   try {
