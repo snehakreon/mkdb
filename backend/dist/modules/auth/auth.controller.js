@@ -1,0 +1,277 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.me = exports.accountSummary = exports.updateProfile = exports.logout = exports.refresh = exports.login = exports.register = void 0;
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const uuid_1 = require("uuid");
+const db_1 = __importDefault(require("../../config/db"));
+const generateTokens_1 = require("../../utils/generateTokens");
+// POST /api/auth/register
+const register = async (req, res) => {
+    try {
+        const { email, password, firstName, lastName, userType } = req.body;
+        const phone = req.body.phone || null;
+        // Check if user already exists
+        const conditions = ["email = $1"];
+        const params = [email];
+        if (phone) {
+            conditions.push("phone = $2");
+            params.push(phone);
+        }
+        const existing = await db_1.default.query(`SELECT id FROM users WHERE ${conditions.join(" OR ")}`, params);
+        if (existing.rows.length > 0) {
+            return res.status(409).json({ message: "User with this email or phone already exists" });
+        }
+        const hashedPassword = await bcryptjs_1.default.hash(password, 10);
+        const userId = (0, uuid_1.v4)();
+        const type = userType || "admin";
+        // Determine role based on user type
+        const roleMap = {
+            admin: "super_admin",
+            vendor: "vendor_admin",
+            buyer: "buyer_admin",
+            dealer: "dealer",
+        };
+        const role = roleMap[type] || "buyer_admin";
+        // Insert user
+        await db_1.default.query(`INSERT INTO users (id, email, phone, password_hash, first_name, last_name, user_type, is_verified)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, true)`, [userId, email, phone, hashedPassword, firstName, lastName, type]);
+        // Assign role
+        await db_1.default.query(`INSERT INTO user_roles (user_id, role, is_active)
+       VALUES ($1, $2, true)`, [userId, role]);
+        // Create corresponding record in the entity table
+        if (type === "buyer") {
+            await db_1.default.query(`INSERT INTO buyers (user_id, company_name, contact_name, email, phone, is_active)
+         VALUES ($1, $2, $3, $4, $5, true)`, [userId, `${firstName} ${lastName}`, `${firstName} ${lastName}`, email, phone]);
+        }
+        else if (type === "vendor") {
+            await db_1.default.query(`INSERT INTO vendors (user_id, company_name, contact_name, email, phone, is_active, is_verified)
+         VALUES ($1, $2, $3, $4, $5, true, false)`, [userId, `${firstName} ${lastName}`, `${firstName} ${lastName}`, email, phone]);
+        }
+        else if (type === "dealer") {
+            await db_1.default.query(`INSERT INTO dealers (user_id, company_name, contact_name, email, phone, is_active)
+         VALUES ($1, $2, $3, $4, $5, true)`, [userId, `${firstName} ${lastName}`, `${firstName} ${lastName}`, email, phone]);
+        }
+        const tokens = (0, generateTokens_1.generateTokens)(userId);
+        // Save session
+        await db_1.default.query(`INSERT INTO user_sessions (user_id, refresh_token, expires_at)
+       VALUES ($1, $2, NOW() + INTERVAL '7 days')`, [userId, tokens.refreshToken]);
+        res.status(201).json({
+            message: "User registered successfully",
+            ...tokens,
+            user: { id: userId, email, firstName, lastName, userType: type, role },
+        });
+    }
+    catch (error) {
+        console.error("Register error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.register = register;
+// POST /api/auth/login
+const login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const result = await db_1.default.query(`SELECT u.*, ur.role
+       FROM users u
+       LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.is_active = true
+       WHERE u.email = $1 AND u.is_active = true`, [email]);
+        if (result.rows.length === 0) {
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+        const user = result.rows[0];
+        // Check if account is locked
+        if (user.locked_until && new Date(user.locked_until) > new Date()) {
+            return res.status(423).json({ message: "Account locked. Try again later." });
+        }
+        const isMatch = await bcryptjs_1.default.compare(password, user.password_hash);
+        if (!isMatch) {
+            // Increment failed attempts
+            await db_1.default.query(`UPDATE users SET failed_login_attempts = failed_login_attempts + 1,
+         locked_until = CASE WHEN failed_login_attempts >= 4 THEN NOW() + INTERVAL '30 minutes' ELSE locked_until END
+         WHERE id = $1`, [user.id]);
+            return res.status(401).json({ message: "Invalid credentials" });
+        }
+        // Reset failed attempts and update last login
+        await db_1.default.query(`UPDATE users SET failed_login_attempts = 0, locked_until = NULL, last_login_at = NOW()
+       WHERE id = $1`, [user.id]);
+        const tokens = (0, generateTokens_1.generateTokens)(user.id);
+        // Save session
+        await db_1.default.query(`INSERT INTO user_sessions (user_id, refresh_token, expires_at)
+       VALUES ($1, $2, NOW() + INTERVAL '7 days')`, [user.id, tokens.refreshToken]);
+        // Collect all roles
+        const roles = result.rows.map((r) => r.role).filter(Boolean);
+        res.json({
+            ...tokens,
+            user: {
+                id: user.id,
+                email: user.email,
+                phone: user.phone,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                userType: user.user_type,
+                roles,
+            },
+        });
+    }
+    catch (error) {
+        console.error("Login error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.login = login;
+// POST /api/auth/refresh
+const refresh = async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+        if (!refreshToken) {
+            return res.status(400).json({ message: "Refresh token required" });
+        }
+        // Verify the refresh token
+        let decoded;
+        try {
+            decoded = jsonwebtoken_1.default.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+        }
+        catch {
+            return res.status(401).json({ message: "Invalid refresh token" });
+        }
+        // Check session exists
+        const session = await db_1.default.query(`SELECT id FROM user_sessions
+       WHERE user_id = $1 AND refresh_token = $2 AND expires_at > NOW()`, [decoded.userId, refreshToken]);
+        if (session.rows.length === 0) {
+            return res.status(401).json({ message: "Session expired or invalid" });
+        }
+        // Generate new tokens
+        const tokens = (0, generateTokens_1.generateTokens)(decoded.userId);
+        // Update session with new refresh token
+        await db_1.default.query(`UPDATE user_sessions SET refresh_token = $1, expires_at = NOW() + INTERVAL '7 days'
+       WHERE user_id = $2 AND refresh_token = $3`, [tokens.refreshToken, decoded.userId, refreshToken]);
+        res.json(tokens);
+    }
+    catch (error) {
+        console.error("Refresh error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.refresh = refresh;
+// POST /api/auth/logout
+const logout = async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+        if (req.user) {
+            if (refreshToken) {
+                await db_1.default.query("DELETE FROM user_sessions WHERE user_id = $1 AND refresh_token = $2", [req.user.userId, refreshToken]);
+            }
+            else {
+                // If no specific token, clear all sessions for this user
+                await db_1.default.query("DELETE FROM user_sessions WHERE user_id = $1", [
+                    req.user.userId,
+                ]);
+            }
+        }
+        res.json({ message: "Logged out successfully" });
+    }
+    catch (error) {
+        console.error("Logout error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.logout = logout;
+// PUT /api/auth/profile — update user profile
+const updateProfile = async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        const { firstName, lastName, phone } = req.body;
+        await db_1.default.query(`UPDATE users SET first_name = COALESCE($1, first_name), last_name = COALESCE($2, last_name),
+       phone = COALESCE($3, phone), updated_at = NOW()
+       WHERE id = $4`, [firstName, lastName, phone, req.user.userId]);
+        // Return updated user
+        const result = await db_1.default.query(`SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.user_type,
+              COALESCE(json_agg(ur.role) FILTER (WHERE ur.role IS NOT NULL), '[]') as roles
+       FROM users u
+       LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.is_active = true
+       WHERE u.id = $1
+       GROUP BY u.id`, [req.user.userId]);
+        const user = result.rows[0];
+        res.json({
+            id: user.id,
+            email: user.email,
+            phone: user.phone,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            userType: user.user_type,
+            roles: user.roles,
+        });
+    }
+    catch (error) {
+        console.error("Update profile error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.updateProfile = updateProfile;
+// GET /api/auth/account-summary
+const accountSummary = async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        const userId = req.user.userId;
+        const [orders, wishlist, addresses] = await Promise.all([
+            db_1.default.query("SELECT COUNT(*)::int AS count FROM orders WHERE buyer_id IN (SELECT id FROM buyers WHERE user_id = $1)", [userId]),
+            db_1.default.query("SELECT COUNT(*)::int AS count FROM wishlists WHERE user_id = $1", [userId]),
+            db_1.default.query("SELECT COUNT(*)::int AS count FROM buyer_addresses WHERE user_id = $1", [userId]),
+        ]);
+        res.json({
+            totalOrders: orders.rows[0].count,
+            wishlistItems: wishlist.rows[0].count,
+            savedAddresses: addresses.rows[0].count,
+        });
+    }
+    catch (error) {
+        console.error("Account summary error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.accountSummary = accountSummary;
+// GET /api/auth/me
+const me = async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        const result = await db_1.default.query(`SELECT u.id, u.email, u.phone, u.first_name, u.last_name, u.user_type,
+              u.is_active, u.is_verified, u.created_at,
+              COALESCE(json_agg(ur.role) FILTER (WHERE ur.role IS NOT NULL), '[]') as roles
+       FROM users u
+       LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.is_active = true
+       WHERE u.id = $1
+       GROUP BY u.id`, [req.user.userId]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        const user = result.rows[0];
+        res.json({
+            id: user.id,
+            email: user.email,
+            phone: user.phone,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            userType: user.user_type,
+            isActive: user.is_active,
+            isVerified: user.is_verified,
+            roles: user.roles,
+            createdAt: user.created_at,
+        });
+    }
+    catch (error) {
+        console.error("Me error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.me = me;
+//# sourceMappingURL=auth.controller.js.map

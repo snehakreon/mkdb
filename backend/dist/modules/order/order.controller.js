@@ -1,0 +1,353 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.remove = exports.getStatusHistory = exports.transitionStatus = exports.update = exports.create = exports.getById = exports.getMyOrderDetail = exports.getMyOrders = exports.getAll = void 0;
+const db_1 = __importDefault(require("../../config/db"));
+const pagination_1 = require("../../utils/pagination");
+const orderStateMachine_1 = require("../../utils/orderStateMachine");
+const inventory_1 = require("../../utils/inventory");
+// GET /api/orders (admin: all, buyer: own)
+const getAll = async (req, res) => {
+    try {
+        const { page, limit, offset, search } = (0, pagination_1.getPaginationParams)(req);
+        const { status } = req.query;
+        const params = [];
+        let paramIdx = 1;
+        const conditions = [];
+        if (search) {
+            conditions.push(`(o.order_number ILIKE $${paramIdx} OR b.company_name ILIKE $${paramIdx})`);
+            params.push(`%${search}%`);
+            paramIdx++;
+        }
+        if (status) {
+            conditions.push(`o.status = $${paramIdx++}`);
+            params.push(status);
+        }
+        const where = conditions.length > 0 ? ` WHERE ${conditions.join(" AND ")}` : "";
+        const countResult = await db_1.default.query(`SELECT COUNT(*) FROM orders o
+       LEFT JOIN buyers b ON o.buyer_id = b.id${where}`, params);
+        const total = parseInt(countResult.rows[0].count);
+        const result = await db_1.default.query(`SELECT o.id, o.order_number, o.status, o.payment_method, o.payment_status,
+              o.total_amount, o.shipping_address, o.notes, o.created_at, o.updated_at,
+              o.buyer_id, o.dealer_id, o.vendor_id,
+              b.company_name AS buyer_company, b.contact_name AS buyer_contact,
+              d.company_name AS dealer_company,
+              v.company_name AS vendor_company
+       FROM orders o
+       LEFT JOIN buyers b ON o.buyer_id = b.id
+       LEFT JOIN dealers d ON o.dealer_id = d.id
+       LEFT JOIN vendors v ON o.vendor_id = v.id${where}
+       ORDER BY o.created_at DESC
+       LIMIT $${paramIdx++} OFFSET $${paramIdx++}`, [...params, limit, offset]);
+        res.json((0, pagination_1.paginatedResponse)(result.rows, total, { page, limit, offset }));
+    }
+    catch (error) {
+        console.error("Order getAll error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.getAll = getAll;
+// GET /api/orders/my — buyer's own orders
+const getMyOrders = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const result = await db_1.default.query(`SELECT o.id, o.order_number, o.status, o.payment_method, o.payment_status,
+              o.total_amount, o.shipping_address, o.notes, o.created_at, o.updated_at,
+              (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS item_count
+       FROM orders o
+       JOIN buyers b ON o.buyer_id = b.id
+       WHERE b.user_id = $1
+       ORDER BY o.created_at DESC`, [userId]);
+        res.json(result.rows);
+    }
+    catch (error) {
+        console.error("Order getMyOrders error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.getMyOrders = getMyOrders;
+// GET /api/orders/my/:id — buyer's own order detail
+const getMyOrderDetail = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { id } = req.params;
+        const orderResult = await db_1.default.query(`SELECT o.id, o.order_number, o.status, o.payment_method, o.payment_status,
+              o.total_amount, o.shipping_address, o.notes, o.created_at, o.updated_at
+       FROM orders o
+       JOIN buyers b ON o.buyer_id = b.id
+       WHERE o.id = $1 AND b.user_id = $2`, [id, userId]);
+        if (orderResult.rows.length === 0) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+        const itemsResult = await db_1.default.query(`SELECT oi.id, oi.product_id, oi.quantity, oi.unit_price, oi.total_price,
+              p.name AS product_name, p.sku, p.image_url, p.unit
+       FROM order_items oi
+       LEFT JOIN products p ON oi.product_id = p.id
+       WHERE oi.order_id = $1`, [id]);
+        res.json({ ...orderResult.rows[0], items: itemsResult.rows });
+    }
+    catch (error) {
+        console.error("Order getMyOrderDetail error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.getMyOrderDetail = getMyOrderDetail;
+// GET /api/orders/:id
+const getById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const orderResult = await db_1.default.query(`SELECT o.id, o.order_number, o.status, o.payment_method, o.payment_status,
+              o.total_amount, o.shipping_address, o.notes, o.created_at, o.updated_at,
+              o.buyer_id, o.dealer_id, o.vendor_id,
+              b.company_name AS buyer_company, b.contact_name AS buyer_contact,
+              d.company_name AS dealer_company,
+              v.company_name AS vendor_company
+       FROM orders o
+       LEFT JOIN buyers b ON o.buyer_id = b.id
+       LEFT JOIN dealers d ON o.dealer_id = d.id
+       LEFT JOIN vendors v ON o.vendor_id = v.id
+       WHERE o.id = $1`, [id]);
+        if (orderResult.rows.length === 0) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+        const itemsResult = await db_1.default.query(`SELECT oi.id, oi.order_id, oi.product_id, oi.quantity, oi.unit_price, oi.total_price,
+              p.name AS product_name, p.sku
+       FROM order_items oi
+       LEFT JOIN products p ON oi.product_id = p.id
+       WHERE oi.order_id = $1`, [id]);
+        res.json({ ...orderResult.rows[0], items: itemsResult.rows });
+    }
+    catch (error) {
+        console.error("Order getById error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.getById = getById;
+// POST /api/orders
+const create = async (req, res) => {
+    const client = await db_1.default.connect();
+    try {
+        const userId = req.user?.userId;
+        const { buyer_id, dealer_id, vendor_id, shipping_address, notes, items, payment_method } = req.body;
+        await client.query("BEGIN");
+        // Auto-resolve buyer_id from logged-in user if not provided
+        let resolvedBuyerId = buyer_id || null;
+        if (!resolvedBuyerId && userId) {
+            const buyerResult = await client.query(`SELECT id FROM buyers WHERE user_id = $1 AND is_active = true LIMIT 1`, [userId]);
+            if (buyerResult.rows.length > 0) {
+                resolvedBuyerId = buyerResult.rows[0].id;
+            }
+        }
+        // Generate order number
+        const countResult = await client.query("SELECT COUNT(*) FROM orders");
+        const orderNum = String(Number(countResult.rows[0].count) + 1).padStart(7, "0");
+        const order_number = `ORD-${orderNum}`;
+        // Calculate total from items
+        let total_amount = 0;
+        if (items && items.length > 0) {
+            for (const item of items) {
+                total_amount += item.quantity * item.unit_price;
+            }
+        }
+        const orderResult = await client.query(`INSERT INTO orders (order_number, buyer_id, dealer_id, vendor_id, status,
+                           payment_method, payment_status, total_amount, shipping_address, notes)
+       VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, $8, $9)
+       RETURNING *`, [order_number, resolvedBuyerId, dealer_id || null, vendor_id || null,
+            payment_method || "cod",
+            payment_method === "cod" ? "unpaid" : "unpaid",
+            total_amount, shipping_address || null, notes || null]);
+        const order_id = orderResult.rows[0].id;
+        // Insert order items
+        if (items && items.length > 0) {
+            for (const item of items) {
+                const total_price = item.quantity * item.unit_price;
+                await client.query(`INSERT INTO order_items (order_id, product_id, quantity, unit_price, total_price)
+           VALUES ($1, $2, $3, $4, $5)`, [order_id, item.product_id, item.quantity, item.unit_price, total_price]);
+            }
+        }
+        // Decrement inventory for each item (never rejects — back-orders if needed)
+        let inventoryResult = null;
+        if (items && items.length > 0) {
+            inventoryResult = await (0, inventory_1.decrementInventory)(client, items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })), order_id, userId);
+            // Set expected delivery date on the order
+            await client.query(`UPDATE orders SET expected_delivery_date = $1 WHERE id = $2`, [inventoryResult.expected_delivery_date, order_id]);
+        }
+        // Clear the user's cart after successful order
+        if (userId) {
+            await client.query(`DELETE FROM cart_items WHERE user_id = $1`, [userId]);
+        }
+        await client.query("COMMIT");
+        // Re-fetch order with updated expected_delivery_date
+        const finalOrder = await db_1.default.query(`SELECT * FROM orders WHERE id = $1`, [order_id]);
+        const response = {
+            ...finalOrder.rows[0],
+            ...(inventoryResult && {
+                fulfillment: inventoryResult.fulfillment,
+                has_back_order: inventoryResult.has_back_order,
+                expected_delivery_date: inventoryResult.expected_delivery_date,
+            }),
+            ...(inventoryResult?.low_stock_alerts?.length > 0 && {
+                low_stock_alerts: inventoryResult.low_stock_alerts,
+            }),
+        };
+        res.status(201).json(response);
+    }
+    catch (error) {
+        await client.query("ROLLBACK");
+        console.error("Order create error:", error);
+        res.status(500).json({ message: error.message });
+    }
+    finally {
+        client.release();
+    }
+};
+exports.create = create;
+// PUT /api/orders/:id (update fields — status change uses state machine)
+const update = async (req, res) => {
+    const client = await db_1.default.connect();
+    try {
+        const { id } = req.params;
+        const { status, total_amount, shipping_address, notes, vendor_id, payment_status } = req.body;
+        await client.query("BEGIN");
+        // If status change requested, validate via state machine
+        if (status) {
+            const currentResult = await client.query("SELECT status FROM orders WHERE id = $1 FOR UPDATE", [id]);
+            if (currentResult.rows.length === 0) {
+                await client.query("ROLLBACK");
+                return res.status(404).json({ message: "Order not found" });
+            }
+            const currentStatus = currentResult.rows[0].status;
+            const validation = (0, orderStateMachine_1.validateTransition)(currentStatus, status);
+            if (!validation.valid) {
+                await client.query("ROLLBACK");
+                return res.status(400).json({ message: validation.message });
+            }
+            // Log status change in order_status_history
+            await client.query(`INSERT INTO order_status_history (order_id, from_status, to_status, changed_by, notes)
+         VALUES ($1, $2, $3, $4, $5)`, [id, currentStatus, status, req.user?.userId || null, notes || null]);
+        }
+        const result = await client.query(`UPDATE orders SET
+        status = COALESCE($1, status),
+        total_amount = COALESCE($2, total_amount),
+        shipping_address = COALESCE($3, shipping_address),
+        notes = COALESCE($4, notes),
+        vendor_id = COALESCE($5, vendor_id),
+        payment_status = COALESCE($6, payment_status),
+        updated_at = NOW()
+       WHERE id = $7
+       RETURNING *`, [status, total_amount, shipping_address, notes, vendor_id, payment_status, id]);
+        if (result.rows.length === 0) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ message: "Order not found" });
+        }
+        await client.query("COMMIT");
+        res.json(result.rows[0]);
+    }
+    catch (error) {
+        await client.query("ROLLBACK");
+        console.error("Order update error:", error);
+        res.status(500).json({ message: error.message });
+    }
+    finally {
+        client.release();
+    }
+};
+exports.update = update;
+// POST /api/orders/:id/transition — dedicated status transition endpoint
+const transitionStatus = async (req, res) => {
+    const client = await db_1.default.connect();
+    try {
+        const { id } = req.params;
+        const { status, notes } = req.body;
+        if (!status) {
+            return res.status(400).json({ message: "Target status is required" });
+        }
+        await client.query("BEGIN");
+        const currentResult = await client.query("SELECT id, order_number, status FROM orders WHERE id = $1 FOR UPDATE", [id]);
+        if (currentResult.rows.length === 0) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ message: "Order not found" });
+        }
+        const order = currentResult.rows[0];
+        const validation = (0, orderStateMachine_1.validateTransition)(order.status, status);
+        if (!validation.valid) {
+            await client.query("ROLLBACK");
+            return res.status(400).json({
+                message: validation.message,
+                current_status: order.status,
+                allowed_transitions: (0, orderStateMachine_1.getNextStatuses)(order.status),
+            });
+        }
+        // Log the transition
+        await client.query(`INSERT INTO order_status_history (order_id, from_status, to_status, changed_by, notes)
+       VALUES ($1, $2, $3, $4, $5)`, [id, order.status, status, req.user?.userId || null, notes || null]);
+        const result = await client.query(`UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`, [status, id]);
+        await client.query("COMMIT");
+        res.json({
+            ...result.rows[0],
+            previous_status: order.status,
+            allowed_transitions: (0, orderStateMachine_1.getNextStatuses)(status),
+        });
+    }
+    catch (error) {
+        await client.query("ROLLBACK");
+        console.error("Order transition error:", error);
+        res.status(500).json({ message: error.message });
+    }
+    finally {
+        client.release();
+    }
+};
+exports.transitionStatus = transitionStatus;
+// GET /api/orders/:id/history — get status change history
+const getStatusHistory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await db_1.default.query(`SELECT osh.id, osh.from_status, osh.to_status, osh.notes, osh.created_at,
+              u.email AS changed_by_email
+       FROM order_status_history osh
+       LEFT JOIN users u ON osh.changed_by = u.id
+       WHERE osh.order_id = $1
+       ORDER BY osh.created_at ASC`, [id]);
+        res.json(result.rows);
+    }
+    catch (error) {
+        console.error("Order history error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.getStatusHistory = getStatusHistory;
+// DELETE /api/orders/:id (cancel order + restore inventory)
+const remove = async (req, res) => {
+    const client = await db_1.default.connect();
+    try {
+        const { id } = req.params;
+        await client.query("BEGIN");
+        const result = await client.query(`UPDATE orders SET status = 'cancelled', updated_at = NOW()
+       WHERE id = $1 AND status NOT IN ('delivered', 'cancelled')
+       RETURNING id, order_number, status`, [id]);
+        if (result.rows.length === 0) {
+            await client.query("ROLLBACK");
+            return res.status(404).json({ message: "Order not found or cannot be cancelled" });
+        }
+        // Restore inventory for cancelled order
+        await (0, inventory_1.restoreInventory)(client, id);
+        // Log cancellation in history
+        await client.query(`INSERT INTO order_status_history (order_id, from_status, to_status, notes)
+       VALUES ($1, $2, 'cancelled', 'Order cancelled')`, [id, result.rows[0].status === "cancelled" ? "pending" : result.rows[0].status]);
+        await client.query("COMMIT");
+        res.json({ message: "Order cancelled, inventory restored", order: result.rows[0] });
+    }
+    catch (error) {
+        await client.query("ROLLBACK");
+        console.error("Order cancel error:", error);
+        res.status(500).json({ message: error.message });
+    }
+    finally {
+        client.release();
+    }
+};
+exports.remove = remove;
+//# sourceMappingURL=order.controller.js.map
