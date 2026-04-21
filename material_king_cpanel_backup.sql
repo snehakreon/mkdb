@@ -1181,3 +1181,17 @@ FROM users u
 WHERE u.user_type = 'dealer'
   AND u.is_active = true
   AND NOT EXISTS (SELECT 1 FROM dealers d WHERE d.user_id = u.id);
+
+--pricing-tiers
+  CREATE TABLE IF NOT EXISTS pricing_tiers (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    min_qty INTEGER NOT NULL,
+    max_qty INTEGER,
+    price_per_unit NUMERIC(12,2) NOT NULL,
+    label VARCHAR(100),
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_pricing_tiers_product ON pricing_tiers(product_id);
+
